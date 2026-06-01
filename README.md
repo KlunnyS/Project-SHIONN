@@ -1,8 +1,8 @@
-# Project SIONN
+# Project SHIONN
 
-# SIONN — Self-learning Independent Optical Neural Network
+# SHIONN — Self-learning Hybrid Independent Optical Neural Network
 
-SIONN is an experimental AI agent designed for the *Portal 2* environment, built to operate as a fully autonomous test subject capable of learning directly from visual input and interacting with puzzle-based physics systems.
+SHIONN is an experimental AI agent designed for the *Portal 2* environment, built to operate as a fully autonomous test subject capable of learning directly from visual input and interacting with puzzle-based physics systems.
 
 The goal of this project is to explore reinforcement learning, imitation learning, and curriculum learning in a structured physics-puzzle environment using only pixel-based perception and keyboard/mouse action control.
 
@@ -10,15 +10,15 @@ The goal of this project is to explore reinforcement learning, imitation learnin
 
 ## 🧠 Concept
 
-SIONN (**Self-learning Independent Optical Neural Network**) is a single-player autonomous robot designed for iterative problem solving inside Portal-style test chambers.
+SHIONN (**Self-learning Hybrid Independent Optical Neural Network**) is a single-player autonomous robot designed for iterative problem solving inside Portal-style test chambers.
 
-Unlike scripted bots or rule-based agents, SIONN:
+Unlike scripted bots or rule-based agents, SHIONN:
 
 * Observes the environment through raw screen pixels
 * Builds an internal model of spatial relationships
 * Learns from trial-and-error interactions
 * Continuously improves through reinforcement feedback
-* Develops increasingly complex skills through curriculum learning
+* Combines multiple learning paradigms into a unified system (imitation + reinforcement + curriculum learning)
 
 ---
 
@@ -30,7 +30,6 @@ Unlike scripted bots or rule-based agents, SIONN:
 * Support generalization across custom test chambers
 * Learn progressively from simple movement to advanced portal mechanics
 * Combine:
-
   * Imitation Learning
   * Reinforcement Learning
   * Curriculum Learning
@@ -74,23 +73,20 @@ Training speed is limited by:
 
 ---
 
+
 ## Stage 0 — Environment Setup
 
-### Goal
+Goal: Create a stable AI training environment around Portal 2.
 
-Create a stable AI training environment around Portal 2.
-
-### Requirements
-
+Requirements:
 * Screen capture pipeline
 * Input control system
 * Automatic chamber reset
 * Episode logging
 * Dataset recording tools
 
-### Deliverable
-
-A Gym-like environment capable of:
+Deliverable:
+A Gym-like environment:
 
 ```python
 obs = env.reset()
@@ -474,7 +470,7 @@ General-purpose Portal reasoning.
 # 📦 Project Structure
 
 ```text
-SIONN/
+SHIONN/
 │
 ├── data/
 │   ├── recordings/
@@ -508,7 +504,7 @@ SIONN/
 
 # 🚀 Long-Term Vision
 
-SIONN aims to become a fully autonomous Portal test subject capable of:
+SHIONN aims to become a fully autonomous Portal test subject capable of:
 
 * Navigating unfamiliar chambers
 * Understanding puzzle mechanics
