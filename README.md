@@ -1,6 +1,5 @@
 # Project-SIONN
 
----
 
 # SIONN — Self-learning Independent Optical Neural Network
 
