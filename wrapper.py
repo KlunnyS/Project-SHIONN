@@ -103,28 +103,54 @@ class Portal2Controller:
             print("Warning: Timed out waiting for map to load.")
             return False
 
-    def move_forward(self, state=True):
-        cmd = "+forward" if state else "-forward"
-        self.send_command(cmd)
+    def move_forward(self, duration=None, state=True):
+        if duration is not None:
+            print(f"Walking forward for {duration}s...")
+            self.send_command("+forward")
+            time.sleep(duration)
+            self.send_command("-forward")
+        else:
+            cmd = "+forward" if state else "-forward"
+            self.send_command(cmd)
 
-    def move_backward(self, state=True):
-        cmd = "+back" if state else "-back"
-        self.send_command(cmd)
+    def move_backward(self, duration=None, state=True):
+        if duration is not None:
+            print(f"Walking backward for {duration}s...")
+            self.send_command("+back")
+            time.sleep(duration)
+            self.send_command("-back")
+        else:
+            cmd = "+back" if state else "-back"
+            self.send_command(cmd)
 
-    def move_left(self, state=True):
-        cmd = "+moveleft" if state else "-moveleft"
-        self.send_command(cmd)
+    def move_left(self, duration=None, state=True):
+        if duration is not None:
+            print(f"Walking left for {duration}s...")
+            self.send_command("+moveleft")
+            time.sleep(duration)
+            self.send_command("-moveleft")
+        else:
+            cmd = "+moveleft" if state else "-moveleft"
+            self.send_command(cmd)
 
-    def move_right(self, state=True):
-        cmd = "+moveright" if state else "-moveright"
-        self.send_command(cmd)
+    def move_right(self, duration=None, state=True):
+        if duration is not None:
+            print(f"Walking right for {duration}s...")
+            self.send_command("+moveright")
+            time.sleep(duration)
+            self.send_command("-moveright")
+        else:
+            cmd = "+moveright" if state else "-moveright"
+            self.send_command(cmd)
         
     def jump(self):
+        print("Jumping...")
         self.send_command("+jump")
         time.sleep(0.1)
         self.send_command("-jump")
         
     def interact(self):
+        print("Interacting (use)...")
         self.send_command("+use")
         time.sleep(0.1)
         self.send_command("-use")
@@ -148,6 +174,7 @@ class Portal2Controller:
 
     def move_mouse(self, dx, dy, steps=1, delay=0.01):
         """Simulates raw mouse movement using evdev."""
+        print(f"Moving mouse (dx={dx}, dy={dy}, steps={steps})...")
         if not self.ui:
             if not self.init_virtual_mouse():
                 return

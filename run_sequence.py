@@ -70,51 +70,38 @@ def main():
             time.sleep(1.0)
             
     print("\nPlayer has active control. Starting the specific movement sequence in 1 second...")
-    time.sleep(1.0)
+    time.sleep(3.0)
     
     # --- The Sequence ---
     
-    # 1. Walk forward for 2 seconds
-    print("1. Walking forward (2s)...")
-    controller.move_forward(True)
-    time.sleep(2.0)
-    controller.move_forward(False)
+    # 1. Walk forward
+    controller.move_forward(duration=3.5)
     time.sleep(0.5)
     
     # 2. Grab
-    print("2. Grabbing (interact)...")
     controller.interact()
     time.sleep(0.5)
     
-    # 3. Turn ~45 degrees right
-    # (Note: Exact degrees depend on your in-game mouse sensitivity. This simulates a continuous sweep.)
-    print("3. Turning right (~45 degrees)...")
-    controller.move_mouse(dx=20, dy=0, steps=15, delay=0.01)
+    # 3. Turn right (~45 degrees)
+    controller.move_mouse(dx=60, dy=0, steps=15, delay=0.01)
     time.sleep(0.5)
     
     # 4. Walk a little forward
-    print("4. Walking forward (1s)...")
-    controller.move_forward(True)
-    time.sleep(1.0)
-    controller.move_forward(False)
+    controller.move_forward(duration=0.5)
     time.sleep(0.5)
     
     # 5. Drop
-    print("5. Dropping object...")
     controller.interact()
     time.sleep(0.5)
     
-    # 6. Turn ~45 degrees left (back to original heading)
-    print("6. Turning left (~45 degrees)...")
-    controller.move_mouse(dx=-20, dy=0, steps=15, delay=0.01)
+    # 6. Turn left (~45 degrees)
+    controller.move_mouse(dx=-120, dy=0, steps=15, delay=0.01)
     time.sleep(0.5)
     
     # 7. Walk forward
-    print("7. Walking forward (2s)...")
-    controller.move_forward(True)
-    time.sleep(2.0)
-    controller.move_forward(False)
-    
+    controller.move_forward(duration=2.0)
+    time.sleep(0.5)
+
     print("\n--- Sequence Complete ---")
     controller.disconnect()
 
