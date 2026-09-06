@@ -220,9 +220,13 @@ class Portal2Controller:
         cmd = "+use" if state else "-use"
         self.send_command(cmd)
 
-    def play_csv(self, csv_path, fps=20, mouse_scale=1.0):
+    def play_csv(self, csv_path, fps=20, mouse_scale=1.0, countdown=3):
         import csv
         import time
+        if countdown > 0:
+            print(f"\n--- Testing Playback ---")
+            print(f"Hands off the keyboard! Playing back in {countdown} seconds...")
+            time.sleep(countdown)
         print(f"Playing back {csv_path} at {fps} FPS (Mouse scale: {mouse_scale})...")
         tick_duration = 1.0 / fps
         
@@ -315,13 +319,24 @@ class Portal2Controller:
         self.fire_right(state=False)
         print("Playback finished.")
 
-    def start_recording(self, fps=20):
+    def start_recording(self, fps=20, countdown=3, duration=None, outcome="manual_test"):
+        import time
+        if countdown > 0:
+            print(f"\n--- Testing Programmatic Recording ---")
+            print(f"Recording will start in {countdown} seconds. Move around!")
+            time.sleep(countdown)
+            
         if not self.recorder:
             from recorder import EpisodeRecorder
             self.recorder = EpisodeRecorder(fps=fps, controller=self)
             self.recorder.tracker.start()
             self.recorder.camera.start()
         self.recorder.start_recording()
+        
+        if duration is not None:
+            print(f"Recording for {duration} seconds...")
+            time.sleep(duration)
+            self.stop_recording(outcome=outcome)
 
     def stop_recording(self, outcome="unknown"):
         if self.recorder:

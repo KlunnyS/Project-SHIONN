@@ -11,29 +11,11 @@ def main():
         print("Failed to connect.")
         return
 
-    print("\n--- Testing Programmatic Recording ---")
-    print("Recording will start in 3 seconds. Move around!")
-    time.sleep(3)
-    
-    # # Start recording manually
-    # controller.start_recording(fps=60)
-    
-    # # Record for 5 seconds
-    # time.sleep(40)
-    
-    # # Stop recording manually
-    # controller.stop_recording(outcome="overcompensation_test")
-    
-    # Note: Get the latest CSV file path from your 'episodes' folder
-    latest_csv = "episodes/episode_20260906_150852_overcompensation_test/actions.csv"
-    
-    # Example Playback:
-    print("\n--- Testing Playback ---")
-    print("Hands off the keyboard! Playing back in 3 seconds...")
-    time.sleep(3)
-    controller.play_csv(latest_csv, fps=60)
-    
-    controller.disconnect()
+    controller.start_recording(fps=60, duration=60, outcome="maunal_test")
+ 
+    # latest_csv = "episodes/episode_20260906_150852_overcompensation_test/actions.csv"
+    # controller.play_csv(latest_csv, fps=60)
+    # controller.disconnect()
 
 if __name__ == "__main__":
     main()
