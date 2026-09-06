@@ -11,11 +11,13 @@ def main():
         print("Failed to connect.")
         return
 
-    controller.start_recording(fps=60, duration=60, outcome="maunal_test")
+    # controller.start_recording(fps=60, duration=30, outcome="maunal_test")
  
-    # latest_csv = "episodes/episode_20260906_150852_overcompensation_test/actions.csv"
-    # controller.play_csv(latest_csv, fps=60)
-    # controller.disconnect()
+    controller.play_csv(csv_path="episodes/episode_20260906_173008_maunal_test/actions.csv", fps=60)
+    controller.disconnect()
+
+
+    time.sleep(0.5)
 
 if __name__ == "__main__":
     main()

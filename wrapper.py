@@ -11,6 +11,7 @@ class Portal2Controller:
         self.ui = None
         self.recorder = None
         self.log_file = log_file
+        self.event_buffer = []  # Stores recent console lines for I/O checking
         # Clear the log file at startup
         if self.log_file:
             with open(self.log_file, 'w') as f:
@@ -60,6 +61,12 @@ class Portal2Controller:
             pass
         except Exception as e:
             print(f"Error reading console: {e}")
+            
+        if output:
+            self.event_buffer.extend(output.splitlines())
+            # Keep buffer from growing infinitely
+            if len(self.event_buffer) > 1000:
+                self.event_buffer = self.event_buffer[-1000:]
             
         if output and self.log_file:
             import datetime
@@ -163,6 +170,31 @@ class Portal2Controller:
         self.send_command("+use")
         time.sleep(0.1)
         self.send_command("-use")
+
+    def enable_io_logging(self):
+        """Enables Source Engine developer logging so entity I/O (like brush triggers) print to the console."""
+        print("Enabling Engine I/O logging...")
+        self.send_command("developer 1")
+        self.send_command("ent_messages_draw 1")
+        
+    def check_event(self, event_substring, clear_buffer=True):
+        """
+        Checks if a specific string (like a brush trigger name) was logged in the console.
+        Returns True if found, False otherwise.
+        """
+        # Ensure we have the latest console output
+        self.read_console(print_to_terminal=False)
+        
+        found = False
+        for line in self.event_buffer:
+            if event_substring in line:
+                found = True
+                break
+                
+        if clear_buffer:
+            self.event_buffer.clear()
+            
+        return found
 
     def init_virtual_mouse(self):
         """Initializes a virtual mouse device using evdev for hardware-level simulation."""
