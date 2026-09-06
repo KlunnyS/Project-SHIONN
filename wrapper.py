@@ -9,6 +9,7 @@ class Portal2Controller:
         self.port = port
         self.sock = None
         self.ui = None
+        self.recorder = None
         self.log_file = log_file
         # Clear the log file at startup
         if self.log_file:
@@ -61,8 +62,16 @@ class Portal2Controller:
             print(f"Error reading console: {e}")
             
         if output and self.log_file:
+            import datetime
+            ts = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S.%f] ")
+            # Prefix every line with the timestamp
+            formatted = ts + output.replace('\n', '\n' + ts)
+            # Remove trailing empty prefix if output ended in newline
+            if formatted.endswith(ts):
+                formatted = formatted[:-len(ts)]
+                
             with open(self.log_file, 'a') as f:
-                f.write(output)
+                f.write(formatted)
                 
         return output
 
@@ -190,6 +199,133 @@ class Portal2Controller:
                 time.sleep(delay)
         except Exception as ex:
             print(f"Error during mouse movement: {ex}")
+
+    def fire_left(self, state=True):
+        cmd = "+attack" if state else "-attack"
+        self.send_command(cmd)
+
+    def fire_right(self, state=True):
+        cmd = "+attack2" if state else "-attack2"
+        self.send_command(cmd)
+
+    def jump_state(self, state=True):
+        cmd = "+jump" if state else "-jump"
+        self.send_command(cmd)
+        
+    def crouch_state(self, state=True):
+        cmd = "+duck" if state else "-duck"
+        self.send_command(cmd)
+        
+    def interact_state(self, state=True):
+        cmd = "+use" if state else "-use"
+        self.send_command(cmd)
+
+    def play_csv(self, csv_path, fps=20, mouse_scale=1.0):
+        import csv
+        import time
+        print(f"Playing back {csv_path} at {fps} FPS (Mouse scale: {mouse_scale})...")
+        tick_duration = 1.0 / fps
+        
+        state = {
+            'w': 0, 'a': 0, 's': 0, 'd': 0,
+            'jump': 0, 'crouch': 0, 'use': 0, 'fire_left': 0, 'fire_right': 0
+        }
+        
+        with open(csv_path, 'r') as f:
+            reader = csv.DictReader(f)
+            next_tick = time.time()
+            for row in reader:
+                dx = int(int(row['mouse_dx']) * mouse_scale)
+                dy = int(int(row['mouse_dy']) * mouse_scale)
+                
+                if int(row['move_w']) != state['w']:
+                    state['w'] = int(row['move_w'])
+                    self.move_forward(state=bool(state['w']))
+                if int(row['move_a']) != state['a']:
+                    state['a'] = int(row['move_a'])
+                    self.move_left(state=bool(state['a']))
+                if int(row['move_s']) != state['s']:
+                    state['s'] = int(row['move_s'])
+                    self.move_backward(state=bool(state['s']))
+                if int(row['move_d']) != state['d']:
+                    state['d'] = int(row['move_d'])
+                    self.move_right(state=bool(state['d']))
+                if int(row['jump']) != state['jump']:
+                    state['jump'] = int(row['jump'])
+                    self.jump_state(state=bool(state['jump']))
+                if int(row['crouch']) != state['crouch']:
+                    state['crouch'] = int(row['crouch'])
+                    self.crouch_state(state=bool(state['crouch']))
+                if int(row['use']) != state['use']:
+                    state['use'] = int(row['use'])
+                    self.interact_state(state=bool(state['use']))
+                if int(row['fire_left']) != state['fire_left']:
+                    state['fire_left'] = int(row['fire_left'])
+                    self.fire_left(state=bool(state['fire_left']))
+                if int(row['fire_right']) != state['fire_right']:
+                    state['fire_right'] = int(row['fire_right'])
+                    self.fire_right(state=bool(state['fire_right']))
+                
+                # Smoothly interpolate mouse movement over the 50ms tick to prevent acceleration spikes
+                mouse_steps = 10
+                step_sleep = tick_duration / mouse_steps
+                step_dx = dx / mouse_steps
+                step_dy = dy / mouse_steps
+                acc_dx = 0.0
+                acc_dy = 0.0
+                
+                for _ in range(mouse_steps):
+                    loop_start = time.time()
+                    
+                    acc_dx += step_dx
+                    acc_dy += step_dy
+                    send_dx = int(acc_dx)
+                    send_dy = int(acc_dy)
+                    acc_dx -= send_dx
+                    acc_dy -= send_dy
+                    
+                    if send_dx != 0 or send_dy != 0:
+                        # Call internal ui directly to avoid console spam from move_mouse
+                        if not self.ui:
+                            self.init_virtual_mouse()
+                        if self.ui:
+                            from evdev import ecodes as e
+                            if send_dx != 0: self.ui.write(e.EV_REL, e.REL_X, send_dx)
+                            if send_dy != 0: self.ui.write(e.EV_REL, e.REL_Y, send_dy)
+                            self.ui.syn()
+                            
+                    elapsed = time.time() - loop_start
+                    if step_sleep - elapsed > 0:
+                        time.sleep(step_sleep - elapsed)
+                
+                next_tick += tick_duration
+                sleep_time = next_tick - time.time()
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+        
+        # Reset all keys
+        self.move_forward(state=False)
+        self.move_left(state=False)
+        self.move_backward(state=False)
+        self.move_right(state=False)
+        self.jump_state(state=False)
+        self.crouch_state(state=False)
+        self.interact_state(state=False)
+        self.fire_left(state=False)
+        self.fire_right(state=False)
+        print("Playback finished.")
+
+    def start_recording(self, fps=20):
+        if not self.recorder:
+            from recorder import EpisodeRecorder
+            self.recorder = EpisodeRecorder(fps=fps, controller=self)
+            self.recorder.tracker.start()
+            self.recorder.camera.start()
+        self.recorder.start_recording()
+
+    def stop_recording(self, outcome="unknown"):
+        if self.recorder:
+            self.recorder.stop_recording(outcome=outcome)
 
     def disconnect(self):
         if self.sock:
