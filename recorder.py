@@ -1,4 +1,13 @@
 import os
+import sys
+import glob
+
+# Ensure local .venv packages are accessible even when run outside active venv or via sudo
+_repo_dir = os.path.dirname(os.path.abspath(__file__))
+_venv_sites = glob.glob(os.path.join(_repo_dir, ".venv", "lib", "python*", "site-packages"))
+if _venv_sites and _venv_sites[0] not in sys.path:
+    sys.path.insert(0, _venv_sites[0])
+
 import cv2
 import csv
 import time
@@ -26,6 +35,15 @@ def find_input_devices():
             if evdev.ecodes.REL_X in rels and evdev.ecodes.REL_Y in rels:
                 mice.append(device)
                 print(f"Found mouse: {device.name} ({device.path})")
+        # Look for touchpad / trackpad (EV_ABS with ABS_X and ABS_Y)
+        elif evdev.ecodes.EV_ABS in cap:
+            abs_axes = cap[evdev.ecodes.EV_ABS]
+            if evdev.ecodes.ABS_X in abs_axes and evdev.ecodes.ABS_Y in abs_axes:
+                name_lower = device.name.lower()
+                key_cap = cap.get(evdev.ecodes.EV_KEY, [])
+                if "touchpad" in name_lower or "trackpad" in name_lower or evdev.ecodes.BTN_TOUCH in key_cap:
+                    mice.append(device)
+                    print(f"Found touchpad: {device.name} ({device.path})")
                     
         # Look for keyboard (EV_KEY with W, A, S, D)
         if evdev.ecodes.EV_KEY in cap:
@@ -93,6 +111,8 @@ class InputTracker:
             print(f"Keyboard loop error ({kbd.name}): {e}")
                         
     def _mouse_loop(self, mouse):
+        last_abs_x = None
+        last_abs_y = None
         try:
             for event in mouse.read_loop():
                 if not self.running: break
@@ -102,8 +122,22 @@ class InputTracker:
                             self.mouse_dx += event.value
                         elif event.code == evdev.ecodes.REL_Y:
                             self.mouse_dy += event.value
+                elif event.type == evdev.ecodes.EV_ABS:
+                    with self.mouse_lock:
+                        if event.code == evdev.ecodes.ABS_X:
+                            if last_abs_x is not None:
+                                self.mouse_dx += (event.value - last_abs_x)
+                            last_abs_x = event.value
+                        elif event.code == evdev.ecodes.ABS_Y:
+                            if last_abs_y is not None:
+                                self.mouse_dy += (event.value - last_abs_y)
+                            last_abs_y = event.value
                 elif event.type == evdev.ecodes.EV_KEY:
-                    if event.code == evdev.ecodes.BTN_LEFT:
+                    if event.code == evdev.ecodes.BTN_TOUCH and event.value == 0:
+                        # Reset tracking points when finger is lifted to prevent jumps
+                        last_abs_x = None
+                        last_abs_y = None
+                    if event.code in (evdev.ecodes.BTN_LEFT, evdev.ecodes.BTN_TOUCH):
                         is_down = event.value in (1, 2)
                         self.keys_held['BTN_LEFT'] = is_down
                         if is_down: self.keys_pressed_this_tick['BTN_LEFT'] = True
@@ -112,7 +146,7 @@ class InputTracker:
                         self.keys_held['BTN_RIGHT'] = is_down
                         if is_down: self.keys_pressed_this_tick['BTN_RIGHT'] = True
         except Exception as e:
-            print(f"Mouse loop error ({mouse.name}): {e}")
+            print(f"Mouse/touchpad loop error ({mouse.name}): {e}")
                     
     def get_snapshot_and_reset(self):
         with self.mouse_lock:

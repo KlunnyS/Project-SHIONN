@@ -11,9 +11,9 @@ def main():
         print("Failed to connect.")
         return
 
-    # controller.start_recording(fps=60, duration=30, outcome="maunal_test")
+    # controller.start_recording(fps=60, duration=30, outcome="laptop_test")
  
-    controller.play_csv(csv_path="episodes/episode_20260906_173008_maunal_test/actions.csv", fps=60)
+    controller.play_csv(csv_path="sequences/TEST_0_mimic_sequence/actions.csv", fps=60)
     controller.disconnect()
 
 

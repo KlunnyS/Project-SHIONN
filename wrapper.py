@@ -2,6 +2,14 @@ import subprocess
 import socket
 import time
 import sys
+import os
+import glob
+
+# Ensure local .venv packages are accessible even when run outside active venv or via sudo
+_repo_dir = os.path.dirname(os.path.abspath(__file__))
+_venv_sites = glob.glob(os.path.join(_repo_dir, ".venv", "lib", "python*", "site-packages"))
+if _venv_sites and _venv_sites[0] not in sys.path:
+    sys.path.insert(0, _venv_sites[0])
 
 class Portal2Controller:
     """Handles communication and movement commands for Portal 2 via the developer console network port."""
@@ -207,10 +215,10 @@ class Portal2Controller:
             self.ui = UInput(capabilities, name="portal2-wrapper-mouse")
             return True
         except ImportError:
-            print("Warning: 'evdev' module not found. Mouse simulation disabled.")
+            print("Warning: 'evdev' module not found. Mouse simulation disabled. (Run using .venv/bin/python or run 'source .venv/bin/activate')")
             return False
         except Exception as ex:
-            print(f"Warning: Could not create virtual mouse ({ex}). You may need to run with sudo.")
+            print(f"Warning: Could not create virtual mouse ({ex}). You may need to run with sudo or configure uinput permissions.")
             return False
 
     def move_mouse(self, dx, dy, steps=1, delay=0.01):
