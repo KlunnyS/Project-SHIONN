@@ -91,6 +91,7 @@ check_python_module() {
 check_python_module "evdev" "evdev"
 check_python_module "numpy" "numpy"
 check_python_module "opencv-python" "cv2"
+check_python_module "torch" "torch"
 
 # 3. System Utilities Check
 print_header "3. System Tools & Binaries"

@@ -73,6 +73,15 @@ class ImitationPipelineTest(unittest.TestCase):
             self.assertIn("width=64", codec)
             self.assertIn("height=64", codec)
             self.assertIn("avg_frame_rate=24/1", codec)
+            stream_types = subprocess.check_output(
+                [
+                    "ffprobe", "-v", "error",
+                    "-show_entries", "stream=codec_type",
+                    "-of", "csv=p=0", str(output),
+                ],
+                text=True,
+            ).splitlines()
+            self.assertEqual(stream_types, ["video"])
 
     def test_checkpoint_resumes_optimizer_and_inference_uses_saved_preprocessing(self):
         with tempfile.TemporaryDirectory() as temporary_directory:

@@ -299,7 +299,15 @@ class EpisodeRecorder:
     Resolution and tick rate remain arguments for diagnostics and legacy data,
     but new recordings default to the 1920x1080 / 24 Hz dataset contract.
     """
-    def __init__(self, fps=24, width=1920, height=1080, video_crf=20, controller=None):
+    def __init__(
+        self,
+        fps=24,
+        width=1920,
+        height=1080,
+        video_crf=20,
+        controller=None,
+        output_name=None,
+    ):
         self.fps = fps
         self.kbds, self.mice = find_input_devices()
         if not self.kbds or not self.mice:
@@ -308,7 +316,7 @@ class EpisodeRecorder:
             
         self.tracker = InputTracker(self.kbds, self.mice)
         
-        out_name = get_default_output()
+        out_name = output_name if output_name is not None else get_default_output()
         self.width = width
         self.height = height
         self.video_crf = video_crf
@@ -329,7 +337,9 @@ class EpisodeRecorder:
         
     def start_recording(self):
         print("\n--- STARTING RECORDING ---")
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Include microseconds so rapid automatic map resets cannot reuse an
+        # episode directory created earlier in the same second.
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         self.ep_dir = os.path.join("episodes", f"episode_{timestamp}")
         os.makedirs(self.ep_dir, exist_ok=True)
         

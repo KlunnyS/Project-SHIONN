@@ -138,15 +138,24 @@ Puzzle Maker alone cannot express custom VScript triggers and always compiles to
 
 ### VScript event hooks
 
-A single shared `.nut` script, referenced by every chamber's `logic_script` entity, exposes generic signal functions:
+A single shared `.nut` script, referenced by every chamber's `logic_script` entity, exposes guarded signal functions. The repository copy is `portal_assets/scripts/vscripts/shionn_events.nut`; copy it to Portal 2's `portal2/scripts/vscripts/shionn_events.nut` before compiling or running the map.
 
 ```squirrel
-function SignalChamberReady() { printl("EVT|chamber_ready|" + Time()) }
-function SignalGoalReached()  { printl("EVT|goal_reached|1") }
-function SignalEpisodeFailed(reason) { printl("EVT|episode_failed|" + reason) }
+function SignalChamberReady() { SHIONNEmitEvent("chamber_ready", Time()); }
+function SignalGoalReached() { SHIONNEmitEvent("goal_reached", 1); }
+function SignalEpisodeFailed(reason) { SHIONNEmitEvent("episode_failed", reason); }
 ```
 
-Each chamber wires these to specific brushes: a start-of-chamber trigger (fired shortly after spawn, not immediately on map load) calls `SignalChamberReady`; a `trigger_once` (never `trigger_multiple`) at the goal calls `SignalGoalReached`; fail-condition volumes or a `logic_timer` timeout call `SignalEpisodeFailed`. Every new chamber is manually verified — watch raw netconsole output, walk it by hand, confirm each signal fires exactly once — **before** it enters the recorder's rotation.
+Create one `logic_script` named `shionn_event_script` with **Entity Scripts** set to `shionn_events.nut`. Wire chamber entities to it with these outputs:
+
+| Source entity | Output | Target | Input | Parameter |
+|---|---|---|---|---|
+| Delayed `logic_auto` or start `trigger_once` | `OnMapSpawn` or `OnStartTouch` | `shionn_event_script` | `RunScriptCode` | `SignalChamberReady()` |
+| Player-only goal `trigger_once` | `OnStartTouch` | `shionn_event_script` | `RunScriptCode` | `SignalGoalReached()` |
+| Player-only fail volume | `OnStartTouch` | `shionn_event_script` | `RunScriptCode` | `SignalOutOfBounds()` |
+| Timeout `logic_timer` | `OnTimer` | `shionn_event_script` | `RunScriptCode` | `SignalTimeout()` |
+
+Use a short delay on `OnMapSpawn` so ready is emitted after the player has spawned, or place a player-only start trigger just beyond the spawn point. Keep the goal as a player-only `trigger_once`, never a `trigger_multiple`. The shared script suppresses duplicate start and terminal events. Every new chamber is manually verified — watch raw netconsole output, walk it by hand, confirm each signal fires exactly once — **before** it enters the recorder's rotation.
 
 ### Chamber registration for named loading
 
@@ -219,6 +228,14 @@ The pilot batch is recorded and used to build/debug the Stage 2 training script 
 5. **Episode boundaries** — driven by the same `EVT|chamber_ready` / `EVT|goal_reached` / `EVT|episode_failed` netconsole hooks used by the environment wrapper; on episode end, the folder is renamed to embed the outcome (e.g. `episode_20260906_134500_goal_reached`).
 
 A playback function re-executes a recorded episode's actions through the same input-injection path used for live inference, validating the full record → store → replay loop independent of any model.
+
+For continuous human-demonstration capture on `dataset_test1`, run:
+
+```bash
+.venv/bin/python record_dataset.py
+```
+
+The command launches Portal 2 with netconsole enabled when needed, waits five seconds for the user to focus the game, and repeatedly loads `dataset_test1`. Each `EVT|chamber_ready` starts a video-only 1920×1080 recording at 24 FPS. `EVT|goal_reached`, `EVT|episode_failed`, or a local 30-second safety limit ends the episode and reloads the chamber. Recording continues until `Ctrl+C`; use `--episodes N` for a finite batch, `--focus-delay SECONDS` to change the initial delay, `--restart-delay SECONDS` to change the pause between attempts, and `--output NAME` to select a monitor reported by `wf-recorder -L`.
 
 ---
 
@@ -530,6 +547,22 @@ python -m models.imitation.train_bc --cache-dir cached_frames --device cuda --re
 ```
 
 For live policy use, construct `PolicyInference` with a checkpoint, supply raw BGR frames from `WaylandCamera`, and call `policy.apply(controller, frame)`. It keeps the four-frame history, performs the same BGR→RGB resize and `/255` normalization recorded in the checkpoint, and calls `Portal2Controller.apply_action()` with the predicted factored action. Call `policy.reset()` and `controller.release_policy_actions()` at every `EVT|goal_reached` or `EVT|episode_failed` boundary. The existing three netconsole events remain sufficient for BC; player position is intentionally deferred to Stage 3 reward shaping.
+
+To train from the recordings in `episodes/` and immediately try the best checkpoint in Portal 2:
+
+```bash
+./install_dependencies.sh
+./check_dependencies.sh
+.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes
+.venv/bin/python -m models.imitation.train_bc --cache-dir data/datasets/cached_frames --device auto --batch-size 8
+.venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints/best.pt --map puzzlemaker/preview
+```
+
+The live runner launches Portal 2 with `-netconport 8020` if needed, captures the selected Wayland output at 24 Hz, and releases every held action on exit. It stops after 60 seconds by default; use `--max-seconds 0` for an unlimited run and press `Ctrl+C` for the emergency stop. Use `wf-recorder -L` followed by `--output OUTPUT_NAME` if the wrong monitor is captured. Before allowing input, a useful capture-only check is:
+
+```bash
+.venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints/best.pt --no-launch --dry-run --max-seconds 10
+```
 
 Recording remains a Linux/Wayland job (`wf-recorder`, `evdev`, and `ffmpeg` with `libx264` are required). Training is independent of those tools and works on a headless Debian/Ubuntu system, either Arch desktop, or Windows. Use `python -m ...` instead of the Linux-specific `.venv/bin/python` prefix on Windows. The portable defaults are `--device auto --workers 0`; CUDA is selected when available. On the headless server, request it explicitly after confirming the NVIDIA driver and PyTorch CUDA build are installed:
 
