@@ -8,7 +8,6 @@ _venv_sites = glob.glob(os.path.join(_repo_dir, ".venv", "lib", "python*", "site
 if _venv_sites and _venv_sites[0] not in sys.path:
     sys.path.insert(0, _venv_sites[0])
 
-import cv2
 import csv
 import time
 import json
@@ -192,7 +191,7 @@ def get_default_output():
     return None
 
 class WaylandCamera:
-    def __init__(self, width=1280, height=720, fps=20, output_name=None):
+    def __init__(self, width=1920, height=1080, fps=24, output_name=None):
         self.width = width
         self.height = height
         self.fps = fps
@@ -248,9 +247,59 @@ class WaylandCamera:
             self.proc.wait()
 
 
+class FFmpegVideoWriter:
+    """Stream BGR frames to an H.264 MP4 without retaining an episode in RAM."""
+    def __init__(self, output_path, width, height, fps, crf=20):
+        self.width = width
+        self.height = height
+        self.frame_shape = (height, width, 3)
+        self.output_path = output_path
+        command = [
+            "ffmpeg", "-y",
+            "-f", "rawvideo", "-pixel_format", "bgr24",
+            "-video_size", f"{width}x{height}", "-framerate", str(fps),
+            "-i", "pipe:0", "-an",
+            "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
+            "-pix_fmt", "yuv420p", "-movflags", "+faststart", output_path,
+        ]
+        try:
+            self.proc = subprocess.Popen(
+                command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+        except FileNotFoundError as error:
+            raise RuntimeError("ffmpeg with libx264 is required to record H.264 video") from error
+
+    def write(self, frame):
+        if frame.shape != self.frame_shape:
+            raise ValueError(f"Expected BGR frame {self.frame_shape}, received {frame.shape}")
+        if self.proc.poll() is not None:
+            raise RuntimeError(f"ffmpeg exited unexpectedly while writing {self.output_path}")
+        try:
+            self.proc.stdin.write(np.ascontiguousarray(frame).tobytes())
+        except BrokenPipeError as error:
+            raise RuntimeError(f"ffmpeg stopped accepting frames for {self.output_path}") from error
+
+    def release(self):
+        if self.proc.stdin and not self.proc.stdin.closed:
+            self.proc.stdin.close()
+        try:
+            return_code = self.proc.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            self.proc.terminate()
+            self.proc.wait()
+            raise RuntimeError(f"ffmpeg did not finalize {self.output_path} within 30 seconds")
+        if return_code != 0:
+            raise RuntimeError(f"ffmpeg failed while finalizing {self.output_path} (exit {return_code})")
+
+
 # --- Main Recorder App ---
 class EpisodeRecorder:
-    def __init__(self, fps=20, controller=None):
+    """Records aligned FHD frames and actions for behavior cloning.
+
+    Resolution and tick rate remain arguments for diagnostics and legacy data,
+    but new recordings default to the 1920x1080 / 24 Hz dataset contract.
+    """
+    def __init__(self, fps=24, width=1920, height=1080, video_crf=20, controller=None):
         self.fps = fps
         self.kbds, self.mice = find_input_devices()
         if not self.kbds or not self.mice:
@@ -260,7 +309,10 @@ class EpisodeRecorder:
         self.tracker = InputTracker(self.kbds, self.mice)
         
         out_name = get_default_output()
-        self.camera = WaylandCamera(1280, 720, fps, output_name=out_name)
+        self.width = width
+        self.height = height
+        self.video_crf = video_crf
+        self.camera = WaylandCamera(width, height, fps, output_name=out_name)
         
         self.controller = controller if controller else Portal2Controller(8020, log_file=None)
         
@@ -290,10 +342,9 @@ class EpisodeRecorder:
             'jump', 'crouch', 'use', 'fire_left', 'fire_right', 'mouse_dx', 'mouse_dy'
         ])
         
-        # Open VideoWriter
+        # Stream directly to H.264; CRF 20 is visually near-lossless while manageable on disk.
         vid_path = os.path.join(self.ep_dir, "video.mp4")
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        self.video_writer = cv2.VideoWriter(vid_path, fourcc, self.fps, (1280, 720))
+        self.video_writer = FFmpegVideoWriter(vid_path, self.width, self.height, self.fps, self.video_crf)
         
         self.frame_idx = 0
         self.recording = True
@@ -334,7 +385,7 @@ class EpisodeRecorder:
                 self.video_writer.write(frame)
             else:
                 # If no frame yet, write a black frame to keep sync
-                self.video_writer.write(np.zeros((720, 1280, 3), dtype=np.uint8))
+                self.video_writer.write(np.zeros((self.height, self.width, 3), dtype=np.uint8))
                 
             # 3. Write CSV Row
             self.csv_writer.writerow([

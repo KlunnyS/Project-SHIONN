@@ -260,7 +260,33 @@ class Portal2Controller:
         cmd = "+use" if state else "-use"
         self.send_command(cmd)
 
-    def play_csv(self, csv_path, fps=20, mouse_scale=1.0, countdown=3):
+    def apply_action(self, action):
+        """Apply one factored policy action, emitting key commands only on transitions."""
+        if not hasattr(self, "_policy_action_state"):
+            self._policy_action_state = {
+                "move_w": 0, "move_a": 0, "move_s": 0, "move_d": 0,
+                "jump": 0, "use": 0, "fire_left": 0, "fire_right": 0,
+            }
+        handlers = {
+            "move_w": self.move_forward, "move_a": self.move_left,
+            "move_s": self.move_backward, "move_d": self.move_right,
+            "jump": self.jump_state, "use": self.interact_state,
+            "fire_left": self.fire_left, "fire_right": self.fire_right,
+        }
+        for name, handler in handlers.items():
+            next_state = int(bool(action.get(name, 0)))
+            if next_state != self._policy_action_state[name]:
+                handler(state=bool(next_state))
+                self._policy_action_state[name] = next_state
+        dx, dy = int(action.get("mouse_dx", 0)), int(action.get("mouse_dy", 0))
+        if dx or dy:
+            self.move_mouse(dx, dy, steps=1, delay=0)
+
+    def release_policy_actions(self):
+        """Release all held inference keys at an episode boundary or shutdown."""
+        self.apply_action({})
+
+    def play_csv(self, csv_path, fps=24, mouse_scale=1.0, countdown=3):
         import csv
         import time
         if countdown > 0:
@@ -359,7 +385,7 @@ class Portal2Controller:
         self.fire_right(state=False)
         print("Playback finished.")
 
-    def start_recording(self, fps=20, countdown=3, duration=None, outcome="manual_test"):
+    def start_recording(self, fps=24, countdown=3, duration=None, outcome="manual_test"):
         import time
         if countdown > 0:
             print(f"\n--- Testing Programmatic Recording ---")

@@ -1,2 +1,4 @@
 portal2_console.log
 episodes
+data/datasets/cached_frames/
+models/imitation/checkpoints/
