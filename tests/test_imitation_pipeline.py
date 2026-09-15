@@ -13,12 +13,25 @@ from models.imitation.dataset import BehaviorCloningDataset, discover_cached_epi
 from models.imitation.inference import PolicyInference
 from models.imitation.network import ImitationPolicy
 from models.imitation.preprocess import PREPROCESSING_CONFIG
-from models.imitation.preprocess import ACTION_COLUMNS, cache_episode
+from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_episodes
+from models.imitation.train_bc import make_binary_class_weights
 from recorder import FFmpegVideoWriter
 
 
 class ImitationPipelineTest(unittest.TestCase):
-    def test_cache_and_four_frame_stack_stay_aligned(self):
+    def test_discovers_flat_and_outcome_grouped_episodes(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory) / "episodes"
+            flat = root / "episode_flat"
+            success = root / "goal_reached" / "episode_success"
+            incomplete = root / ".in_progress" / "episode_partial"
+            for episode in (flat, success, incomplete):
+                episode.mkdir(parents=True)
+                (episode / "actions.csv").touch()
+                (episode / "video.mp4").touch()
+            self.assertEqual(discover_episodes(root), [flat, success])
+
+    def test_cache_stack_alignment_and_leading_idle_trim(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             episode = root / "episodes" / "one"
@@ -40,8 +53,42 @@ class ImitationPipelineTest(unittest.TestCase):
             frames, action = dataset[0]
             self.assertEqual(frames.shape, (12, 180, 320))
             self.assertEqual(action.shape, (10,))
-            self.assertEqual(action[8], 0)
+            self.assertEqual(action[8], 1)
+            self.assertEqual(dataset.leading_idle_frames, 1)
             self.assertTrue(np.array_equal(frames[0:3], frames[3:6]))
+            self.assertFalse(np.array_equal(frames[0:3], frames[9:12]))
+
+    def test_action_statistics_ignore_trimmed_waiting_frames(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            frames_path = root / "episode.npy"
+            actions_path = root / "episode.actions.npy"
+            np.save(frames_path, np.zeros((4, 180, 320, 3), dtype=np.uint8))
+            actions = np.zeros((4, len(ACTION_COLUMNS)), dtype=np.float32)
+            actions[2:, 0] = 1
+            actions[2, 8:10] = [10, -4]
+            np.save(actions_path, actions)
+            from models.imitation.dataset import EpisodeManifest
+            dataset = BehaviorCloningDataset(
+                [EpisodeManifest("episode", frames_path, actions_path, 4)]
+            )
+
+            positive_counts, mouse_scale = dataset.action_statistics()
+
+            self.assertEqual(len(dataset), 2)
+            self.assertEqual(dataset.leading_idle_frames, 2)
+            self.assertEqual(positive_counts[0], 2)
+            self.assertTrue(np.all(mouse_scale >= 1))
+
+    def test_class_weights_balance_supported_actions_without_amplifying_noise(self):
+        counts = np.asarray([80, 20, 1, 25, 5, 0, 0, 0], dtype=np.float64)
+
+        weights = make_binary_class_weights(counts, sample_count=100)
+
+        self.assertAlmostEqual(weights[0, 0].item(), 2.5)
+        self.assertAlmostEqual(weights[1, 1].item(), 2.5)
+        self.assertTrue(torch.equal(weights[2], torch.ones(2)))
+        self.assertTrue(torch.equal(weights[4], torch.ones(2)))
 
     def test_split_keeps_full_episodes_together(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -89,10 +136,15 @@ class ImitationPipelineTest(unittest.TestCase):
             model = ImitationPolicy()
             optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
             config = {
-                "architecture": "shionn_imitation_v1",
+                "architecture": "shionn_imitation_v3",
                 "preprocessing": PREPROCESSING_CONFIG,
                 "action_columns": ["move_w", "move_a", "move_s", "move_d", "jump", "use", "fire_left", "fire_right", "mouse_dx", "mouse_dy"],
+                "target_processing": {"mouse_scale": [100.0, 20.0]},
             }
+            with torch.no_grad():
+                for parameter in model.parameters():
+                    parameter.zero_()
+                model.mouse_head.bias[:2] = torch.tensor([0.5, -0.5])
             save_checkpoint(checkpoint_path, model=model, optimizer=optimizer, epoch=3, global_step=42, best_val_loss=1.25, config=config)
             restored_model = ImitationPolicy()
             restored_optimizer = torch.optim.AdamW(restored_model.parameters(), lr=1e-3)
@@ -103,6 +155,8 @@ class ImitationPipelineTest(unittest.TestCase):
             policy = PolicyInference(checkpoint_path, device="cpu")
             action = policy.predict(np.zeros((1080, 1920, 3), dtype=np.uint8))
             self.assertEqual(set(action), set(config["action_columns"]))
+            self.assertEqual(action["mouse_dx"], 50)
+            self.assertEqual(action["mouse_dy"], -10)
 
 
 if __name__ == "__main__":

@@ -134,7 +134,7 @@ if [ -e /dev/uinput ]; then
         status_ok "/dev/uinput exists and is writable by current user (Virtual mouse input enabled)"
     else
         status_warn "/dev/uinput exists but is NOT writable by current user ($(whoami))"
-        echo -e "         ${BLUE}-> Fix:${NC} Run scripts with sudo, or configure udev rules:"
+        echo -e "         ${BLUE}-> Fix:${NC} Configure udev rules (do not run the recorder itself with sudo):"
         echo -e "             echo 'KERNEL==\"uinput\", MODE=\"0660\", GROUP=\"input\", OPTIONS+=\"static_node=uinput\"' | sudo tee /etc/udev/rules.d/99-uinput.rules"
         echo -e "             sudo usermod -aG input \$USER && sudo udevadm control --reload-rules && sudo udevadm trigger"
     fi
@@ -165,7 +165,7 @@ elif [ "$INPUT_READABLE" -gt 0 ]; then
 else
     status_warn "Cannot read /dev/input/event* devices without root privileges."
     echo -e "         ${BLUE}-> Fix:${NC} Add user to the 'input' group: sudo usermod -aG input \$USER (then log out and back in)"
-    echo -e "         ${BLUE}-> Or:${NC} Run recorder.py with sudo."
+    echo -e "         ${BLUE}-> Then:${NC} Log out and back in before running the recorder without sudo."
 fi
 
 # Check user group membership
@@ -173,6 +173,114 @@ if groups "$USER" 2>/dev/null | grep -q '\binput\b'; then
     status_ok "User '$USER' is a member of the 'input' group"
 else
     status_warn "User '$USER' is NOT currently in the 'input' group"
+fi
+
+# Show every event device and apply the recorder's own selection rules. This
+# makes multi-interface mice (pointer, keyboard, receiver, etc.) distinguishable
+# without requiring the recorder or the game to be running.
+print_header "5. Recorder Input Device Discovery"
+echo "  The AUTO-SELECTED labels show what a default recorder run would capture."
+if [ -z "$PYTHON_BIN" ]; then
+    echo "    unavailable: no Python interpreter was found"
+elif ! "$PYTHON_BIN" -c "import evdev" >/dev/null 2>&1; then
+    echo "    unavailable: the evdev Python package is not installed"
+else
+    "$PYTHON_BIN" - <<'PY'
+import glob
+from pathlib import Path
+
+import evdev
+
+from recorder import _is_keyboard_device, _is_pointer_device, _pointer_score
+
+
+def sysfs_name(path):
+    name_file = Path("/sys/class/input") / Path(path).name / "device/name"
+    try:
+        return name_file.read_text().strip()
+    except OSError:
+        return "unknown device"
+
+
+def relevant_capabilities(device):
+    capabilities = device.capabilities()
+    labels = []
+    checks = (
+        (evdev.ecodes.EV_REL, evdev.ecodes.REL_X, "REL_X"),
+        (evdev.ecodes.EV_REL, evdev.ecodes.REL_Y, "REL_Y"),
+        (evdev.ecodes.EV_ABS, evdev.ecodes.ABS_X, "ABS_X"),
+        (evdev.ecodes.EV_ABS, evdev.ecodes.ABS_Y, "ABS_Y"),
+        (evdev.ecodes.EV_KEY, evdev.ecodes.BTN_LEFT, "BTN_LEFT"),
+        (evdev.ecodes.EV_KEY, evdev.ecodes.BTN_RIGHT, "BTN_RIGHT"),
+        (evdev.ecodes.EV_KEY, evdev.ecodes.KEY_W, "KEY_W"),
+        (evdev.ecodes.EV_KEY, evdev.ecodes.KEY_A, "KEY_A"),
+    )
+    for event_type, code, label in checks:
+        if code in capabilities.get(event_type, []):
+            labels.append(label)
+    return ", ".join(labels) or "no recorder-relevant axes/keys"
+
+
+device_rows = []
+opened_devices = []
+for path in sorted(glob.glob("/dev/input/event*")):
+    try:
+        device = evdev.InputDevice(path)
+    except OSError as error:
+        device_rows.append((path, sysfs_name(path), None, str(error)))
+        continue
+
+    opened_devices.append(device)
+    device_rows.append((path, device.name or "unnamed device", device, None))
+
+pointer_candidates = [
+    device for device in opened_devices if _is_pointer_device(device)
+]
+captured_pointer = (
+    max(pointer_candidates, key=_pointer_score) if pointer_candidates else None
+)
+captured_keyboards = {
+    device.path for device in opened_devices if _is_keyboard_device(device)
+}
+
+for path, name, device, error in device_rows:
+    print(f"    {path}: {name}")
+    if error is not None:
+        print(f"      UNREADABLE - not captured ({error})")
+        continue
+
+    roles = []
+    if _is_pointer_device(device):
+        roles.append("pointer candidate")
+    if _is_keyboard_device(device):
+        roles.append("keyboard candidate")
+    if captured_pointer is not None and path == captured_pointer.path:
+        roles.append("AUTO-SELECTED POINTER")
+    if path in captured_keyboards:
+        roles.append("AUTO-SELECTED KEYBOARD")
+    if not roles:
+        roles.append("ignored by recorder")
+    print(f"      {', '.join(roles)}; {relevant_capabilities(device)}")
+
+print("\n    Recorder auto-selection:")
+if captured_pointer is None:
+    print("      Pointer: NONE")
+else:
+    print(f"      Pointer: {captured_pointer.path} ({captured_pointer.name})")
+    print(
+        "      Override: "
+        f"--mouse-device {captured_pointer.path} (or a unique name fragment)"
+    )
+if captured_keyboards:
+    for path in sorted(captured_keyboards):
+        keyboard = next(device for device in opened_devices if device.path == path)
+        print(f"      Keyboard: {path} ({keyboard.name})")
+else:
+    print("      Keyboard: NONE")
+
+for device in opened_devices:
+    device.close()
+PY
 fi
 
 # Summary

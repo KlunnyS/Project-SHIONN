@@ -32,12 +32,14 @@ ACTION_COLUMNS = (
 
 
 def discover_episodes(recordings_dir: Path) -> list[Path]:
-    """Return direct child directories containing both recording artifacts."""
+    """Return recording directories, including outcome-grouped episodes."""
     if not recordings_dir.exists():
         return []
     return sorted(
-        path for path in recordings_dir.iterdir()
-        if path.is_dir() and (path / "video.mp4").is_file() and (path / "actions.csv").is_file()
+        actions_path.parent
+        for actions_path in recordings_dir.rglob("actions.csv")
+        if ".in_progress" not in actions_path.relative_to(recordings_dir).parts
+        and (actions_path.parent / "video.mp4").is_file()
     )
 
 

@@ -54,7 +54,12 @@ def split_episode_manifests(
 
 class BehaviorCloningDataset:
     """Returns a four-frame RGB stack and its action at the newest frame."""
-    def __init__(self, manifests: list[EpisodeManifest], frame_stack: int = 4):
+    def __init__(
+        self,
+        manifests: list[EpisodeManifest],
+        frame_stack: int = 4,
+        trim_leading_idle: bool = True,
+    ):
         if not manifests:
             raise ValueError("Dataset needs at least one episode")
         if frame_stack != 4:
@@ -62,6 +67,7 @@ class BehaviorCloningDataset:
         self.frame_stack = frame_stack
         self.episodes: list[tuple[np.ndarray, np.ndarray]] = []
         self.index: list[tuple[int, int]] = []
+        self.leading_idle_frames = 0
         for manifest in manifests:
             frames = np.load(manifest.frames_path, mmap_mode="r")
             if frames.shape != (manifest.frame_count, 180, 320, 3):
@@ -69,7 +75,30 @@ class BehaviorCloningDataset:
             actions = self._load_actions(manifest.actions_path, manifest.frame_count)
             episode_index = len(self.episodes)
             self.episodes.append((frames, actions))
-            self.index.extend((episode_index, frame_idx) for frame_idx in range(manifest.frame_count))
+            first_frame = self._first_action_frame(actions) if trim_leading_idle else 0
+            self.leading_idle_frames += first_frame
+            self.index.extend(
+                (episode_index, frame_idx)
+                for frame_idx in range(first_frame, manifest.frame_count)
+            )
+        if not self.index:
+            raise ValueError("Dataset contains no non-idle action frames")
+
+    @staticmethod
+    def _first_action_frame(actions: np.ndarray) -> int:
+        """Discard ambiguous waiting labels before the demonstrator starts."""
+        active = np.any(actions[:, :8] != 0, axis=1) | np.any(actions[:, 8:10] != 0, axis=1)
+        indices = np.flatnonzero(active)
+        return int(indices[0]) if len(indices) else len(actions)
+
+    def action_statistics(self) -> tuple[np.ndarray, np.ndarray]:
+        """Return binary positive counts and mouse scale for sampled frames."""
+        targets = np.stack(
+            [self.episodes[episode_index][1][frame_idx] for episode_index, frame_idx in self.index]
+        )
+        positive_counts = targets[:, :8].sum(axis=0, dtype=np.float64)
+        mouse_scale = targets[:, 8:10].std(axis=0, dtype=np.float64)
+        return positive_counts, np.maximum(mouse_scale, 1.0).astype(np.float32)
 
     @staticmethod
     def _load_actions(path: Path, expected_count: int) -> np.ndarray:

@@ -8,6 +8,7 @@ never contain an audio stream.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import time
 from collections import deque
@@ -66,7 +67,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--restart-delay", type=float, default=1.0)
     parser.add_argument("--ready-timeout", type=float, default=60.0)
     parser.add_argument(
-        "--episodes",
+        "--episodes", "--episode",
         type=int,
         default=0,
         help="Number of episodes to record; 0 records until Ctrl+C.",
@@ -78,6 +79,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         help="Wayland output name from `wf-recorder -L`; defaults to the first output.",
+    )
+    parser.add_argument(
+        "--mouse-device",
+        help="Pointer event path or case-insensitive name fragment, such as /dev/input/event9 or Basilisk.",
     )
     parser.add_argument(
         "--no-launch",
@@ -120,7 +125,11 @@ def wait_for_camera(recorder: EpisodeRecorder, timeout: float = 10.0) -> None:
     deadline = time.monotonic() + timeout
     while recorder.camera.get_latest_frame() is None:
         if recorder.camera.proc and recorder.camera.proc.poll() is not None:
-            raise RuntimeError("wf-recorder exited before producing a frame")
+            detail = recorder.camera.error_summary()
+            message = "wf-recorder exited before producing a frame"
+            if detail:
+                message += f":\n{detail}"
+            raise RuntimeError(message)
         if time.monotonic() >= deadline:
             raise RuntimeError(
                 "No frames received from wf-recorder; check Wayland permissions and the selected output"
@@ -199,6 +208,13 @@ def main() -> None:
     args = parse_args()
     validate_args(args)
 
+    if os.geteuid() == 0 and os.environ.get("SUDO_USER"):
+        raise RuntimeError(
+            "Do not run this recorder with sudo. Root cannot normally access "
+            "your Wayland capture session. Run ./install_dependencies.sh "
+            "--permissions, log out and back in, then run it as your desktop user."
+        )
+
     # Constructing the recorder validates input-device access before launching
     # a game that the process would be unable to record.
     recorder = EpisodeRecorder(
@@ -208,6 +224,7 @@ def main() -> None:
         video_crf=args.crf,
         controller=Portal2Controller(args.port),
         output_name=args.output,
+        mouse_device=args.mouse_device,
     )
     controller = recorder.controller
     event_stream = EpisodeEventStream()

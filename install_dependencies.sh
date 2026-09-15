@@ -161,7 +161,7 @@ elif [ "$NEEDS_PERMS" = true ]; then
         if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
             apply_permissions
         else
-            echo "Skipping permission configuration. (You can run recorder.py with sudo instead)."
+            echo "Skipping permission configuration. Do not run the recorder with sudo; wf-recorder needs your desktop Wayland session."
         fi
     else
         echo "To configure permissions automatically, rerun with: ./install_dependencies.sh --permissions"

@@ -224,8 +224,8 @@ The pilot batch is recorded and used to build/debug the Stage 2 training script 
 1. **Input reading** — `evdev.list_devices()` auto-scans for the physical keyboard/mouse (by `REL_X`/`REL_Y` and key capabilities) and reads them live on a dedicated blocking thread, separate from the `UInput` *output* device used for playback/inference.
 2. **Fixed-rate capture** — `wf-recorder` piping raw BGR frames at 24 Hz and 1920×1080.
 3. **Sync loop** — a precise 24 Hz tick snapshots the most recent frame together with the current persistent key-hold state and the accumulated-then-reset mouse delta, writing one aligned row.
-4. **Storage** — one folder per episode under `episodes/`, containing `actions.csv` (columns: `frame_idx, move_w, move_a, move_s, move_d, jump, use, fire_left, fire_right, mouse_dx, mouse_dy`) alongside a compressed `video.mp4`.
-5. **Episode boundaries** — driven by the same `EVT|chamber_ready` / `EVT|goal_reached` / `EVT|episode_failed` netconsole hooks used by the environment wrapper; on episode end, the folder is renamed to embed the outcome (e.g. `episode_20260906_134500_goal_reached`).
+4. **Storage** — completed recordings are grouped by outcome, for example `episodes/goal_reached/episode_<timestamp>/` and `episodes/timeout/episode_<timestamp>/`. Each contains `actions.csv` (columns: `frame_idx, move_w, move_a, move_s, move_d, jump, use, fire_left, fire_right, mouse_dx, mouse_dy`) alongside a compressed `video.mp4`; active captures remain under `episodes/.in_progress/` until finalized.
+5. **Episode boundaries** — driven by the same `EVT|chamber_ready` / `EVT|goal_reached` / `EVT|episode_failed` netconsole hooks used by the environment wrapper. The terminal event selects the completed episode's result directory.
 
 A playback function re-executes a recorded episode's actions through the same input-injection path used for live inference, validating the full record → store → replay loop independent of any model.
 
@@ -235,7 +235,7 @@ For continuous human-demonstration capture on `dataset_test1`, run:
 .venv/bin/python record_dataset.py
 ```
 
-The command launches Portal 2 with netconsole enabled when needed, waits five seconds for the user to focus the game, and repeatedly loads `dataset_test1`. Each `EVT|chamber_ready` starts a video-only 1920×1080 recording at 24 FPS. `EVT|goal_reached`, `EVT|episode_failed`, or a local 30-second safety limit ends the episode and reloads the chamber. Recording continues until `Ctrl+C`; use `--episodes N` for a finite batch, `--focus-delay SECONDS` to change the initial delay, `--restart-delay SECONDS` to change the pause between attempts, and `--output NAME` to select a monitor reported by `wf-recorder -L`.
+The command launches Portal 2 with netconsole enabled when needed, waits five seconds for the user to focus the game, and repeatedly loads `dataset_test1`. Each `EVT|chamber_ready` starts a video-only 1920×1080 recording at 24 FPS. `EVT|goal_reached`, `EVT|episode_failed`, or a local 30-second safety limit ends the episode and reloads the chamber. Recording continues until `Ctrl+C`; use `--episodes N` for a finite batch, `--focus-delay SECONDS` to change the initial delay, `--restart-delay SECONDS` to change the pause between attempts, `--output NAME` to select a monitor reported by `wf-recorder -L`, and `--mouse-device PATH_OR_NAME` to override pointer detection.
 
 ---
 
@@ -534,16 +534,16 @@ SHIONN/
 Install dependencies in the project virtual environment, then cache recordings once before training. The cache is memory-mapped `uint8` RGB at 320×180; the trainer loads it without decoding `video.mp4`. Each cached episode also contains a matching action-array sidecar, so copying `data/datasets/cached_frames/` to a training server is sufficient; it does not rely on the capture machine's absolute paths or source videos.
 
 ```bash
-.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes
+.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes/goal_reached
 .venv/bin/python -m models.imitation.train_bc --cache-dir data/datasets/cached_frames --batch-size 8
 ```
 
-The trainer holds out complete episodes for validation and saves the best checkpoint to `models/imitation/checkpoints/best.pt`. It reports each binary-control loss and the mouse Gaussian NLL every epoch. Use the default batch size of 8 for the planned 8 GB GPU smoke run, then increase it only after that run is stable.
+The trainer holds out complete episodes for validation and saves the best checkpoint to `models/imitation/checkpoints_v3/best.pt`. It excludes the ambiguous waiting frames before the first action in each episode, balances binary heads that have enough positive examples, and standardizes mouse deltas using scales computed from the training split. Those scales are saved in the checkpoint and reversed during inference. The normalized SiLU network keeps visual differences alive through the convolutional trunk instead of collapsing to a constant average action. It reports running loss every 100 batches plus each binary-control loss and the mouse Gaussian NLL every epoch. Use the default batch size of 8 for the planned 8 GB GPU smoke run, then increase it only after that run is stable.
 
 Every checkpoint contains the model weights, AdamW optimizer state, epoch, global step, best validation loss, and the architecture/preprocessing/action configuration. The same configuration is also written as `*.json` beside the `*.pt` file. `last.pt` is saved after each epoch, `best.pt` tracks the lowest validation loss, and `step_*.pt` is saved every 1,000 optimizer steps by default. Resume a run on another machine with:
 
 ```bash
-python -m models.imitation.train_bc --cache-dir cached_frames --device cuda --resume models/imitation/checkpoints/last.pt
+python -m models.imitation.train_bc --cache-dir cached_frames --device cuda --resume models/imitation/checkpoints_v3/last.pt
 ```
 
 For live policy use, construct `PolicyInference` with a checkpoint, supply raw BGR frames from `WaylandCamera`, and call `policy.apply(controller, frame)`. It keeps the four-frame history, performs the same BGR→RGB resize and `/255` normalization recorded in the checkpoint, and calls `Portal2Controller.apply_action()` with the predicted factored action. Call `policy.reset()` and `controller.release_policy_actions()` at every `EVT|goal_reached` or `EVT|episode_failed` boundary. The existing three netconsole events remain sufficient for BC; player position is intentionally deferred to Stage 3 reward shaping.
@@ -553,15 +553,15 @@ To train from the recordings in `episodes/` and immediately try the best checkpo
 ```bash
 ./install_dependencies.sh
 ./check_dependencies.sh
-.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes
+.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes/goal_reached
 .venv/bin/python -m models.imitation.train_bc --cache-dir data/datasets/cached_frames --device auto --batch-size 8
-.venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints/best.pt --map puzzlemaker/preview
+.venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints_v3/best.pt --map puzzlemaker/preview
 ```
 
 The live runner launches Portal 2 with `-netconport 8020` if needed, captures the selected Wayland output at 24 Hz, and releases every held action on exit. It stops after 60 seconds by default; use `--max-seconds 0` for an unlimited run and press `Ctrl+C` for the emergency stop. Use `wf-recorder -L` followed by `--output OUTPUT_NAME` if the wrong monitor is captured. Before allowing input, a useful capture-only check is:
 
 ```bash
-.venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints/best.pt --no-launch --dry-run --max-seconds 10
+.venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints_v3/best.pt --no-launch --dry-run --max-seconds 10
 ```
 
 Recording remains a Linux/Wayland job (`wf-recorder`, `evdev`, and `ffmpeg` with `libx264` are required). Training is independent of those tools and works on a headless Debian/Ubuntu system, either Arch desktop, or Windows. Use `python -m ...` instead of the Linux-specific `.venv/bin/python` prefix on Windows. The portable defaults are `--device auto --workers 0`; CUDA is selected when available. On the headless server, request it explicitly after confirming the NVIDIA driver and PyTorch CUDA build are installed:

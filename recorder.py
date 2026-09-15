@@ -20,39 +20,106 @@ from datetime import datetime
 from wrapper import Portal2Controller, is_game_running
 
 # --- Device Discovery ---
-def find_input_devices():
+def _matches_device_selector(device, selector):
+    selector = selector.casefold()
+    return selector == device.path.casefold() or selector in device.name.casefold()
+
+
+def _pointer_score(device):
+    """Prefer a real mouse/touchpad over receiver and keyboard side channels."""
+    name = device.name.casefold()
+    keys = device.capabilities().get(evdev.ecodes.EV_KEY, [])
+    score = 50 if evdev.ecodes.BTN_LEFT in keys else 0
+    if any(token in name for token in ("mouse", "touchpad", "trackpad")):
+        score += 100
+    if any(token in name for token in ("basilisk", "deathadder", "razer", "logitech")):
+        score += 75
+    if any(token in name for token in ("keyboard", "dongle", "receiver")):
+        score -= 25
+    if any(token in name for token in ("virtual", "uinput", "portal2-wrapper")):
+        score -= 200
+    return score
+
+
+def _is_pointer_device(device):
+    """Return whether the recorder can turn this device into mouse deltas."""
+    capabilities = device.capabilities()
+    relative_axes = capabilities.get(evdev.ecodes.EV_REL, [])
+    if evdev.ecodes.REL_X in relative_axes and evdev.ecodes.REL_Y in relative_axes:
+        return True
+
+    absolute_axes = capabilities.get(evdev.ecodes.EV_ABS, [])
+    keys = capabilities.get(evdev.ecodes.EV_KEY, [])
+    name = device.name.casefold()
+    return (
+        evdev.ecodes.ABS_X in absolute_axes
+        and evdev.ecodes.ABS_Y in absolute_axes
+        and (
+            "touchpad" in name
+            or "trackpad" in name
+            or evdev.ecodes.BTN_TOUCH in keys
+        )
+    )
+
+
+def _is_keyboard_device(device):
+    """Mirror the keyboard filtering used by the recorder."""
+    keys = device.capabilities().get(evdev.ecodes.EV_KEY, [])
+    return (
+        evdev.ecodes.KEY_W in keys
+        and evdev.ecodes.KEY_A in keys
+        and (
+            "keyboard" in device.name.casefold()
+            or "K57" in device.name
+        )
+    )
+
+
+def find_input_devices(mouse_selector=None):
     print("Scanning for keyboard and mouse...")
-    devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+    devices = []
+    for path in evdev.list_devices():
+        try:
+            devices.append(evdev.InputDevice(path))
+        except OSError as error:
+            print(f"Skipping unreadable input device: {path} ({error})")
     keyboards = []
-    mice = []
+    mouse_candidates = []
     
     for device in devices:
-        cap = device.capabilities()
-        # Look for mouse (EV_REL with REL_X and REL_Y)
-        if evdev.ecodes.EV_REL in cap:
-            rels = cap[evdev.ecodes.EV_REL]
-            if evdev.ecodes.REL_X in rels and evdev.ecodes.REL_Y in rels:
-                mice.append(device)
-                print(f"Found mouse: {device.name} ({device.path})")
-        # Look for touchpad / trackpad (EV_ABS with ABS_X and ABS_Y)
-        elif evdev.ecodes.EV_ABS in cap:
-            abs_axes = cap[evdev.ecodes.EV_ABS]
-            if evdev.ecodes.ABS_X in abs_axes and evdev.ecodes.ABS_Y in abs_axes:
-                name_lower = device.name.lower()
-                key_cap = cap.get(evdev.ecodes.EV_KEY, [])
-                if "touchpad" in name_lower or "trackpad" in name_lower or evdev.ecodes.BTN_TOUCH in key_cap:
-                    mice.append(device)
-                    print(f"Found touchpad: {device.name} ({device.path})")
-                    
-        # Look for keyboard (EV_KEY with W, A, S, D)
-        if evdev.ecodes.EV_KEY in cap:
-            keys = cap[evdev.ecodes.EV_KEY]
-            if evdev.ecodes.KEY_W in keys and evdev.ecodes.KEY_A in keys:
-                # Ignore the mouse pretending to be a keyboard if we can
-                if "Keyboard" in device.name or "keyboard" in device.name or "K57" in device.name:
-                    keyboards.append(device)
-                    print(f"Found keyboard: {device.name} ({device.path})")
+        if _is_pointer_device(device):
+            mouse_candidates.append(device)
+            print(f"Found pointer candidate: {device.name} ({device.path})")
+
+        if _is_keyboard_device(device):
+            keyboards.append(device)
+            print(f"Found keyboard: {device.name} ({device.path})")
     
+    if mouse_selector:
+        mice = [
+            device for device in mouse_candidates
+            if _matches_device_selector(device, mouse_selector)
+        ]
+        if not mice:
+            available = ", ".join(
+                f"{device.path} ({device.name})" for device in mouse_candidates
+            ) or "none"
+            raise RuntimeError(
+                f"Mouse selector '{mouse_selector}' matched no pointer device. "
+                f"Available pointer devices: {available}"
+            )
+    elif mouse_candidates:
+        mice = [max(mouse_candidates, key=_pointer_score)]
+    else:
+        mice = []
+
+    for device in mice:
+        print(f"Selected pointer: {device.name} ({device.path})")
+
+    selected_paths = {device.path for device in (*keyboards, *mice)}
+    for device in devices:
+        if device.path not in selected_paths:
+            device.close()
     return keyboards, mice
 
 # --- Input Tracker ---
@@ -73,6 +140,8 @@ class InputTracker:
         self.mouse_dx = 0
         self.mouse_dy = 0
         self.mouse_lock = threading.Lock()
+        self.mouse_event_counts = {device.path: 0 for device in self.mice}
+        self.mouse_errors = []
         
         self.running = True
         self.threads = []
@@ -119,17 +188,21 @@ class InputTracker:
                     with self.mouse_lock:
                         if event.code == evdev.ecodes.REL_X:
                             self.mouse_dx += event.value
+                            self.mouse_event_counts[mouse.path] += 1
                         elif event.code == evdev.ecodes.REL_Y:
                             self.mouse_dy += event.value
+                            self.mouse_event_counts[mouse.path] += 1
                 elif event.type == evdev.ecodes.EV_ABS:
                     with self.mouse_lock:
                         if event.code == evdev.ecodes.ABS_X:
                             if last_abs_x is not None:
                                 self.mouse_dx += (event.value - last_abs_x)
+                                self.mouse_event_counts[mouse.path] += 1
                             last_abs_x = event.value
                         elif event.code == evdev.ecodes.ABS_Y:
                             if last_abs_y is not None:
                                 self.mouse_dy += (event.value - last_abs_y)
+                                self.mouse_event_counts[mouse.path] += 1
                             last_abs_y = event.value
                 elif event.type == evdev.ecodes.EV_KEY:
                     if event.code == evdev.ecodes.BTN_TOUCH and event.value == 0:
@@ -145,14 +218,19 @@ class InputTracker:
                         self.keys_held['BTN_RIGHT'] = is_down
                         if is_down: self.keys_pressed_this_tick['BTN_RIGHT'] = True
         except Exception as e:
+            self.mouse_errors.append(f"{mouse.path} ({mouse.name}): {e}")
             print(f"Mouse/touchpad loop error ({mouse.name}): {e}")
-                    
-    def get_snapshot_and_reset(self):
+
+    def get_mouse_delta_and_reset(self):
         with self.mouse_lock:
             dx = self.mouse_dx
             dy = self.mouse_dy
             self.mouse_dx = 0
             self.mouse_dy = 0
+        return dx, dy
+
+    def get_snapshot_and_reset(self):
+        dx, dy = self.get_mouse_delta_and_reset()
             
         # A key is considered active this tick if it's CURRENTLY held down,
         # OR if it was pressed and released entirely within the tick duration.
@@ -201,6 +279,8 @@ class WaylandCamera:
         self.running = False
         self.proc = None
         self.thread = None
+        self.stderr_thread = None
+        self.stderr_lines = []
 
     def start(self):
         cmd = [
@@ -221,12 +301,27 @@ class WaylandCamera:
         self.proc = subprocess.Popen(
             cmd, 
             stdout=subprocess.PIPE, 
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
             bufsize=self.frame_size * 2
         )
         self.running = True
+        self.stderr_thread = threading.Thread(target=self._read_stderr, daemon=True)
+        self.stderr_thread.start()
         self.thread = threading.Thread(target=self._update, daemon=True)
         self.thread.start()
+
+    def _read_stderr(self):
+        """Keep recent wf-recorder diagnostics without risking a full pipe."""
+        for raw_line in self.proc.stderr:
+            line = raw_line.decode(errors="replace").strip()
+            if line:
+                self.stderr_lines.append(line)
+                del self.stderr_lines[:-20]
+
+    def error_summary(self):
+        if self.proc and self.proc.poll() is not None and self.stderr_thread:
+            self.stderr_thread.join(timeout=0.5)
+        return "\n".join(self.stderr_lines)
 
     def _update(self):
         while self.running:
@@ -243,8 +338,11 @@ class WaylandCamera:
     def stop(self):
         self.running = False
         if self.proc:
-            self.proc.terminate()
+            if self.proc.poll() is None:
+                self.proc.terminate()
             self.proc.wait()
+        if self.stderr_thread:
+            self.stderr_thread.join(timeout=1.0)
 
 
 class FFmpegVideoWriter:
@@ -307,12 +405,15 @@ class EpisodeRecorder:
         video_crf=20,
         controller=None,
         output_name=None,
+        mouse_device=None,
     ):
         self.fps = fps
-        self.kbds, self.mice = find_input_devices()
+        self.kbds, self.mice = find_input_devices(mouse_selector=mouse_device)
         if not self.kbds or not self.mice:
-            print("Error: Could not find both keyboard and mouse. Ensure you run with sudo!")
-            exit(1)
+            raise RuntimeError(
+                "Could not find both keyboard and mouse. Configure /dev/input "
+                "permissions for your desktop user; do not run the recorder with sudo."
+            )
             
         self.tracker = InputTracker(self.kbds, self.mice)
         
@@ -332,15 +433,17 @@ class EpisodeRecorder:
         
         self.frame_idx = 0
         
-        # Ensure episodes directory exists
-        os.makedirs("episodes", exist_ok=True)
+        self.episodes_root = "episodes"
+        self.in_progress_root = os.path.join(self.episodes_root, ".in_progress")
+        os.makedirs(self.in_progress_root, exist_ok=True)
         
     def start_recording(self):
         print("\n--- STARTING RECORDING ---")
         # Include microseconds so rapid automatic map resets cannot reuse an
         # episode directory created earlier in the same second.
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        self.ep_dir = os.path.join("episodes", f"episode_{timestamp}")
+        self.episode_name = f"episode_{timestamp}"
+        self.ep_dir = os.path.join(self.in_progress_root, self.episode_name)
         os.makedirs(self.ep_dir, exist_ok=True)
         
         # Open CSV
@@ -376,10 +479,16 @@ class EpisodeRecorder:
         if self.csv_file:
             self.csv_file.close()
             
-        # Tag the episode folder
-        tagged_dir = f"{self.ep_dir}_{outcome}"
-        os.rename(self.ep_dir, tagged_dir)
-        print(f"Episode saved to: {tagged_dir}")
+        # Publish the completed recording under its outcome. Keeping active
+        # captures in .in_progress prevents preprocessors from seeing partial
+        # MP4/CSV pairs if recording is interrupted unexpectedly.
+        safe_outcome = re.sub(r"[^a-zA-Z0-9_-]+", "_", outcome).strip("_") or "unknown"
+        outcome_dir = os.path.join(self.episodes_root, safe_outcome)
+        os.makedirs(outcome_dir, exist_ok=True)
+        completed_dir = os.path.join(outcome_dir, self.episode_name)
+        os.rename(self.ep_dir, completed_dir)
+        self.ep_dir = completed_dir
+        print(f"Episode saved to: {completed_dir}")
 
     def _sync_loop(self):
         tick_duration = 1.0 / self.fps

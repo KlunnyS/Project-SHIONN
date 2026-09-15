@@ -1,4 +1,34 @@
-portal2_console.log
-episodes
+# Python bytecode and tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local Python environments
+.venv/
+venv/
+
+# Runtime logs and local configuration
+*.log
+.env
+.env.*
+!.env.example
+
+# Recorded demonstrations and generated training data
+episodes*/
 data/datasets/cached_frames/
-models/imitation/checkpoints/
+models/imitation/checkpoints*/
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.swp
+*~

@@ -12,19 +12,44 @@ from torch.utils.data import DataLoader
 
 from .checkpoint import load_checkpoint, save_checkpoint
 from .dataset import BINARY_ACTION_COLUMNS, BehaviorCloningDataset, discover_cached_episodes, split_episode_manifests
-from .network import ImitationPolicy
+from .network import ARCHITECTURE_VERSION, ImitationPolicy
 from .preprocess import PREPROCESSING_CONFIG
 
 
-def behavior_cloning_loss(prediction: dict[str, torch.Tensor], targets: torch.Tensor) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
-    """Sum eight binary cross-entropies and Gaussian NLL for mouse deltas."""
+def make_binary_class_weights(
+    positive_counts, sample_count: int, max_weight: float = 10.0,
+    min_positive_examples: int = 20,
+) -> torch.Tensor:
+    """Balance usable heads without amplifying a handful of accidental labels."""
+    weights = torch.ones((len(BINARY_ACTION_COLUMNS), 2), dtype=torch.float32)
+    for index, positive in enumerate(positive_counts):
+        negative = sample_count - positive
+        if positive < min_positive_examples or negative < min_positive_examples:
+            continue
+        weights[index, 0] = min(max_weight, sample_count / (2.0 * negative))
+        weights[index, 1] = min(max_weight, sample_count / (2.0 * positive))
+    return weights
+
+
+def behavior_cloning_loss(
+    prediction: dict[str, torch.Tensor],
+    targets: torch.Tensor,
+    binary_class_weights: torch.Tensor | None = None,
+    mouse_scale: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    """Sum balanced binary losses and scaled mouse Gaussian NLL."""
     losses: dict[str, torch.Tensor] = {}
     total = torch.zeros((), device=targets.device)
     for index, name in enumerate(BINARY_ACTION_COLUMNS):
-        loss = nn.functional.cross_entropy(prediction[name], targets[:, index].long())
+        weight = None if binary_class_weights is None else binary_class_weights[index]
+        loss = nn.functional.cross_entropy(
+            prediction[name], targets[:, index].long(), weight=weight
+        )
         losses[name] = loss
         total = total + loss
-    mouse_target = targets[:, 8:10]
+    if mouse_scale is None:
+        mouse_scale = torch.ones(2, device=targets.device)
+    mouse_target = targets[:, 8:10] / mouse_scale
     log_std = prediction["mouse_log_std"]
     inverse_variance = torch.exp(-2.0 * log_std)
     mouse_nll = 0.5 * (((mouse_target - prediction["mouse_mean"]) ** 2) * inverse_variance + 2.0 * log_std + math.log(2.0 * math.pi)).sum(dim=1).mean()
@@ -32,7 +57,12 @@ def behavior_cloning_loss(prediction: dict[str, torch.Tensor], targets: torch.Te
     return total + mouse_nll, losses
 
 
-def run_epoch(model, loader, optimizer, scaler, device, train: bool, global_step: int = 0, on_step=None, skip_batches: int = 0) -> tuple[dict[str, float], int]:
+def run_epoch(
+    model, loader, optimizer, scaler, device, train: bool,
+    binary_class_weights: torch.Tensor, mouse_scale: torch.Tensor,
+    global_step: int = 0, on_step=None, skip_batches: int = 0,
+    log_every: int = 0,
+) -> tuple[dict[str, float], int]:
     model.train(train)
     totals: dict[str, float] = {name: 0.0 for name in (*BINARY_ACTION_COLUMNS, "mouse", "total")}
     batches = 0
@@ -45,7 +75,9 @@ def run_epoch(model, loader, optimizer, scaler, device, train: bool, global_step
             optimizer.zero_grad(set_to_none=True)
         with torch.amp.autocast(device_type=device.type, enabled=device.type == "cuda"):
             prediction = model(frames)
-            loss, parts = behavior_cloning_loss(prediction, targets)
+            loss, parts = behavior_cloning_loss(
+                prediction, targets, binary_class_weights, mouse_scale
+            )
         if not torch.isfinite(loss):
             raise FloatingPointError("Non-finite training loss")
         if train:
@@ -59,6 +91,11 @@ def run_epoch(model, loader, optimizer, scaler, device, train: bool, global_step
         for name, value in parts.items():
             totals[name] += value.detach().item()
         batches += 1
+        if train and log_every and batches % log_every == 0:
+            print(
+                f"  batch {batch_index + 1}/{len(loader)} "
+                f"loss={totals['total'] / batches:.4f}"
+            )
     return {name: value / max(1, batches) for name, value in totals.items()}, global_step
 
 
@@ -71,12 +108,18 @@ def resolve_device(request: str) -> torch.device:
     return device
 
 
-def checkpoint_config(args) -> dict:
+def checkpoint_config(args, binary_class_weights, mouse_scale) -> dict:
     """The inference-critical contract persisted inside and beside every checkpoint."""
     return {
-        "architecture": "shionn_imitation_v1",
+        "architecture": ARCHITECTURE_VERSION,
         "preprocessing": PREPROCESSING_CONFIG,
         "action_columns": list(BINARY_ACTION_COLUMNS) + ["mouse_dx", "mouse_dy"],
+        "target_processing": {
+            "leading_idle": "exclude_before_first_nonzero_action",
+            "binary_class_weights": binary_class_weights.tolist(),
+            "mouse_scale": mouse_scale.tolist(),
+            "mouse_loss": "gaussian_nll_on_standardized_deltas",
+        },
         "training": {
             "batch_size": args.batch_size,
             "learning_rate": args.learning_rate,
@@ -106,8 +149,9 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--workers", type=int, default=0, help="Use 0 for portable Windows/headless operation; raise on Linux after validation")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
-    parser.add_argument("--checkpoint-dir", type=Path, default=Path("models/imitation/checkpoints"))
+    parser.add_argument("--checkpoint-dir", type=Path, default=Path("models/imitation/checkpoints_v3"))
     parser.add_argument("--checkpoint-every", type=int, default=1_000, help="Save a resumable checkpoint every N optimizer steps; 0 disables periodic saves")
+    parser.add_argument("--log-every", type=int, default=100, help="Print running training loss every N batches; 0 disables batch logs")
     parser.add_argument("--resume", type=Path, help="Checkpoint to resume, including optimizer state")
     args = parser.parse_args()
     torch.manual_seed(args.seed)
@@ -119,24 +163,47 @@ def main() -> None:
         raise ValueError("--workers must be zero or greater")
     if args.checkpoint_every < 0:
         raise ValueError("--checkpoint-every must be zero or greater")
+    if args.log_every < 0:
+        raise ValueError("--log-every must be zero or greater")
     device = resolve_device(args.device)
     print(f"device: {device}")
     pin_memory = device.type == "cuda"
     train_dataset = BehaviorCloningDataset(train_manifests)
-    validation_loader = DataLoader(BehaviorCloningDataset(validation_manifests), batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=pin_memory)
+    validation_dataset = BehaviorCloningDataset(validation_manifests)
+    positive_counts, mouse_scale_values = train_dataset.action_statistics()
+    sample_count = len(train_dataset)
+    binary_class_weights = make_binary_class_weights(positive_counts, sample_count)
+    print(
+        f"excluded leading idle frames: train={train_dataset.leading_idle_frames} "
+        f"validation={validation_dataset.leading_idle_frames}"
+    )
+    print(
+        "binary positive rates: "
+        + " ".join(
+            f"{name}={100.0 * count / sample_count:.2f}%"
+            for name, count in zip(BINARY_ACTION_COLUMNS, positive_counts)
+        )
+    )
+    print(
+        f"mouse scales: dx={mouse_scale_values[0]:.3f} dy={mouse_scale_values[1]:.3f}"
+    )
+    binary_class_weights = binary_class_weights.to(device)
+    mouse_scale = torch.as_tensor(mouse_scale_values, device=device)
+    validation_loader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=pin_memory)
     model = ImitationPolicy().to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
     scaler = torch.amp.GradScaler(device.type, enabled=device.type == "cuda")
     args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    config = checkpoint_config(args)
+    config = checkpoint_config(args, binary_class_weights.cpu(), mouse_scale.cpu())
     best_validation = float("inf")
     global_step = 0
     start_epoch = 1
     resume_step_in_epoch = 0
     if args.resume:
         restored = load_checkpoint(args.resume, model=model, optimizer=optimizer, device=device)
-        if restored["config"]["architecture"] != config["architecture"] or restored["config"]["preprocessing"] != config["preprocessing"]:
-            raise ValueError("Resume checkpoint architecture or preprocessing differs from this run")
+        compatibility_keys = ("architecture", "preprocessing", "action_columns", "target_processing")
+        if any(restored["config"].get(key) != config.get(key) for key in compatibility_keys):
+            raise ValueError("Resume checkpoint model or target processing differs from this run")
         best_validation = float(restored["best_val_loss"])
         global_step = int(restored["global_step"])
         resume_step_in_epoch = int(restored.get("step_in_epoch", 0))
@@ -150,10 +217,19 @@ def main() -> None:
                 path = args.checkpoint_dir / f"step_{step:09d}.pt"
                 save_checkpoint(path, model=model, optimizer=optimizer, epoch=epoch, step_in_epoch=step_in_epoch, global_step=step, best_val_loss=best_validation, config=config)
                 save_checkpoint(args.checkpoint_dir / "last.pt", model=model, optimizer=optimizer, epoch=epoch, step_in_epoch=step_in_epoch, global_step=step, best_val_loss=best_validation, config=config)
-        train_metrics, global_step = run_epoch(model, train_loader, optimizer, scaler, device, train=True, global_step=global_step, on_step=save_periodic, skip_batches=skip_batches)
+        train_metrics, global_step = run_epoch(
+            model, train_loader, optimizer, scaler, device, train=True,
+            binary_class_weights=binary_class_weights, mouse_scale=mouse_scale,
+            global_step=global_step, on_step=save_periodic, skip_batches=skip_batches,
+            log_every=args.log_every,
+        )
         resume_step_in_epoch = 0
         with torch.no_grad():
-            validation_metrics, _ = run_epoch(model, validation_loader, optimizer, scaler, device, train=False, global_step=global_step)
+            validation_metrics, _ = run_epoch(
+                model, validation_loader, optimizer, scaler, device, train=False,
+                binary_class_weights=binary_class_weights, mouse_scale=mouse_scale,
+                global_step=global_step,
+            )
         print(f"epoch {epoch:03d} train={train_metrics['total']:.4f} validation={validation_metrics['total']:.4f} " + " ".join(f"{key}={validation_metrics[key]:.3f}" for key in (*BINARY_ACTION_COLUMNS, "mouse")))
         if validation_metrics["total"] < best_validation:
             best_validation = validation_metrics["total"]

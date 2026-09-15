@@ -11,7 +11,7 @@ import torch
 
 from .checkpoint import load_checkpoint
 from .dataset import BINARY_ACTION_COLUMNS
-from .network import ImitationPolicy
+from .network import ImitationPolicy, LegacyImitationPolicy
 from .preprocess import PREPROCESSING_CONFIG, preprocess_bgr_frame
 
 
@@ -23,12 +23,23 @@ class PolicyInference:
             raise RuntimeError("CUDA was requested for inference but is unavailable")
         checkpoint = load_checkpoint(Path(checkpoint_path), device=self.device)
         config = checkpoint["config"]
-        if config.get("architecture") != "shionn_imitation_v1":
+        if config.get("architecture") not in (
+            "shionn_imitation_v1", "shionn_imitation_v2", "shionn_imitation_v3"
+        ):
             raise ValueError(f"Unsupported architecture: {config.get('architecture')!r}")
         if config.get("preprocessing") != PREPROCESSING_CONFIG:
             raise ValueError("Checkpoint preprocessing differs from this inference implementation")
         self.config = config
-        self.policy = ImitationPolicy().to(self.device)
+        target_processing = config.get("target_processing", {})
+        self.mouse_scale = np.asarray(target_processing.get("mouse_scale", [1.0, 1.0]), dtype=np.float32)
+        if self.mouse_scale.shape != (2,) or np.any(self.mouse_scale <= 0):
+            raise ValueError(f"Invalid checkpoint mouse scale: {self.mouse_scale}")
+        policy_class = (
+            ImitationPolicy
+            if config.get("architecture") == "shionn_imitation_v3"
+            else LegacyImitationPolicy
+        )
+        self.policy = policy_class().to(self.device)
         self.policy.load_state_dict(checkpoint["model_state_dict"])
         self.policy.eval()
         self.frames: deque[np.ndarray] = deque(maxlen=PREPROCESSING_CONFIG["frame_stack"])
@@ -52,7 +63,7 @@ class PolicyInference:
         with torch.no_grad():
             output = self.policy(tensor.to(self.device, dtype=torch.float32).div_(255.0))
         action = {name: int(output[name].argmax(dim=1).item()) for name in BINARY_ACTION_COLUMNS}
-        mouse = output["mouse_mean"].squeeze(0).cpu().numpy()
+        mouse = output["mouse_mean"].squeeze(0).cpu().numpy() * self.mouse_scale
         action["mouse_dx"] = int(np.rint(mouse[0]))
         action["mouse_dy"] = int(np.rint(mouse[1]))
         return action
