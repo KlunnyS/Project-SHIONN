@@ -52,6 +52,13 @@ class PolicyInference:
         self.frames.append(preprocess_bgr_frame(frame_bgr))
 
     def predict(self, frame_bgr: np.ndarray | None = None) -> dict[str, int]:
+        action, _ = self.predict_with_diagnostics(frame_bgr)
+        return action
+
+    def predict_with_diagnostics(
+        self, frame_bgr: np.ndarray | None = None
+    ) -> tuple[dict[str, int], dict[str, Any]]:
+        """Predict an action and expose JSON-serializable policy diagnostics."""
         if frame_bgr is not None:
             self.add_frame(frame_bgr)
         if not self.frames:
@@ -63,10 +70,25 @@ class PolicyInference:
         with torch.no_grad():
             output = self.policy(tensor.to(self.device, dtype=torch.float32).div_(255.0))
         action = {name: int(output[name].argmax(dim=1).item()) for name in BINARY_ACTION_COLUMNS}
-        mouse = output["mouse_mean"].squeeze(0).cpu().numpy() * self.mouse_scale
+        probabilities = {
+            name: float(torch.softmax(output[name], dim=1)[0, 1].item())
+            for name in BINARY_ACTION_COLUMNS
+        }
+        normalized_mouse = output["mouse_mean"].squeeze(0).cpu().numpy()
+        mouse = normalized_mouse * self.mouse_scale
+        mouse_std = (
+            output["mouse_log_std"].squeeze(0).exp().cpu().numpy()
+            * self.mouse_scale
+        )
         action["mouse_dx"] = int(np.rint(mouse[0]))
         action["mouse_dy"] = int(np.rint(mouse[1]))
-        return action
+        diagnostics = {
+            "binary_probabilities": probabilities,
+            "mouse_mean": [float(mouse[0]), float(mouse[1])],
+            "mouse_std": [float(mouse_std[0]), float(mouse_std[1])],
+            "history_frames": len(self.frames),
+        }
+        return action, diagnostics
 
     def apply(self, controller: Any, frame_bgr: np.ndarray | None = None) -> dict[str, int]:
         """Predict and send state transitions through Portal2Controller.apply_action()."""

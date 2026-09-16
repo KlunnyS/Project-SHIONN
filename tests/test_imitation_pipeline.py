@@ -1,8 +1,11 @@
 import csv
+import json
 import subprocess
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
+from unittest.mock import Mock
 
 import cv2
 import numpy as np
@@ -16,9 +19,67 @@ from models.imitation.preprocess import PREPROCESSING_CONFIG
 from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_episodes
 from models.imitation.train_bc import make_binary_class_weights
 from recorder import FFmpegVideoWriter
+from run_imitation import AttemptLog, action_label, apply_predicted_action, frame_change, hyprland_instance_candidates, make_attempt_recording_path, parse_args
 
 
 class ImitationPipelineTest(unittest.TestCase):
+    def test_attempt_recordings_use_a_separate_timestamped_directory(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            recording_dir = Path(temporary_directory) / "model_attempts"
+
+            output = make_attempt_recording_path(
+                recording_dir, datetime(2026, 9, 16, 12, 34, 56, 123456)
+            )
+
+            self.assertTrue(recording_dir.is_dir())
+            self.assertEqual(
+                output,
+                recording_dir / "attempt_20260916_123456_123456.mp4",
+            )
+
+    def test_runner_recording_options_default_to_model_attempts(self):
+        args = parse_args(["--record-video", "--verbose", "--keep-focused"])
+
+        self.assertTrue(args.record_video)
+        self.assertTrue(args.verbose)
+        self.assertTrue(args.keep_focused)
+        self.assertEqual(args.recording_dir, Path("model_attempts"))
+        self.assertEqual(args.hyprland_instance, "auto")
+
+    def test_explicit_hyprland_instance_does_not_depend_on_session_environment(self):
+        self.assertEqual(hyprland_instance_candidates("test-signature"), ["test-signature"])
+
+    def test_attempt_log_writes_line_delimited_json(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "attempt.jsonl"
+            log = AttemptLog(path)
+            log.write("tick", tick=1, action={"move_w": 1})
+            log.write("summary", ticks=1)
+            log.close()
+
+            records = [json.loads(line) for line in path.read_text().splitlines()]
+            self.assertEqual([record["type"] for record in records], ["tick", "summary"])
+            self.assertEqual(records[0]["action"], {"move_w": 1})
+
+    def test_frame_change_and_action_label_are_compact(self):
+        first = np.zeros((32, 32, 3), dtype=np.uint8)
+        second = np.full((32, 32, 3), 16, dtype=np.uint8)
+        change, sample = frame_change(None, first)
+        self.assertIsNone(change)
+        change, _ = frame_change(sample, second)
+        self.assertEqual(change, 16.0)
+        self.assertEqual(action_label({"move_w": 1, "jump": 1}), "move_w+jump")
+
+    def test_verbose_dry_run_never_applies_an_action(self):
+        controller = Mock()
+
+        applied = apply_predicted_action(
+            controller, {"move_w": 1}, dry_run=True, verbose=True
+        )
+
+        self.assertFalse(applied)
+        controller.apply_action.assert_not_called()
+
     def test_discovers_flat_and_outcome_grouped_episodes(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory) / "episodes"
@@ -153,10 +214,15 @@ class ImitationPipelineTest(unittest.TestCase):
             self.assertEqual(restored["epoch"], 3)
             self.assertTrue(checkpoint_path.with_suffix(".json").is_file())
             policy = PolicyInference(checkpoint_path, device="cpu")
-            action = policy.predict(np.zeros((1080, 1920, 3), dtype=np.uint8))
+            action, diagnostics = policy.predict_with_diagnostics(
+                np.zeros((1080, 1920, 3), dtype=np.uint8)
+            )
             self.assertEqual(set(action), set(config["action_columns"]))
             self.assertEqual(action["mouse_dx"], 50)
             self.assertEqual(action["mouse_dy"], -10)
+            self.assertEqual(set(diagnostics["binary_probabilities"]), set(config["action_columns"][:8]))
+            self.assertEqual(diagnostics["mouse_mean"], [50.0, -10.0])
+            self.assertEqual(diagnostics["history_frames"], 1)
 
 
 if __name__ == "__main__":

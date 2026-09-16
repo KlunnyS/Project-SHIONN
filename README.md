@@ -564,6 +564,8 @@ The live runner launches Portal 2 with `-netconport 8020` if needed, captures th
 .venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints_v3/best.pt --no-launch --dry-run --max-seconds 10
 ```
 
+Add `--record-video` to save the exact frames used for an inference attempt as a timestamped H.264 MP4 under `model_attempts/`, separate from demonstration episodes and cached training data. Each recorded attempt also gets a matching `.jsonl` diagnostic log containing per-tick actions, policy probabilities, mouse distribution, visual motion, focus state, and console events. Use `--recording-dir PATH` to select a different review-video directory, or `--log-actions` to save diagnostics without video. `--verbose` prints a compact status line once per second. On Hyprland, `--keep-focused` focuses Portal, activates its XWayland input grab, unpauses it before inference, and restores input if another window takes focus. The current XWayland/uinput path can still lose the raw mouse grab on some setups; check `focus_losses` in the JSONL summary when diagnosing an attempt.
+
 Recording remains a Linux/Wayland job (`wf-recorder`, `evdev`, and `ffmpeg` with `libx264` are required). Training is independent of those tools and works on a headless Debian/Ubuntu system, either Arch desktop, or Windows. Use `python -m ...` instead of the Linux-specific `.venv/bin/python` prefix on Windows. The portable defaults are `--device auto --workers 0`; CUDA is selected when available. On the headless server, request it explicitly after confirming the NVIDIA driver and PyTorch CUDA build are installed:
 
 ```bash
