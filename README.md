@@ -1,5 +1,3 @@
-# Project SHIONN
-
 # SHIONN — Self-learning Hybrid Independent Optical Neural Network
 
 SHIONN is an experimental AI agent designed for the *Portal 2* environment, built to operate as a fully autonomous test subject capable of learning directly from visual input and interacting with puzzle-based physics systems.
@@ -36,19 +34,28 @@ Unlike scripted bots or rule-based agents, SHIONN:
   * Reinforcement Learning
   * Curriculum Learning
 
+### Current progress (2026-09-16)
+
+* **Environment and recording pipeline:** operational end to end on Linux/Wayland, including screen capture, physical-input recording, virtual-input playback, netconsole events, automatic map loading, and outcome-grouped episodes.
+* **Dataset:** 200 completed `goal_reached` demonstrations containing 57,492 aligned frame/action rows. Generated recordings and caches are intentionally excluded from Git.
+* **Behavior cloning:** architecture `shionn_imitation_v3` has been trained and deployed in Portal 2. The expanded-data candidate reached a best validation loss of `2.8933` at epoch 6; its epoch-20 `last.pt` is retained separately from `best.pt`.
+* **Live evaluation:** the policy can complete the current navigation chamber, but still sometimes enters wall-facing states and fails to recover. Targeted expert-recovery demonstrations are the current data-collection focus.
+* **Next milestone:** stabilize Stage 2 navigation and recovery behavior before adding the Stage 3 actor-critic/value head. PPO, reward shaping, recurrence, and portal-mechanics curricula remain planned work.
+* **Automated checks:** 25 unit tests currently cover recording, preprocessing, checkpointing, inference utilities, dataset statistics, timeout handling, and the Escape-key stop path.
+
 ---
 
 ## 🧩 Environment
 
 ### Target Platform
 
-* *Portal 2*, running natively on Linux (Wayland / Niri compositor)
+* *Portal 2*, running through Proton on Linux/Wayland; the live runner includes Hyprland-specific focus recovery
 * Custom chambers built with Puzzle Maker, hand-edited in Hammer++
 * Community workshop maps for later evaluation
 
 ### Environment Wrapper
 
-The game is treated as a vision-based reinforcement learning environment, exposed as a Gym-like interface:
+The current wrapper provides the low-level pieces needed by a vision-based environment: capture, input injection, map control, and terminal events. A formal Gym-style `reset()`/`step()` API is the Stage 3 target:
 
 ```python
 obs = env.reset()
@@ -62,7 +69,9 @@ Features:
 * Bidirectional low-latency game console channel
 * Episode logging
 * Automatic chamber reset (cold-start and warm-reset paths)
-* Reward monitoring via a privileged side-channel, invisible to the policy
+* Terminal-event monitoring via a privileged side-channel, invisible to the policy
+
+Dense reward calculation and the actor-critic training loop are not implemented yet.
 
 ### Key Limitation
 
@@ -101,13 +110,13 @@ Wayland deliberately blocks compositor-level synthetic input for security reason
 
 ### Screen capture — `wlr-screencopy` via `wf-recorder`
 
-Niri natively supports the `wlr-screencopy` Wayland protocol. `grim` (one-shot screenshots) was tried first but its per-frame process-spawn/handshake overhead capped throughput; `wf-recorder` is used in production instead, streaming raw BGR frames through a long-lived pipe at a fixed rate with no per-frame handshake cost.
+The target Wayland compositors support the `wlr-screencopy` protocol. `grim` (one-shot screenshots) was tried first but its per-frame process-spawn/handshake overhead capped throughput; `wf-recorder` is used in production instead, streaming raw BGR frames through a long-lived pipe at a fixed rate with no per-frame handshake cost.
 
 ### Chosen resolutions and rates
 
 | Parameter | Value / rationale |
 |---|---|
-| Game render resolution | 1920×1080 (Full HD), with `fps_max` capped to the capture rate |
+| Recording resolution | 1920×1080 by default; `wf-recorder` scales the selected output when its native resolution differs |
 | Model input resolution | 320×180 RGB — an offline cache preserves visual detail without decoding video during training |
 | Frame stacking | Last 4 frames stacked as channels, giving implicit motion/velocity information |
 | Capture rate | 24 Hz fixed tick loop |
@@ -224,7 +233,7 @@ The pilot batch is recorded and used to build/debug the Stage 2 training script 
 1. **Input reading** — `evdev.list_devices()` auto-scans for the physical keyboard/mouse (by `REL_X`/`REL_Y` and key capabilities) and reads them live on a dedicated blocking thread, separate from the `UInput` *output* device used for playback/inference.
 2. **Fixed-rate capture** — `wf-recorder` piping raw BGR frames at 24 Hz and 1920×1080.
 3. **Sync loop** — a precise 24 Hz tick snapshots the most recent frame together with the current persistent key-hold state and the accumulated-then-reset mouse delta, writing one aligned row.
-4. **Storage** — completed recordings are grouped by outcome, for example `episodes/goal_reached/episode_<timestamp>/` and `episodes/timeout/episode_<timestamp>/`. Each contains `actions.csv` (columns: `frame_idx, move_w, move_a, move_s, move_d, jump, use, fire_left, fire_right, mouse_dx, mouse_dy`) alongside a compressed `video.mp4`; active captures remain under `episodes/.in_progress/` until finalized.
+4. **Storage** — completed recordings are grouped by outcome, for example `episodes/goal_reached/episode_<timestamp>/` and `episodes/timeout/episode_<timestamp>/`. Each contains a compressed, audio-free `video.mp4` and an `actions.csv` with `timestamp`, `frame_idx`, movement, jump, crouch, use, portal-fire, and mouse-delta columns. The current ten-output policy does not train on the recorded `crouch` column. Active captures remain under `episodes/.in_progress/` until finalized.
 5. **Episode boundaries** — driven by the same `EVT|chamber_ready` / `EVT|goal_reached` / `EVT|episode_failed` netconsole hooks used by the environment wrapper. The terminal event selects the completed episode's result directory.
 
 A playback function re-executes a recorded episode's actions through the same input-injection path used for live inference, validating the full record → store → replay loop independent of any model.
@@ -235,7 +244,7 @@ For continuous human-demonstration capture on `dataset_test1`, run:
 .venv/bin/python record_dataset.py
 ```
 
-The command launches Portal 2 with netconsole enabled when needed, waits five seconds for the user to focus the game, and repeatedly loads `dataset_test1`. Each `EVT|chamber_ready` starts a video-only 1920×1080 recording at 24 FPS. `EVT|goal_reached`, `EVT|episode_failed`, or a local 30-second safety limit ends the episode and reloads the chamber. Recording continues until `Ctrl+C`; use `--episodes N` for a finite batch, `--focus-delay SECONDS` to change the initial delay, `--restart-delay SECONDS` to change the pause between attempts, `--output NAME` to select a monitor reported by `wf-recorder -L`, and `--mouse-device PATH_OR_NAME` to override pointer detection.
+The command launches Portal 2 with netconsole enabled when needed, waits five seconds for the user to focus the game, and repeatedly loads `dataset_test1`. Each `EVT|chamber_ready` starts a synchronized 1920×1080 video/action recording at 24 FPS; audio is disabled. `EVT|goal_reached`, `EVT|episode_failed`, or a local 30-second safety limit ends the episode and reloads the chamber. Recording continues until `Ctrl+C`; use `--episodes N` for a finite batch, `--focus-delay SECONDS` to change the initial delay, `--restart-delay SECONDS` to change the pause between attempts, `--output NAME` to select a monitor reported by `wf-recorder -L`, and `--mouse-device PATH_OR_NAME` to override pointer detection.
 
 To count completed episodes and aligned action rows by outcome category and recording date, run:
 
@@ -261,15 +270,11 @@ Requirements: screen capture pipeline, kernel-level input control, automatic cha
 
 **Network:** none — this stage builds the environment wrapper only.
 
-**Deliverable:**
-```python
-obs = env.reset()
-obs, reward, done, info = env.step(action)
-```
+**Delivered:** tested netconsole control, `wf-recorder` capture, `evdev` recording, `uinput` action injection, automatic chamber loading, event-driven episode boundaries, playback, and live-policy execution. The formal Gym-style API and reward calculation remain Stage 3 work.
 
 ---
 
-## Stage 0.5 — Curriculum Chamber Authoring
+## Stage 0.5 — Curriculum Chamber Authoring 🚧
 
 **Goal:** Build a small set of chambers with verified VScript event hooks before any real recording begins.
 
@@ -280,18 +285,21 @@ obs, reward, done, info = env.step(action)
 
 **Network:** none.
 
+**Current status:** the initial `dataset_test1` navigation chamber is registered and producing verified ready/goal/timeout events. The interaction, cube, and portal chamber set is still future work.
+
 ---
 
-## Stage 1 — Data Collection (Imitation Learning)
+## Stage 1 — Data Collection (Imitation Learning) ✅
 
 **Goal:** Teach basic human-like movement and camera control by recording demonstrations.
 
-**Network — perception + control layer used for *inference sanity-checking* during recording, not yet trained on real data:**
+**Implemented network contract:**
 
 ```
-Input: 4 × 128×128 RGB stacked frames (12 channels)
+Input: 4 × 320×180 RGB frames stacked as 12 channels
   ↓
-CNN encoder (Conv 8×8/4 → Conv 4×4/2 → Conv 3×3/1 → FC 512)
+Seven-layer CNN trunk (64 → 128 → 256 → 384 channels,
+GroupNorm + SiLU, adaptive 4×4 pooling, FC 1024 → 512)
   ↓
 Factored action heads (see Action Space Design):
   move_w, move_a, move_s, move_d   → binary
@@ -299,20 +307,22 @@ Factored action heads (see Action Space Design):
   mouse_dx, mouse_dy               → Gaussian (mean + log-std)
 ```
 
-No recurrence. No value head yet (no RL at this stage). This is the same architecture Stage 2 trains for real — Stage 1's job is only to get demonstration data flowing through it once, end-to-end, to confirm shapes and formats line up.
+No recurrence and no value head are used at this stage. The recording, cache, training, checkpoint, and live-inference formats are now validated end to end.
 
 **Success criteria:** demonstration data is being recorded reliably (validated via the playback function), in the exact factored-action format the model will be trained on.
 
+**Current status:** achieved for the navigation curriculum. The local dataset contains 200 successful demonstrations and 57,492 aligned action rows; targeted recovery data collection remains ongoing.
+
 ---
 
-## Stage 2 — Behavior Cloning
+## Stage 2 — Behavior Cloning 🚧
 
 **Goal:** Learn to imitate human gameplay via supervised learning.
 
 **Network — identical architecture to Stage 1, now actually trained:**
 
 ```
-Input: 4 × 128×128 RGB stacked frames
+Input: 4 × 320×180 RGB frames stacked as 12 channels
   ↓
 CNN trunk (shared)
   ↓
@@ -321,11 +331,13 @@ move heads    button heads   mouse head    (no value head)
 (4 × binary)  (4 × binary)   (Gaussian)
 ```
 
-**Loss:** cross-entropy on each binary head + negative log-likelihood (or MSE, as a simpler starting point) on the Gaussian mouse head, summed.
+**Loss:** weighted cross-entropy on each binary head plus Gaussian negative log-likelihood on standardized mouse deltas, summed.
 
 **Why no recurrence here:** short-horizon skills (walking, looking, jumping, interacting) are well covered by the 4-frame stack's implicit velocity information. Behavior cloning is also where a no-op-collapse-resistant prior gets baked in for free, since human demonstrations rarely sit idle.
 
 **Expected result:** stable movement, basic navigation, natural camera control, reliable interaction — a baseline that substantially reduces the instability and exploration difficulty of RL trained from scratch.
+
+**Current status:** the v3 policy is trained and can complete the navigation chamber in live attempts. Recovery from unfamiliar wall-facing states is inconsistent, so Stage 2 is still active; model-failure videos are used to identify states for new expert recovery demonstrations, not as positive behavior-cloning labels.
 
 ---
 
@@ -338,7 +350,7 @@ move heads    button heads   mouse head    (no value head)
 **Network — same CNN trunk and action heads as Stage 2, extended with a value head for actor-critic PPO:**
 
 ```
-Input: 4 × 128×128 RGB stacked frames
+Input: 4 × 320×180 RGB frames stacked as 12 channels
   ↓
 CNN trunk (shared, initialized from Stage 2's behavior-cloned weights)
   ↓
@@ -370,7 +382,7 @@ Still **no recurrence** — this stage's chambers (empty room, maze, button+door
 **Network — same feedforward actor-critic as Stage 3 by default:**
 
 ```
-Input: 4 × 128×128 RGB stacked frames
+Input: 4 × 320×180 RGB frames stacked as 12 channels
   ↓
 CNN trunk
   ↓
@@ -396,7 +408,7 @@ Factored action heads (actor) + Value head (critic)
 **Network — CNN trunk feeding a recurrent core, not a plain feedforward trunk:**
 
 ```
-Input: 4 × 128×128 RGB stacked frames
+Input: 4 × 320×180 RGB frames stacked as 12 channels
   ↓
 CNN trunk
   ↓
@@ -475,7 +487,7 @@ Factored action space, not a single categorical action:
 
 ## 5. Environment Wrapper
 
-Gym-like interface over the real Portal 2 process: cold-start/warm-reset bootstrap over `-netconport`, netconsole-driven reward/termination, `evdev`-based action injection, `wf-recorder`-based observation capture.
+Implemented low-level control over the real Portal 2 process: launch/connect and map loading over `-netconport`, netconsole-driven ready/termination events, `evdev`/`uinput` action handling, and `wf-recorder` observation capture. A Gym-like API and dense reward computation are the next-layer Stage 3 deliverables.
 
 ---
 
@@ -504,49 +516,57 @@ Result: general-purpose Portal reasoning.
 # 📦 Project Structure
 
 ```text
-SHIONN/
-│
-├── data/
-│   ├── recordings/
-│   └── datasets/
-│
-├── environment/
-│   ├── screen_capture/       # wf-recorder pipe
-│   ├── input_control/        # evdev / uinput
-│   ├── netconsole/           # -netconport client, reward/reset hooks
-│   └── portal_wrapper/       # Gym-like env: reset()/step()
-│
-├── models/
-│   ├── imitation/            # Stage 1-2: CNN + factored heads
-│   ├── rl/                   # Stage 3-4: + value head (PPO)
-│   └── memory/               # Stage 5: + GRU / attention
-│
-├── training/
-│   ├── behavior_cloning/
-│   ├── ppo/
-│   └── curriculum/
-│
-├── chambers/
-│   ├── navigation/
-│   ├── interaction/
-│   ├── portals/
-│   └── advanced/
-│
-└── docs/
+Project-SHIONN/
+├── models/imitation/
+│   ├── network.py             # v3 CNN and legacy checkpoint model
+│   ├── dataset.py             # episode-aware memory-mapped loader
+│   ├── preprocess.py          # MP4/CSV → RGB/action .npy cache
+│   ├── train_bc.py            # behavior-cloning trainer
+│   ├── inference.py           # four-frame live inference
+│   └── checkpoint.py          # portable atomic checkpoints
+├── portal_assets/scripts/vscripts/
+│   └── shionn_events.nut      # ready/goal/failure events
+├── tests/                          # unit and hardware diagnostics
+├── wrapper.py                      # netconsole and action control
+├── recorder.py                     # capture/input/episode primitives
+├── record_dataset.py               # continuous demonstration recorder
+├── dataset_stats.py                # category/date dataset report
+├── run_imitation.py                # live policy runner
+├── run_model.sh                    # local Bash launcher
+├── run_model.fish                  # local Fish launcher
+└── run_model_ssh.sh                # SSH/Hyprland launcher
 ```
+
+Generated `episodes*/`, `data/datasets/cached_frames/`, `model_attempts/`, checkpoint directories, and model backups are local artifacts excluded by `.gitignore`.
 
 ---
 
 # Imitation Model Usage
 
-Install dependencies in the project virtual environment, then cache recordings once before training. The cache is memory-mapped `uint8` RGB at 320×180; the trainer loads it without decoding `video.mp4`. Each cached episode also contains a matching action-array sidecar, so copying `data/datasets/cached_frames/` to a training server is sufficient; it does not rely on the capture machine's absolute paths or source videos.
+Install dependencies in the project virtual environment, then convert completed demonstrations into the offline cache. Point `--recordings-dir` at `episodes/goal_reached` when training only from successful expert demonstrations; pointing it at `episodes/` includes every completed outcome category and should be done only deliberately.
 
 ```bash
 .venv/bin/python -m models.imitation.preprocess --recordings-dir episodes/goal_reached
-.venv/bin/python -m models.imitation.train_bc --cache-dir data/datasets/cached_frames --batch-size 8
+.venv/bin/python -m models.imitation.train_bc \
+  --cache-dir data/datasets/cached_frames \
+  --batch-size 8 \
+  --checkpoint-dir models/imitation/checkpoints_candidate
 ```
 
-The trainer holds out complete episodes for validation and saves the best checkpoint to `models/imitation/checkpoints_v3/best.pt`. It excludes the ambiguous waiting frames before the first action in each episode, balances binary heads that have enough positive examples, and standardizes mouse deltas using scales computed from the training split. Those scales are saved in the checkpoint and reversed during inference. The normalized SiLU network keeps visual differences alive through the convolutional trunk instead of collapsing to a constant average action. It reports running loss every 100 batches plus each binary-control loss and the mouse Gaussian NLL every epoch. Use the default batch size of 8 for the planned 8 GB GPU smoke run, then increase it only after that run is stable.
+Preprocessing skips already cached episodes unless `--overwrite` is supplied, so the same command safely adds new recordings. The trainer splits complete episodes rather than adjacent frames, excludes ambiguous waiting frames before the demonstrator's first action, balances supported binary heads, and standardizes mouse deltas from the training split. The normalized GroupNorm/SiLU trunk avoids the constant-feature collapse observed in the earlier ReLU model.
+
+### `.npy` cache contract
+
+Each episode produces two NumPy binary arrays:
+
+* `<episode>.npy`: pre-convolution RGB pixels with shape `(N, 180, 320, 3)` and type `uint8`.
+* `<episode>.actions.npy`: aligned policy targets with shape `(N, 10)` and type `float32`.
+
+The cache stores resized pixels, not CNN features. `BehaviorCloningDataset` memory-maps the arrays, stacks four frames into `(12, 180, 320)`, and the current model performs convolution again on every training batch. This is necessary because convolution weights change after every optimizer update. Live inference applies the same BGR→RGB resize and normalization path to `wf-recorder` frames.
+
+### Training and checkpoints
+
+The trainer reports running batch loss, per-epoch train/validation loss, and a final summary containing elapsed time, average epoch time, dataset sizes, parameter count, optimizer steps, best/final losses, checkpoint paths, per-head validation components, and peak CUDA memory when available.
 
 Every checkpoint contains the model weights, AdamW optimizer state, epoch, global step, best validation loss, and the architecture/preprocessing/action configuration. The same configuration is also written as `*.json` beside the `*.pt` file. `last.pt` is saved after each epoch, `best.pt` tracks the lowest validation loss, and `step_*.pt` is saved every 1,000 optimizer steps by default. Resume a run on another machine with:
 
@@ -554,25 +574,32 @@ Every checkpoint contains the model weights, AdamW optimizer state, epoch, globa
 python -m models.imitation.train_bc --cache-dir cached_frames --device cuda --resume models/imitation/checkpoints_v3/last.pt
 ```
 
-For live policy use, construct `PolicyInference` with a checkpoint, supply raw BGR frames from `WaylandCamera`, and call `policy.apply(controller, frame)`. It keeps the four-frame history, performs the same BGR→RGB resize and `/255` normalization recorded in the checkpoint, and calls `Portal2Controller.apply_action()` with the predicted factored action. Call `policy.reset()` and `controller.release_policy_actions()` at every `EVT|goal_reached` or `EVT|episode_failed` boundary. The existing three netconsole events remain sufficient for BC; player position is intentionally deferred to Stage 3 reward shaping.
+Resume only against the same cached dataset contract: changing the dataset can change class weights and mouse scales, and compatibility checks will reject a mismatched resume. Train an expanded dataset into a new checkpoint directory instead. Directory names such as `checkpoints_expanded_v1` are run labels; the architecture version is stored inside the checkpoint configuration.
 
-To train from the recordings in `episodes/` and immediately try the best checkpoint in Portal 2:
+Checkpoints and backups are excluded from Git. Back up both `best.pt` and its matching `best.json` before promoting a new candidate.
+
+### Live evaluation
+
+For live policy use, construct `PolicyInference` with a checkpoint, supply raw BGR frames from `WaylandCamera`, and call `policy.apply(controller, frame)`. It keeps the four-frame history and calls `Portal2Controller.apply_action()` with the predicted factored action. The runner resets policy history and releases held controls at chamber boundaries; player position remains intentionally deferred to Stage 3 reward shaping.
+
+The Bash and Fish launchers provide the current machine defaults. Arguments appended at launch override those defaults, so candidate checkpoints can be evaluated without editing the scripts:
 
 ```bash
-./install_dependencies.sh
-./check_dependencies.sh
-.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes/goal_reached
-.venv/bin/python -m models.imitation.train_bc --cache-dir data/datasets/cached_frames --device auto --batch-size 8
-.venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints_v3/best.pt --map puzzlemaker/preview
+./run_model.sh --checkpoint models/imitation/checkpoints_candidate/best.pt
+./run_model.fish --checkpoint models/imitation/checkpoints_candidate/best.pt
 ```
 
-The live runner launches Portal 2 with `-netconport 8020` if needed, captures the selected Wayland output at 24 Hz, and releases every held action on exit. It stops after 60 seconds by default; while a positive `--max-seconds` deadline is configured, `EVT|episode_failed|timeout` from the chamber is ignored so the runner's own deadline remains authoritative. Use `--max-seconds 0` for an unlimited run, where chamber timeout events remain terminal. Press `Esc` or `Ctrl+C` for the emergency stop. Use `wf-recorder -L` followed by `--output OUTPUT_NAME` if the wrong monitor is captured. Before allowing input, a useful capture-only check is:
+`run_model_ssh.sh` adds `--no-launch` and Hyprland focus recovery for an already-running game. The checked-in launchers currently select output `DP-1`, map `dataset_test1`, a 60-second run, and `models/imitation/checkpoints_v3/best.pt`; override these values when the machine layout or candidate changes. Launchers do not automatically discover the newest checkpoint.
+
+The live runner launches Portal 2 with `-netconport 8020` if needed, captures the selected Wayland output at 24 Hz, and releases every held action on exit. While a positive `--max-seconds` deadline is configured, `EVT|episode_failed|timeout` from the chamber is logged but ignored so the runner's own deadline remains authoritative. Use `--max-seconds 0` for an unlimited run, where chamber timeout events remain terminal. A global physical-keyboard monitor makes `Esc` an emergency stop even while Portal has focus; `Ctrl+C` remains available from the terminal. Use `wf-recorder -L` followed by `--output OUTPUT_NAME` if the wrong monitor is captured. Before allowing input, a useful capture-only check is:
 
 ```bash
 .venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints_v3/best.pt --no-launch --dry-run --max-seconds 10
 ```
 
 Add `--record-video` to save the exact frames used for an inference attempt as a timestamped H.264 MP4 under `model_attempts/`, separate from demonstration episodes and cached training data. Each recorded attempt also gets a matching `.jsonl` diagnostic log containing per-tick actions, policy probabilities, mouse distribution, visual motion, focus state, and console events. Use `--recording-dir PATH` to select a different review-video directory, or `--log-actions` to save diagnostics without video. `--verbose` prints a compact status line once per second. On Hyprland, `--keep-focused` focuses Portal, activates its XWayland input grab, unpauses it before inference, and restores input if another window takes focus. The current XWayland/uinput path can still lose the raw mouse grab on some setups; check `focus_losses` in the JSONL summary when diagnosing an attempt.
+
+Model-attempt videos and model-generated actions are diagnostic data, not expert labels. When a rollout becomes stuck, reproduce or preserve that visual state and record a successful human recovery; do not add the model's failed actions to the behavior-cloning cache as if they were correct.
 
 Recording remains a Linux/Wayland job (`wf-recorder`, `evdev`, and `ffmpeg` with `libx264` are required). Training is independent of those tools and works on a headless Debian/Ubuntu system, either Arch desktop, or Windows. Use `python -m ...` instead of the Linux-specific `.venv/bin/python` prefix on Windows. The portable defaults are `--device auto --workers 0`; CUDA is selected when available. On the headless server, request it explicitly after confirming the NVIDIA driver and PyTorch CUDA build are installed:
 
@@ -587,6 +614,9 @@ Keep `--workers 0` on Windows unless a later benchmark shows a higher value is s
 # ⚠️ Known Limitations
 
 * Portal 2 is not a high-speed simulator: training throughput is bounded by real-time game execution, physics simulation, rendering overhead, and chamber-reset time — unlike vectorized simulators used in typical RL benchmarks.
+* The deployed behavior-cloning policy has only been validated on the current navigation chamber. Completion there does not yet demonstrate generalization to unseen geometry or puzzle mechanics.
+* Behavior cloning is vulnerable to distribution shift: once the policy reaches a wall-facing or otherwise unfamiliar state, its own next actions can move it farther outside the expert dataset. Targeted expert-recovery demonstrations are the current mitigation.
+* The checked-in launchers contain machine-specific `DP-1` output defaults. Always verify the captured attempt video; feeding the policy another desktop produces meaningless actions even when Portal itself is focused.
 * Stages 4–6 represent a multi-month-to-multi-year research effort; even large-scale prior work on Portal-style tasks has struggled with momentum and multi-portal reasoning. Treated as a long-term direction, not a near-term deliverable.
 * The `GAME`-path-alias bug (see Resolved Deployment Issues) is an apparent engine bug in Portal 2's native Linux build; it may resurface on new installs and is mitigated, not fixed, by forcing Proton.
 * Recurrence (Stage 5) is explicitly *not* a mechanism for backtracking or undoing actions — that would require a planning/search capability, which is out of scope for the current roadmap and noted only as a possible long-term direction.
