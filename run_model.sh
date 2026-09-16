@@ -14,11 +14,9 @@ exec env \
   .venv/bin/python run_imitation.py \
   --checkpoint models/imitation/checkpoints_v3/best.pt \
   --device auto \
-  --no-launch \
   --output DP-1 \
   --map dataset_test1 \
   --max-seconds 60 \
   --record-video \
   --verbose \
-  --keep-focused \
   "$@"

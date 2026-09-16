@@ -5,12 +5,15 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import evdev
 import numpy as np
 
 from recorder import FFmpegVideoWriter, WaylandCamera, get_default_output
@@ -19,6 +22,109 @@ from wrapper import Portal2Controller, is_game_running, launch_game
 
 TERMINAL_EVENTS = ("EVT|goal_reached", "EVT|episode_failed")
 PORTAL_WINDOW_CLASS = "steam_app_620"
+EPISODE_FAILURE_PATTERN = re.compile(r"EVT\|episode_failed\|([^\r\n]*)")
+
+
+def classify_terminal_events(
+    console_output: str, max_seconds: float
+) -> tuple[bool, bool]:
+    """Return (terminal event received, chamber timeout ignored)."""
+    if "EVT|goal_reached" in console_output:
+        return True, False
+
+    has_failure_marker = "EVT|episode_failed" in console_output
+    if not has_failure_marker:
+        return False, False
+
+    failure_reasons = [
+        match.group(1).strip() for match in EPISODE_FAILURE_PATTERN.finditer(console_output)
+    ]
+    only_timeout = bool(failure_reasons) and all(
+        reason == "timeout" for reason in failure_reasons
+    )
+    if max_seconds > 0 and only_timeout:
+        return False, True
+    return True, False
+
+
+class EscapeKeyMonitor:
+    """Watch readable physical keyboards for a global Escape key press."""
+
+    def __init__(self) -> None:
+        self._stop_requested = threading.Event()
+        self._stopping = threading.Event()
+        self._devices: list[evdev.InputDevice] = []
+        self._threads: list[threading.Thread] = []
+
+    @property
+    def stop_requested(self) -> bool:
+        return self._stop_requested.is_set()
+
+    def wait(self, timeout: float) -> bool:
+        return self._stop_requested.wait(timeout)
+
+    def _watch_device(self, device: evdev.InputDevice) -> None:
+        try:
+            for event in device.read_loop():
+                if self._stopping.is_set():
+                    return
+                if (
+                    event.type == evdev.ecodes.EV_KEY
+                    and event.code == evdev.ecodes.KEY_ESC
+                    and event.value == 1
+                ):
+                    self._stop_requested.set()
+                    return
+        except OSError:
+            if not self._stopping.is_set():
+                print(f"Warning: Escape-key monitor lost {device.path} ({device.name})")
+
+    def start(self) -> None:
+        for path in evdev.list_devices():
+            try:
+                device = evdev.InputDevice(path)
+                keys = device.capabilities().get(evdev.ecodes.EV_KEY, [])
+            except OSError:
+                continue
+            name = device.name.casefold()
+            if (
+                evdev.ecodes.KEY_ESC not in keys
+                or evdev.ecodes.KEY_W not in keys
+                or evdev.ecodes.KEY_A not in keys
+                or "virtual" in name
+                or "uinput" in name
+                or "portal2-wrapper" in name
+            ):
+                device.close()
+                continue
+            self._devices.append(device)
+
+        if not self._devices:
+            raise RuntimeError(
+                "No readable physical keyboard with an Escape key was found; "
+                "check /dev/input/event* permissions"
+            )
+
+        for device in self._devices:
+            thread = threading.Thread(
+                target=self._watch_device,
+                args=(device,),
+                name=f"escape-monitor-{Path(device.path).name}",
+                daemon=True,
+            )
+            thread.start()
+            self._threads.append(thread)
+        device_names = ", ".join(device.name for device in self._devices)
+        print(f"Escape-key stop enabled: {device_names}")
+
+    def stop(self) -> None:
+        self._stopping.set()
+        for device in self._devices:
+            device.close()
+        for thread in self._threads:
+            thread.join(timeout=0.5)
+        self._devices.clear()
+        self._threads.clear()
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -262,6 +368,7 @@ def main() -> None:
         fps=max(1, round(args.fps)),
         output_name=args.output or get_default_output(),
     )
+    escape_monitor = EscapeKeyMonitor()
     video_writer = None
     video_path = None
     attempt_log = None
@@ -274,16 +381,25 @@ def main() -> None:
     input_ready = None
 
     try:
+        escape_monitor.start()
         if args.map_name:
             controller.load_map(args.map_name, wait_for_load=True)
         camera.start()
         print(f"Policy device: {policy.device}")
         print(f"Capture output: {camera.output_name or 'wf-recorder default'}")
-        print(f"Starting in {args.countdown:g} seconds. Press Ctrl+C for the emergency stop.")
-        time.sleep(max(0.0, args.countdown))
+        print(
+            f"Starting in {args.countdown:g} seconds. "
+            "Press Esc or Ctrl+C for the emergency stop."
+        )
+        if escape_monitor.wait(max(0.0, args.countdown)):
+            print("\nEscape pressed. Cancelling policy run.")
+            return
 
         frame_wait_deadline = time.monotonic() + 10.0
         while camera.get_latest_frame() is None:
+            if escape_monitor.stop_requested:
+                print("\nEscape pressed. Cancelling policy run.")
+                return
             if time.monotonic() >= frame_wait_deadline:
                 detail = camera.error_summary()
                 message = "No frames received from wf-recorder; check the output name and Wayland permissions"
@@ -348,6 +464,11 @@ def main() -> None:
         next_status = started
         tick_duration = 1.0 / args.fps
         while not args.max_seconds or time.monotonic() - started < args.max_seconds:
+            if escape_monitor.stop_requested:
+                print("\nEscape pressed. Stopping policy run.")
+                if attempt_log is not None:
+                    attempt_log.write("stop", reason="escape_key")
+                break
             frame = camera.get_latest_frame()
             action = None
             action_applied = False
@@ -374,10 +495,18 @@ def main() -> None:
                 event for event in ("EVT|chamber_ready", *TERMINAL_EVENTS)
                 if event in console_output
             ]
+            terminal_received, ignored_chamber_timeout = classify_terminal_events(
+                console_output, args.max_seconds
+            )
             if "EVT|chamber_ready" in console_output:
                 policy.reset()
                 controller.release_policy_actions()
-            if any(event in console_output for event in TERMINAL_EVENTS):
+            if ignored_chamber_timeout:
+                print(
+                    "Chamber timeout event ignored; "
+                    f"the runner will stop at {args.max_seconds:g} seconds."
+                )
+            if terminal_received:
                 policy.reset()
                 controller.release_policy_actions()
                 print("Episode terminal event received.")
@@ -446,6 +575,7 @@ def main() -> None:
         raise
     finally:
         controller.release_policy_actions()
+        escape_monitor.stop()
         if video_writer is not None:
             try:
                 video_writer.release()

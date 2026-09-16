@@ -237,6 +237,14 @@ For continuous human-demonstration capture on `dataset_test1`, run:
 
 The command launches Portal 2 with netconsole enabled when needed, waits five seconds for the user to focus the game, and repeatedly loads `dataset_test1`. Each `EVT|chamber_ready` starts a video-only 1920×1080 recording at 24 FPS. `EVT|goal_reached`, `EVT|episode_failed`, or a local 30-second safety limit ends the episode and reloads the chamber. Recording continues until `Ctrl+C`; use `--episodes N` for a finite batch, `--focus-delay SECONDS` to change the initial delay, `--restart-delay SECONDS` to change the pause between attempts, `--output NAME` to select a monitor reported by `wf-recorder -L`, and `--mouse-device PATH_OR_NAME` to override pointer detection.
 
+To count completed episodes and aligned action rows by outcome category and recording date, run:
+
+```bash
+.venv/bin/python dataset_stats.py
+```
+
+Pass another dataset directory as the optional first argument. In-progress recordings and entries missing `video.mp4` are not included in the totals.
+
 ---
 
 # 🛣️ Development Roadmap & Network Architecture
@@ -558,7 +566,7 @@ To train from the recordings in `episodes/` and immediately try the best checkpo
 .venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints_v3/best.pt --map puzzlemaker/preview
 ```
 
-The live runner launches Portal 2 with `-netconport 8020` if needed, captures the selected Wayland output at 24 Hz, and releases every held action on exit. It stops after 60 seconds by default; use `--max-seconds 0` for an unlimited run and press `Ctrl+C` for the emergency stop. Use `wf-recorder -L` followed by `--output OUTPUT_NAME` if the wrong monitor is captured. Before allowing input, a useful capture-only check is:
+The live runner launches Portal 2 with `-netconport 8020` if needed, captures the selected Wayland output at 24 Hz, and releases every held action on exit. It stops after 60 seconds by default; while a positive `--max-seconds` deadline is configured, `EVT|episode_failed|timeout` from the chamber is ignored so the runner's own deadline remains authoritative. Use `--max-seconds 0` for an unlimited run, where chamber timeout events remain terminal. Press `Esc` or `Ctrl+C` for the emergency stop. Use `wf-recorder -L` followed by `--output OUTPUT_NAME` if the wrong monitor is captured. Before allowing input, a useful capture-only check is:
 
 ```bash
 .venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints_v3/best.pt --no-launch --dry-run --max-seconds 10

@@ -21,6 +21,7 @@ venv/
 episodes*/
 data/datasets/cached_frames/
 models/imitation/checkpoints*/
+models/imitation/backups/
 model_attempts/
 
 # Editor and operating-system files

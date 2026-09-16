@@ -5,7 +5,9 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock
+from unittest.mock import patch
 
 import cv2
 import numpy as np
@@ -17,12 +19,78 @@ from models.imitation.inference import PolicyInference
 from models.imitation.network import ImitationPolicy
 from models.imitation.preprocess import PREPROCESSING_CONFIG
 from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_episodes
-from models.imitation.train_bc import make_binary_class_weights
+from models.imitation.train_bc import format_duration, make_binary_class_weights
 from recorder import FFmpegVideoWriter
-from run_imitation import AttemptLog, action_label, apply_predicted_action, frame_change, hyprland_instance_candidates, make_attempt_recording_path, parse_args
+from run_imitation import AttemptLog, EscapeKeyMonitor, action_label, apply_predicted_action, classify_terminal_events, frame_change, hyprland_instance_candidates, make_attempt_recording_path, parse_args
 
 
 class ImitationPipelineTest(unittest.TestCase):
+    def test_training_duration_readout_is_human_readable(self):
+        self.assertEqual(format_duration(7.25), "7.2s")
+        self.assertEqual(format_duration(65.5), "1m 05.5s")
+        self.assertEqual(format_duration(3723.5), "1h 02m 03.5s")
+
+    def test_configured_runner_timeout_ignores_chamber_timeout_failure(self):
+        terminal, ignored_timeout = classify_terminal_events(
+            "EVT|episode_failed|timeout\n", max_seconds=60.0
+        )
+
+        self.assertFalse(terminal)
+        self.assertTrue(ignored_timeout)
+
+    def test_unlimited_run_and_other_failures_remain_terminal(self):
+        self.assertEqual(
+            classify_terminal_events(
+                "EVT|episode_failed|timeout\n", max_seconds=0.0
+            ),
+            (True, False),
+        )
+        self.assertEqual(
+            classify_terminal_events(
+                "EVT|episode_failed|out_of_bounds\n", max_seconds=60.0
+            ),
+            (True, False),
+        )
+        self.assertEqual(
+            classify_terminal_events("EVT|goal_reached|1\n", max_seconds=60.0),
+            (True, False),
+        )
+
+    @patch("run_imitation.evdev.InputDevice")
+    @patch("run_imitation.evdev.list_devices")
+    def test_escape_monitor_detects_global_key_press(self, list_devices, input_device):
+        import evdev
+
+        keyboard = Mock()
+        keyboard.name = "Physical Keyboard"
+        keyboard.path = "/dev/input/event-test"
+        keyboard.capabilities.return_value = {
+            evdev.ecodes.EV_KEY: [
+                evdev.ecodes.KEY_ESC,
+                evdev.ecodes.KEY_W,
+                evdev.ecodes.KEY_A,
+            ]
+        }
+        keyboard.read_loop.return_value = iter([
+            SimpleNamespace(
+                type=evdev.ecodes.EV_KEY,
+                code=evdev.ecodes.KEY_ESC,
+                value=1,
+            )
+        ])
+        list_devices.return_value = [keyboard.path]
+        input_device.return_value = keyboard
+        monitor = EscapeKeyMonitor()
+
+        monitor.start()
+        try:
+            self.assertTrue(monitor.wait(1.0))
+            self.assertTrue(monitor.stop_requested)
+        finally:
+            monitor.stop()
+
+        keyboard.close.assert_called()
+
     def test_attempt_recordings_use_a_separate_timestamped_directory(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             recording_dir = Path(temporary_directory) / "model_attempts"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import time
 from pathlib import Path
 
 import torch
@@ -14,6 +15,19 @@ from .checkpoint import load_checkpoint, save_checkpoint
 from .dataset import BINARY_ACTION_COLUMNS, BehaviorCloningDataset, discover_cached_episodes, split_episode_manifests
 from .network import ARCHITECTURE_VERSION, ImitationPolicy
 from .preprocess import PREPROCESSING_CONFIG
+
+
+def format_duration(seconds: float) -> str:
+    """Format elapsed wall time without hiding sub-minute training runs."""
+    seconds = max(0.0, seconds)
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    remaining = seconds % 60
+    if hours:
+        return f"{hours}h {minutes:02d}m {remaining:04.1f}s"
+    if minutes:
+        return f"{minutes}m {remaining:04.1f}s"
+    return f"{remaining:.1f}s"
 
 
 def make_binary_class_weights(
@@ -154,6 +168,7 @@ def main() -> None:
     parser.add_argument("--log-every", type=int, default=100, help="Print running training loss every N batches; 0 disables batch logs")
     parser.add_argument("--resume", type=Path, help="Checkpoint to resume, including optimizer state")
     args = parser.parse_args()
+    run_started_at = time.perf_counter()
     torch.manual_seed(args.seed)
     manifests = discover_cached_episodes(args.cache_dir)
     train_manifests, validation_manifests = split_episode_manifests(manifests, args.validation_fraction, args.seed)
@@ -191,6 +206,7 @@ def main() -> None:
     mouse_scale = torch.as_tensor(mouse_scale_values, device=device)
     validation_loader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=pin_memory)
     model = ImitationPolicy().to(device)
+    parameter_count = sum(parameter.numel() for parameter in model.parameters())
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
     scaler = torch.amp.GradScaler(device.type, enabled=device.type == "cuda")
     args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -199,6 +215,7 @@ def main() -> None:
     global_step = 0
     start_epoch = 1
     resume_step_in_epoch = 0
+    best_epoch = None
     if args.resume:
         restored = load_checkpoint(args.resume, model=model, optimizer=optimizer, device=device)
         compatibility_keys = ("architecture", "preprocessing", "action_columns", "target_processing")
@@ -209,7 +226,15 @@ def main() -> None:
         resume_step_in_epoch = int(restored.get("step_in_epoch", 0))
         start_epoch = int(restored["epoch"]) if resume_step_in_epoch else int(restored["epoch"]) + 1
         print(f"resumed {args.resume}: epoch={restored['epoch']} step_in_epoch={resume_step_in_epoch} global_step={global_step} best_val={best_validation:.4f}")
+    initial_global_step = global_step
+    completed_epochs = 0
+    epoch_durations: list[float] = []
+    final_train_metrics = None
+    final_validation_metrics = None
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats(device)
     for epoch in range(start_epoch, args.epochs + 1):
+        epoch_started_at = time.perf_counter()
         train_loader = make_training_loader(train_dataset, args, pin_memory, epoch)
         skip_batches = resume_step_in_epoch if epoch == start_epoch else 0
         def save_periodic(step: int, step_in_epoch: int) -> None:
@@ -233,8 +258,54 @@ def main() -> None:
         print(f"epoch {epoch:03d} train={train_metrics['total']:.4f} validation={validation_metrics['total']:.4f} " + " ".join(f"{key}={validation_metrics[key]:.3f}" for key in (*BINARY_ACTION_COLUMNS, "mouse")))
         if validation_metrics["total"] < best_validation:
             best_validation = validation_metrics["total"]
+            best_epoch = epoch
             save_checkpoint(args.checkpoint_dir / "best.pt", model=model, optimizer=optimizer, epoch=epoch, global_step=global_step, best_val_loss=best_validation, config=config)
         save_checkpoint(args.checkpoint_dir / "last.pt", model=model, optimizer=optimizer, epoch=epoch, global_step=global_step, best_val_loss=best_validation, config=config)
+        completed_epochs += 1
+        epoch_durations.append(time.perf_counter() - epoch_started_at)
+        final_train_metrics = train_metrics
+        final_validation_metrics = validation_metrics
+
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    elapsed = time.perf_counter() - run_started_at
+    print("\n=== Training complete ===")
+    print(f"elapsed wall time: {format_duration(elapsed)}")
+    print(f"device: {device}")
+    print(f"architecture: {ARCHITECTURE_VERSION}")
+    print(f"model parameters: {parameter_count:,}")
+    print(
+        f"dataset: {len(train_manifests)} train episodes / {len(train_dataset):,} usable samples; "
+        f"{len(validation_manifests)} validation episodes / {len(validation_dataset):,} usable samples"
+    )
+    print(
+        f"epochs completed this run: {completed_epochs}; "
+        f"optimizer steps this run: {global_step - initial_global_step:,}; "
+        f"total optimizer steps: {global_step:,}"
+    )
+    if epoch_durations:
+        print(
+            f"average epoch time: {format_duration(sum(epoch_durations) / len(epoch_durations))}"
+        )
+    if best_epoch is None:
+        print(f"best validation loss: {best_validation:.4f} (from resumed checkpoint)")
+    else:
+        print(f"best validation loss: {best_validation:.4f} (epoch {best_epoch})")
+    if final_train_metrics is not None and final_validation_metrics is not None:
+        print(f"final train loss: {final_train_metrics['total']:.4f}")
+        print(f"final validation loss: {final_validation_metrics['total']:.4f}")
+        print(
+            "final validation components: "
+            + " ".join(
+                f"{name}={final_validation_metrics[name]:.4f}"
+                for name in (*BINARY_ACTION_COLUMNS, "mouse")
+            )
+        )
+    print(f"best checkpoint: {(args.checkpoint_dir / 'best.pt').resolve()}")
+    print(f"latest checkpoint: {(args.checkpoint_dir / 'last.pt').resolve()}")
+    if device.type == "cuda":
+        peak_gib = torch.cuda.max_memory_allocated(device) / (1024 ** 3)
+        print(f"peak CUDA memory allocated: {peak_gib:.2f} GiB")
 
 
 if __name__ == "__main__":
