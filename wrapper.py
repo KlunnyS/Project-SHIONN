@@ -20,6 +20,7 @@ class Portal2Controller:
         self.recorder = None
         self.log_file = log_file
         self.event_buffer = []  # Stores recent console lines for I/O checking
+        self.trace_mouse_moves = True
         # Clear the log file at startup
         if self.log_file:
             with open(self.log_file, 'w') as f:
@@ -223,7 +224,8 @@ class Portal2Controller:
 
     def move_mouse(self, dx, dy, steps=1, delay=0.01):
         """Simulates raw mouse movement using evdev."""
-        print(f"Moving mouse (dx={dx}, dy={dy}, steps={steps})...")
+        if self.trace_mouse_moves:
+            print(f"Moving mouse (dx={dx}, dy={dy}, steps={steps})...")
         if not self.ui:
             if not self.init_virtual_mouse():
                 return
@@ -239,6 +241,27 @@ class Portal2Controller:
                 time.sleep(delay)
         except Exception as ex:
             print(f"Error during mouse movement: {ex}")
+
+    def click_virtual_mouse(self, button="left"):
+        """Click through uinput so a focused XWayland game can acquire input."""
+        was_uninitialized = self.ui is None
+        if not self.ui and not self.init_virtual_mouse():
+            return False
+        if was_uninitialized:
+            # Give the compositor a moment to register the new virtual device.
+            time.sleep(0.5)
+        try:
+            from evdev import ecodes as e
+            code = {"left": e.BTN_LEFT, "right": e.BTN_RIGHT}[button]
+            self.ui.write(e.EV_KEY, code, 1)
+            self.ui.syn()
+            time.sleep(0.03)
+            self.ui.write(e.EV_KEY, code, 0)
+            self.ui.syn()
+            return True
+        except Exception as ex:
+            print(f"Error clicking virtual mouse: {ex}")
+            return False
 
     def fire_left(self, state=True):
         cmd = "+attack" if state else "-attack"
