@@ -19,12 +19,28 @@ from models.imitation.inference import PolicyInference
 from models.imitation.network import ImitationPolicy
 from models.imitation.preprocess import PREPROCESSING_CONFIG
 from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_episodes
-from models.imitation.train_bc import format_duration, make_binary_class_weights
+from models.imitation.train_bc import EarlyStopping, format_duration, make_binary_class_weights
 from recorder import FFmpegVideoWriter
 from run_imitation import AttemptLog, EscapeKeyMonitor, action_label, apply_predicted_action, classify_terminal_events, frame_change, hyprland_instance_candidates, make_attempt_recording_path, parse_args
 
 
 class ImitationPipelineTest(unittest.TestCase):
+    def test_early_stopping_preserves_best_loss_and_counts_unimproved_epochs(self):
+        stopping = EarlyStopping(patience=3)
+        self.assertEqual(stopping.update(3.0), (True, False))
+        self.assertEqual(stopping.update(2.4), (True, False))
+        self.assertEqual(stopping.update(2.5), (False, False))
+        self.assertEqual(stopping.update(2.4), (False, False))
+        self.assertEqual(stopping.update(2.6), (False, True))
+        self.assertEqual(stopping.best_loss, 2.4)
+        self.assertEqual(stopping.update(2.3), (True, False))
+        self.assertEqual(stopping.unimproved_epochs, 0)
+
+    def test_early_stopping_can_be_disabled_and_reset_for_resume(self):
+        stopping = EarlyStopping(patience=0, best_loss=2.4)
+        self.assertEqual(stopping.update(3.0), (False, False))
+        self.assertEqual(stopping.update(2.3), (True, False))
+
     def test_training_duration_readout_is_human_readable(self):
         self.assertEqual(format_duration(7.25), "7.2s")
         self.assertEqual(format_duration(65.5), "1m 05.5s")

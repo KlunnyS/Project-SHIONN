@@ -574,7 +574,7 @@ The cache stores resized pixels, not CNN features. `BehaviorCloningDataset` memo
 
 ### Training and checkpoints
 
-The trainer reports running batch loss, per-epoch train/validation loss, and a final summary containing elapsed time, average epoch time, dataset sizes, parameter count, optimizer steps, best/final losses, checkpoint paths, per-head validation components, and peak CUDA memory when available.
+The trainer reports running batch loss, per-epoch train/validation loss, and a final summary containing elapsed time, average epoch time, dataset sizes, parameter count, optimizer steps, best/final losses, checkpoint paths, per-head validation components, and peak CUDA memory when available. It stops after three epochs without a new best validation loss by default (`--early-stop-patience 0` disables this), while `--epochs` remains the maximum. Per-epoch train and validation metrics are appended to `metrics.jsonl` in the checkpoint directory; TensorBoard event files are not currently written.
 
 Every checkpoint contains the model weights, AdamW optimizer state, epoch, global step, best validation loss, and the architecture/preprocessing/action configuration. The same configuration is also written as `*.json` beside the `*.pt` file. `last.pt` is saved after each epoch, `best.pt` tracks the lowest validation loss, and `step_*.pt` is saved every 1,000 optimizer steps by default. Resume a run on another machine with:
 

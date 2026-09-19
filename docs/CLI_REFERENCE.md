@@ -62,9 +62,10 @@ Example: `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir /mnt/ex
 | `--checkpoint-dir PATH` | `models/imitation/checkpoints_v3` | Directory for `best.pt`, `last.pt`, step checkpoints, and matching JSON files. Use a new directory for a new dataset run. |
 | `--checkpoint-every N` | `1000` | Save a `step_*.pt` checkpoint and refresh `last.pt` every N optimizer steps. `0` disables step checkpoints; epoch-end `last.pt` and improved `best.pt` remain. |
 | `--log-every N` | `100` | Print average running loss every N training batches. `0` suppresses batch logs. |
+| `--early-stop-patience N` | `3` | Stop after N complete epochs without a lower validation loss. `0` disables early stopping; `--epochs` remains the maximum. The counter starts fresh when resuming. |
 | `--resume PATH` | none | Resume model and optimizer from a compatible checkpoint. The trainer checks the architecture and data/target-processing contract. |
 
-The default cache is not filtered by chamber or outcome; prepare it intentionally. On a larger dataset, frequent step checkpoints can consume substantial disk space. The number of epochs and batches determines training time; this command does not run the live game.
+The default cache is not filtered by chamber or outcome; prepare it intentionally. On a larger dataset, frequent step checkpoints can consume substantial disk space. Each completed epoch also appends train/validation totals and per-action losses to `metrics.jsonl` in the checkpoint directory. The number of epochs and batches determines training time; this command does not run the live game.
 
 ## `run_imitation.py`
 

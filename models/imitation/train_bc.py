@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import time
 from pathlib import Path
@@ -28,6 +29,26 @@ def format_duration(seconds: float) -> str:
     if minutes:
         return f"{minutes}m {remaining:04.1f}s"
     return f"{remaining:.1f}s"
+
+
+class EarlyStopping:
+    """Stop after a configured number of complete epochs without a new best loss."""
+
+    def __init__(self, patience: int, best_loss: float = float("inf")) -> None:
+        if patience < 0:
+            raise ValueError("early-stop patience must be zero or greater")
+        self.patience = patience
+        self.best_loss = best_loss
+        self.unimproved_epochs = 0
+
+    def update(self, validation_loss: float) -> tuple[bool, bool]:
+        improved = validation_loss < self.best_loss
+        if improved:
+            self.best_loss = validation_loss
+            self.unimproved_epochs = 0
+        else:
+            self.unimproved_epochs += 1
+        return improved, self.patience > 0 and self.unimproved_epochs >= self.patience
 
 
 def make_binary_class_weights(
@@ -166,6 +187,7 @@ def main() -> None:
     parser.add_argument("--checkpoint-dir", type=Path, default=Path("models/imitation/checkpoints_v3"))
     parser.add_argument("--checkpoint-every", type=int, default=1_000, help="Save a resumable checkpoint every N optimizer steps; 0 disables periodic saves")
     parser.add_argument("--log-every", type=int, default=100, help="Print running training loss every N batches; 0 disables batch logs")
+    parser.add_argument("--early-stop-patience", type=int, default=3, help="Stop after N epochs without improved validation loss; 0 disables early stopping")
     parser.add_argument("--resume", type=Path, help="Checkpoint to resume, including optimizer state")
     args = parser.parse_args()
     run_started_at = time.perf_counter()
@@ -180,6 +202,8 @@ def main() -> None:
         raise ValueError("--checkpoint-every must be zero or greater")
     if args.log_every < 0:
         raise ValueError("--log-every must be zero or greater")
+    if args.early_stop_patience < 0:
+        raise ValueError("--early-stop-patience must be zero or greater")
     device = resolve_device(args.device)
     print(f"device: {device}")
     pin_memory = device.type == "cuda"
@@ -226,6 +250,8 @@ def main() -> None:
         resume_step_in_epoch = int(restored.get("step_in_epoch", 0))
         start_epoch = int(restored["epoch"]) if resume_step_in_epoch else int(restored["epoch"]) + 1
         print(f"resumed {args.resume}: epoch={restored['epoch']} step_in_epoch={resume_step_in_epoch} global_step={global_step} best_val={best_validation:.4f}")
+    early_stopping = EarlyStopping(args.early_stop_patience, best_validation)
+    metrics_path = args.checkpoint_dir / "metrics.jsonl"
     initial_global_step = global_step
     completed_epochs = 0
     epoch_durations: list[float] = []
@@ -256,15 +282,30 @@ def main() -> None:
                 global_step=global_step,
             )
         print(f"epoch {epoch:03d} train={train_metrics['total']:.4f} validation={validation_metrics['total']:.4f} " + " ".join(f"{key}={validation_metrics[key]:.3f}" for key in (*BINARY_ACTION_COLUMNS, "mouse")))
-        if validation_metrics["total"] < best_validation:
-            best_validation = validation_metrics["total"]
+        improved, should_stop = early_stopping.update(validation_metrics["total"])
+        best_validation = early_stopping.best_loss
+        if improved:
             best_epoch = epoch
             save_checkpoint(args.checkpoint_dir / "best.pt", model=model, optimizer=optimizer, epoch=epoch, global_step=global_step, best_val_loss=best_validation, config=config)
         save_checkpoint(args.checkpoint_dir / "last.pt", model=model, optimizer=optimizer, epoch=epoch, global_step=global_step, best_val_loss=best_validation, config=config)
+        with metrics_path.open("a", encoding="utf-8") as metrics_file:
+            metrics_file.write(json.dumps({
+                "epoch": epoch,
+                "global_step": global_step,
+                "train": train_metrics,
+                "validation": validation_metrics,
+                "best_validation_loss": best_validation,
+                "learning_rate": optimizer.param_groups[0]["lr"],
+                "epoch_seconds": time.perf_counter() - epoch_started_at,
+                "improved": improved,
+            }) + "\n")
         completed_epochs += 1
         epoch_durations.append(time.perf_counter() - epoch_started_at)
         final_train_metrics = train_metrics
         final_validation_metrics = validation_metrics
+        if should_stop:
+            print(f"early stopping: validation loss did not improve for {args.early_stop_patience} epochs; using best.pt")
+            break
 
     if device.type == "cuda":
         torch.cuda.synchronize(device)
@@ -303,6 +344,7 @@ def main() -> None:
         )
     print(f"best checkpoint: {(args.checkpoint_dir / 'best.pt').resolve()}")
     print(f"latest checkpoint: {(args.checkpoint_dir / 'last.pt').resolve()}")
+    print(f"epoch metrics: {metrics_path.resolve()}")
     if device.type == "cuda":
         peak_gib = torch.cuda.max_memory_allocated(device) / (1024 ** 3)
         print(f"peak CUDA memory allocated: {peak_gib:.2f} GiB")
