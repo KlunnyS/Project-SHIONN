@@ -29,10 +29,10 @@ exec env \
     WAYLAND_DISPLAY="$wayland_display" \
     DBUS_SESSION_BUS_ADDRESS="$dbus_address" \
     .venv/bin/python run_imitation.py \
-    --checkpoint models/imitation/checkpoints_v3/best.pt \
+    --checkpoint /mnt/extra/Project-SHIONN/checkpoints_450_v3/best.pt \
     --device auto \
     --output DP-1 \
-    --map dataset_test1 \
+    --map evaluation1 \
     --max-seconds 60 \
     --record-video \
     --verbose \
