@@ -16,10 +16,11 @@ venv/
 .env
 .env.*
 !.env.example
+LOCAL_DATASET_CHAMBER_SETUP.md
 
 # Recorded demonstrations and generated training data
-episodes*/
-data/datasets/cached_frames/
+episodes*
+data/datasets/cached_frames
 models/imitation/checkpoints*/
 models/imitation/backups/
 model_attempts/

@@ -3,7 +3,7 @@ import sys
 import os
 import glob
 
-_repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_repo_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _venv_sites = glob.glob(os.path.join(_repo_dir, ".venv", "lib", "python*", "site-packages"))
 if _venv_sites and _venv_sites[0] not in sys.path:
     sys.path.insert(0, _venv_sites[0])

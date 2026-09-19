@@ -2,6 +2,8 @@
 
 SHIONN is an experimental AI agent designed for the *Portal 2* environment, built to operate as a fully autonomous test subject capable of learning directly from visual input and interacting with puzzle-based physics systems.
 
+Start with the [program guide](docs/PROGRAM_GUIDE.md) for the implemented pipeline, the [CLI reference](docs/CLI_REFERENCE.md) for every flag, and the [script cheat sheet](SCRIPT_CHEATSHEET.md) for quick commands.
+
 The goal of this project is to explore reinforcement learning, imitation learning, and curriculum learning in a structured physics-puzzle environment using only pixel-based perception and keyboard/mouse action control.
 
 ---
@@ -34,14 +36,14 @@ Unlike scripted bots or rule-based agents, SHIONN:
   * Reinforcement Learning
   * Curriculum Learning
 
-### Current progress (2026-09-16)
+### Current progress (2026-09-19)
 
 * **Environment and recording pipeline:** operational end to end on Linux/Wayland, including screen capture, physical-input recording, virtual-input playback, netconsole events, automatic map loading, and outcome-grouped episodes.
-* **Dataset:** 200 completed `goal_reached` demonstrations containing 57,492 aligned frame/action rows. Generated recordings and caches are intentionally excluded from Git.
-* **Behavior cloning:** architecture `shionn_imitation_v3` has been trained and deployed in Portal 2. The expanded-data candidate reached a best validation loss of `2.8933` at epoch 6; its epoch-20 `last.pt` is retained separately from `best.pt`.
-* **Live evaluation:** the policy can complete the current navigation chamber, but still sometimes enters wall-facing states and fails to recover. Targeted expert-recovery demonstrations are the current data-collection focus.
+* **Dataset:** 450 completed `goal_reached` demonstrations across four chambers, containing 128,957 aligned frame/action rows. All 450 are cached for training. Generated recordings and caches are intentionally excluded from Git.
+* **Behavior cloning:** architecture `shionn_imitation_v3` has been trained and deployed in Portal 2 on an earlier dataset. The expanded-data candidate reached a best validation loss of `2.8933` at epoch 6; its epoch-20 `last.pt` is retained separately from `best.pt`. The existing checkpoints do not incorporate the newest 450-episode dataset.
+* **Live evaluation:** the policy can complete the initial navigation chamber, but still sometimes enters wall-facing states and fails to recover. Its performance on the newer chambers needs live evaluation.
 * **Next milestone:** stabilize Stage 2 navigation and recovery behavior before adding the Stage 3 actor-critic/value head. PPO, reward shaping, recurrence, and portal-mechanics curricula remain planned work.
-* **Automated checks:** 25 unit tests currently cover recording, preprocessing, checkpointing, inference utilities, dataset statistics, timeout handling, and the Escape-key stop path.
+* **Automated checks:** 28 unit tests currently cover recording, preprocessing, checkpointing, inference utilities, dataset statistics, timeout handling, and the Escape-key stop path.
 
 ---
 
@@ -233,7 +235,7 @@ The pilot batch is recorded and used to build/debug the Stage 2 training script 
 1. **Input reading** — `evdev.list_devices()` auto-scans for the physical keyboard/mouse (by `REL_X`/`REL_Y` and key capabilities) and reads them live on a dedicated blocking thread, separate from the `UInput` *output* device used for playback/inference.
 2. **Fixed-rate capture** — `wf-recorder` piping raw BGR frames at 24 Hz and 1920×1080.
 3. **Sync loop** — a precise 24 Hz tick snapshots the most recent frame together with the current persistent key-hold state and the accumulated-then-reset mouse delta, writing one aligned row.
-4. **Storage** — completed recordings are grouped by outcome, for example `episodes/goal_reached/episode_<timestamp>/` and `episodes/timeout/episode_<timestamp>/`. Each contains a compressed, audio-free `video.mp4` and an `actions.csv` with `timestamp`, `frame_idx`, movement, jump, crouch, use, portal-fire, and mouse-delta columns. The current ten-output policy does not train on the recorded `crouch` column. Active captures remain under `episodes/.in_progress/` until finalized.
+4. **Storage** — completed recordings are grouped by outcome, for example `episodes/goal_reached/episode_<timestamp>/` and `episodes/timeout/episode_<timestamp>/`. Each contains a compressed, audio-free `video.mp4`, an `actions.csv` with `timestamp`, `frame_idx`, movement, jump, crouch, use, portal-fire, and mouse-delta columns, and a `metadata.json` containing the recorded map name. The current ten-output policy does not train on the recorded `crouch` column. Active captures remain under `episodes/.in_progress/` until finalized.
 5. **Episode boundaries** — driven by the same `EVT|chamber_ready` / `EVT|goal_reached` / `EVT|episode_failed` netconsole hooks used by the environment wrapper. The terminal event selects the completed episode's result directory.
 
 A playback function re-executes a recorded episode's actions through the same input-injection path used for live inference, validating the full record → store → replay loop independent of any model.
@@ -244,9 +246,9 @@ For continuous human-demonstration capture on `dataset_test1`, run:
 .venv/bin/python record_dataset.py
 ```
 
-The command launches Portal 2 with netconsole enabled when needed, waits five seconds for the user to focus the game, and repeatedly loads `dataset_test1`. Each `EVT|chamber_ready` starts a synchronized 1920×1080 video/action recording at 24 FPS; audio is disabled. `EVT|goal_reached`, `EVT|episode_failed`, or a local 30-second safety limit ends the episode and reloads the chamber. Recording continues until `Ctrl+C`; use `--episodes N` for a finite batch, `--focus-delay SECONDS` to change the initial delay, `--restart-delay SECONDS` to change the pause between attempts, `--output NAME` to select a monitor reported by `wf-recorder -L`, and `--mouse-device PATH_OR_NAME` to override pointer detection.
+The command launches Portal 2 with netconsole enabled when needed, waits five seconds for the user to focus the game, and repeatedly loads `dataset_test1`. Each `EVT|chamber_ready` starts a synchronized 1920×1080 video/action recording at 24 FPS; audio is disabled. `EVT|goal_reached`, `EVT|episode_failed`, or a local 30-second safety limit ends the episode. The chamber reloads while the success target remains unmet. Recording continues until `Ctrl+C`; use `--map NAME` to select and label a different chamber, `--episodes N` to stop after N successful episodes, `--focus-delay SECONDS` to change the initial delay, `--restart-delay SECONDS` to change the pause between attempts, `--output NAME` to select a monitor reported by `wf-recorder -L`, and `--mouse-device PATH_OR_NAME` to override pointer detection. Failed attempts are saved under their outcome but do not count toward `--episodes`; the recorder reports progress after each attempt and returns Portal 2 to the main menu when the target is reached.
 
-To count completed episodes and aligned action rows by outcome category and recording date, run:
+To count completed episodes and aligned action rows by outcome, recording date, and chamber, run:
 
 ```bash
 .venv/bin/python dataset_stats.py
@@ -285,7 +287,7 @@ Requirements: screen capture pipeline, kernel-level input control, automatic cha
 
 **Network:** none.
 
-**Current status:** the initial `dataset_test1` navigation chamber is registered and producing verified ready/goal/timeout events. The interaction, cube, and portal chamber set is still future work.
+**Current status:** `dataset_test1` through `dataset_test4` have successful recorded demonstrations. The interaction, cube, and portal chamber curricula still need evaluation as separate milestones.
 
 ---
 
@@ -311,7 +313,7 @@ No recurrence and no value head are used at this stage. The recording, cache, tr
 
 **Success criteria:** demonstration data is being recorded reliably (validated via the playback function), in the exact factored-action format the model will be trained on.
 
-**Current status:** achieved for the navigation curriculum. The local dataset contains 200 successful demonstrations and 57,492 aligned action rows; targeted recovery data collection remains ongoing.
+**Current status:** achieved for the recorded navigation chambers. The local dataset contains 450 successful demonstrations and 128,957 aligned action rows; the existing model checkpoints predate the newest recordings.
 
 ---
 
@@ -517,6 +519,10 @@ Result: general-purpose Portal reasoning.
 
 ```text
 Project-SHIONN/
+├── docs/
+│   ├── PROGRAM_GUIDE.md       # implemented components and data flow
+│   └── CLI_REFERENCE.md       # flags and defaults
+├── SCRIPT_CHEATSHEET.md       # commands for all project scripts
 ├── models/imitation/
 │   ├── network.py             # v3 CNN and legacy checkpoint model
 │   ├── dataset.py             # episode-aware memory-mapped loader
@@ -526,11 +532,13 @@ Project-SHIONN/
 │   └── checkpoint.py          # portable atomic checkpoints
 ├── portal_assets/scripts/vscripts/
 │   └── shionn_events.nut      # ready/goal/failure events
-├── tests/                          # unit and hardware diagnostics
+├── tests/                          # automated unit tests
+├── scripts/diagnostics/            # manual hardware probes
+├── scripts/legacy/                 # older one-off helpers
 ├── wrapper.py                      # netconsole and action control
 ├── recorder.py                     # capture/input/episode primitives
 ├── record_dataset.py               # continuous demonstration recorder
-├── dataset_stats.py                # category/date dataset report
+├── dataset_stats.py                # outcome/date/chamber dataset report
 ├── run_imitation.py                # live policy runner
 ├── run_model.sh                    # local Bash launcher
 ├── run_model.fish                  # local Fish launcher

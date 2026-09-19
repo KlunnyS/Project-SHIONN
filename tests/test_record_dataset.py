@@ -1,9 +1,14 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from record_dataset import EpisodeEvent, EpisodeEventStream, event_outcome
+from record_dataset import (
+    EpisodeEvent, EpisodeEventStream, RecordingProgress, event_outcome,
+    record_episodes,
+)
 from recorder import EpisodeRecorder, _pointer_score, find_input_devices
 
 
@@ -75,6 +80,27 @@ class EpisodeEventStreamTest(unittest.TestCase):
 
 
 class EpisodeRecorderOutcomeTest(unittest.TestCase):
+    @patch("recorder.threading.Thread")
+    @patch("recorder.FFmpegVideoWriter")
+    def test_new_episode_records_map_name(self, video_writer, thread):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            recorder = EpisodeRecorder.__new__(EpisodeRecorder)
+            recorder.in_progress_root = temporary_directory
+            recorder.width = 1920
+            recorder.height = 1080
+            recorder.fps = 24
+            recorder.video_crf = 20
+
+            recorder.start_recording(map_name="dataset_test2")
+            try:
+                metadata = json.loads((Path(recorder.ep_dir) / "metadata.json").read_text())
+                self.assertEqual(metadata["map"], "dataset_test2")
+                self.assertTrue((Path(recorder.ep_dir) / "actions.csv").is_file())
+                thread.return_value.start.assert_called_once()
+            finally:
+                recorder.recording = False
+                recorder.csv_file.close()
+
     def test_completed_episode_moves_into_its_result_directory(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             episodes_root = Path(temporary_directory) / "episodes"
@@ -82,6 +108,7 @@ class EpisodeRecorderOutcomeTest(unittest.TestCase):
             active_dir.mkdir(parents=True)
             (active_dir / "video.mp4").touch()
             (active_dir / "actions.csv").touch()
+            (active_dir / "metadata.json").write_text('{"map": "dataset_test1"}\n')
 
             recorder = EpisodeRecorder.__new__(EpisodeRecorder)
             recorder.recording = True
@@ -97,7 +124,41 @@ class EpisodeRecorderOutcomeTest(unittest.TestCase):
             completed_dir = episodes_root / "goal_reached" / "episode_test"
             self.assertEqual(Path(recorder.ep_dir), completed_dir)
             self.assertTrue((completed_dir / "video.mp4").is_file())
+            self.assertEqual(
+                json.loads((completed_dir / "metadata.json").read_text())["map"],
+                "dataset_test1",
+            )
             self.assertFalse(active_dir.exists())
+
+
+class RecordingQuotaTest(unittest.TestCase):
+    @patch("record_dataset.time.sleep")
+    @patch("record_dataset.wait_for_terminal_event")
+    @patch("record_dataset.load_map_and_wait_for_ready")
+    def test_failures_are_retried_and_target_returns_to_menu(
+        self, load_map, wait_for_terminal, sleep
+    ):
+        wait_for_terminal.side_effect = [
+            "timeout", "goal_reached", "out_of_bounds", "goal_reached"
+        ]
+        args = SimpleNamespace(
+            episodes=2, map_name="dataset_test2", ready_timeout=60.0,
+            duration=30.0, restart_delay=1.0,
+        )
+        recorder = Mock()
+        controller = Mock()
+        progress = RecordingProgress()
+
+        record_episodes(recorder, controller, EpisodeEventStream(), args, progress)
+
+        self.assertEqual(progress.successes, 2)
+        self.assertEqual(progress.attempts, 4)
+        self.assertEqual(load_map.call_count, 4)
+        self.assertEqual(
+            [call.args[0] for call in recorder.stop_recording.call_args_list],
+            ["timeout", "goal_reached", "out_of_bounds", "goal_reached"],
+        )
+        controller.send_command.assert_called_once_with("disconnect")
 
 
 if __name__ == "__main__":

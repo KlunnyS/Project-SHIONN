@@ -437,7 +437,7 @@ class EpisodeRecorder:
         self.in_progress_root = os.path.join(self.episodes_root, ".in_progress")
         os.makedirs(self.in_progress_root, exist_ok=True)
         
-    def start_recording(self):
+    def start_recording(self, map_name=None):
         print("\n--- STARTING RECORDING ---")
         # Include microseconds so rapid automatic map resets cannot reuse an
         # episode directory created earlier in the same second.
@@ -445,6 +445,9 @@ class EpisodeRecorder:
         self.episode_name = f"episode_{timestamp}"
         self.ep_dir = os.path.join(self.in_progress_root, self.episode_name)
         os.makedirs(self.ep_dir, exist_ok=True)
+        with open(os.path.join(self.ep_dir, "metadata.json"), "w", encoding="utf-8") as metadata_file:
+            json.dump({"map": map_name}, metadata_file, indent=2)
+            metadata_file.write("\n")
         
         # Open CSV
         self.csv_path = os.path.join(self.ep_dir, "actions.csv")

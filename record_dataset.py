@@ -70,7 +70,7 @@ def parse_args() -> argparse.Namespace:
         "--episodes", "--episode",
         type=int,
         default=0,
-        help="Number of episodes to record; 0 records until Ctrl+C.",
+        help="Number of successful episodes to record; failures are retried. 0 records until Ctrl+C.",
     )
     parser.add_argument("--fps", type=int, default=24)
     parser.add_argument("--width", type=int, default=1920)
@@ -204,6 +204,57 @@ def wait_for_terminal_event(
         time.sleep(min(0.05, remaining))
 
 
+@dataclass
+class RecordingProgress:
+    successes: int = 0
+    attempts: int = 0
+
+
+def record_episodes(
+    recorder: EpisodeRecorder,
+    controller: Portal2Controller,
+    event_stream: EpisodeEventStream,
+    args: argparse.Namespace,
+    progress: RecordingProgress,
+) -> None:
+    while not args.episodes or progress.successes < args.episodes:
+        load_map_and_wait_for_ready(
+            controller,
+            event_stream,
+            args.map_name,
+            args.ready_timeout,
+        )
+        # Discard Alt-Tab/menu/reset input accumulated while no episode was
+        # active. Held movement keys remain held and are captured on tick 0.
+        recorder.tracker.get_snapshot_and_reset()
+        recorder.start_recording(map_name=args.map_name)
+        outcome = wait_for_terminal_event(
+            controller,
+            event_stream,
+            args.duration,
+        )
+        recorder.stop_recording(outcome)
+        progress.attempts += 1
+        if outcome == "goal_reached":
+            progress.successes += 1
+
+        target = f"/{args.episodes}" if args.episodes else ""
+        attempt_word = "attempt" if progress.attempts == 1 else "attempts"
+        print(
+            f"Successful episodes: {progress.successes}{target} "
+            f"({progress.attempts} {attempt_word}; last outcome: {outcome})."
+        )
+        if args.episodes and progress.successes >= args.episodes:
+            print("Success target reached. Returning Portal 2 to the main menu.")
+            controller.send_command("disconnect")
+            time.sleep(0.5)
+            return
+
+        delay_unit = "second" if args.restart_delay == 1 else "seconds"
+        print(f"Restarting the chamber in {args.restart_delay:g} {delay_unit}...")
+        time.sleep(args.restart_delay)
+
+
 def main() -> None:
     args = parse_args()
     validate_args(args)
@@ -239,7 +290,7 @@ def main() -> None:
 
     tracker_started = False
     camera_started = False
-    completed_episodes = 0
+    progress = RecordingProgress()
     try:
         connect_controller(controller)
         recorder.tracker.start()
@@ -257,29 +308,7 @@ def main() -> None:
         )
         time.sleep(args.focus_delay)
 
-        while not args.episodes or completed_episodes < args.episodes:
-            load_map_and_wait_for_ready(
-                controller,
-                event_stream,
-                args.map_name,
-                args.ready_timeout,
-            )
-            # Discard Alt-Tab/menu/reset input accumulated while no episode was
-            # active. Held movement keys remain held and are captured on tick 0.
-            recorder.tracker.get_snapshot_and_reset()
-            recorder.start_recording()
-            outcome = wait_for_terminal_event(
-                controller,
-                event_stream,
-                args.duration,
-            )
-            recorder.stop_recording(outcome)
-            completed_episodes += 1
-
-            if args.episodes and completed_episodes >= args.episodes:
-                break
-            print(f"Restarting the chamber in {args.restart_delay:g} seconds...")
-            time.sleep(args.restart_delay)
+        record_episodes(recorder, controller, event_stream, args, progress)
     except KeyboardInterrupt:
         print("\nStopping after Ctrl+C.")
         if recorder.recording:
@@ -292,7 +321,10 @@ def main() -> None:
         if camera_started:
             recorder.camera.stop()
         controller.disconnect()
-        print(f"Recorder stopped after {completed_episodes} completed episode(s).")
+        print(
+            f"Recorder stopped after {progress.successes} successful episode(s) "
+            f"in {progress.attempts} completed attempt(s)."
+        )
 
 
 if __name__ == "__main__":
