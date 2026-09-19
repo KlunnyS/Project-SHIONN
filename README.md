@@ -43,7 +43,7 @@ Unlike scripted bots or rule-based agents, SHIONN:
 * **Behavior cloning:** architecture `shionn_imitation_v3` has been trained and deployed in Portal 2 on an earlier dataset. The expanded-data candidate reached a best validation loss of `2.8933` at epoch 6; its epoch-20 `last.pt` is retained separately from `best.pt`. The existing checkpoints do not incorporate the newest 450-episode dataset.
 * **Live evaluation:** the policy can complete the initial navigation chamber, but still sometimes enters wall-facing states and fails to recover. Its performance on the newer chambers needs live evaluation.
 * **Next milestone:** stabilize Stage 2 navigation and recovery behavior before adding the Stage 3 actor-critic/value head. PPO, reward shaping, recurrence, and portal-mechanics curricula remain planned work.
-* **Automated checks:** 28 unit tests currently cover recording, preprocessing, checkpointing, inference utilities, dataset statistics, timeout handling, and the Escape-key stop path.
+* **Automated checks:** 33 unit tests currently cover recording, preprocessing, checkpointing, inference utilities, dataset statistics, timeout handling, the Escape-key stop path, and model/chamber sequence planning.
 
 ---
 
@@ -540,12 +540,13 @@ Project-SHIONN/
 ├── record_dataset.py               # continuous demonstration recorder
 ├── dataset_stats.py                # outcome/date/chamber dataset report
 ├── run_imitation.py                # live policy runner
+├── run_model_sequence.py           # model/chamber comparison runner
 ├── run_model.sh                    # local Bash launcher
 ├── run_model.fish                  # local Fish launcher
 └── run_model_ssh.sh                # SSH/Hyprland launcher
 ```
 
-Generated `episodes*/`, `data/datasets/cached_frames/`, `model_attempts/`, checkpoint directories, and model backups are local artifacts excluded by `.gitignore`.
+Generated `episodes*/`, `data/datasets/cached_frames/`, `model_attempts/`, checkpoint directories, and model backups are excluded by `.gitignore`. On this machine, recordings, cached frames, and model checkpoints live on `/mnt/extra/Project-SHIONN/` behind the project paths.
 
 ---
 
@@ -558,7 +559,7 @@ Install dependencies in the project virtual environment, then convert completed 
 .venv/bin/python -m models.imitation.train_bc \
   --cache-dir data/datasets/cached_frames \
   --batch-size 8 \
-  --checkpoint-dir models/imitation/checkpoints_candidate
+  --checkpoint-dir models/imitation/checkpoints/runs/candidate
 ```
 
 Preprocessing skips already cached episodes unless `--overwrite` is supplied, so the same command safely adds new recordings. The trainer splits complete episodes rather than adjacent frames, excludes ambiguous waiting frames before the demonstrator's first action, balances supported binary heads, and standardizes mouse deltas from the training split. The normalized GroupNorm/SiLU trunk avoids the constant-feature collapse observed in the earlier ReLU model.
@@ -593,11 +594,22 @@ For live policy use, construct `PolicyInference` with a checkpoint, supply raw B
 The Bash and Fish launchers provide the current machine defaults. Arguments appended at launch override those defaults, so candidate checkpoints can be evaluated without editing the scripts:
 
 ```bash
-./run_model.sh --checkpoint models/imitation/checkpoints_candidate/best.pt
-./run_model.fish --checkpoint models/imitation/checkpoints_candidate/best.pt
+./run_model.sh --checkpoint models/imitation/checkpoints/runs/candidate/best.pt
+./run_model.fish --checkpoint models/imitation/checkpoints/runs/candidate/best.pt
 ```
 
-`run_model_ssh.sh` adds `--no-launch` and Hyprland focus recovery for an already-running game. The checked-in launchers currently select output `DP-1`, map `dataset_test1`, a 60-second run, and `models/imitation/checkpoints_v3/best.pt`; override these values when the machine layout or candidate changes. Launchers do not automatically discover the newest checkpoint.
+`run_model_ssh.sh` adds `--no-launch` and Hyprland focus recovery for an already-running game. The launchers select output `DP-1`, map `dataset_test1`, and a 60-second run. The Bash/SSH launchers use `models/imitation/checkpoints_v3/best.pt`; the Fish launcher uses `models/imitation/checkpoints_450_v3/best.pt`. Override these defaults when the machine layout or candidate changes. Launchers do not automatically discover the newest checkpoint.
+
+To compare several models on several chambers, run the sequence tool. It tries every model/chamber pair and saves a separate video, diagnostic log, and summary entry for each attempt:
+
+```bash
+.venv/bin/python run_model_sequence.py \
+  --checkpoint old=models/imitation/checkpoints_v3/best.pt \
+  --checkpoint new=models/imitation/checkpoints_450_v3/best.pt \
+  --map dataset_test1 --map evaluation1 --repeats 3 --output DP-1
+```
+
+Append `--plan-only` to inspect the 12-job order without launching the game. Results go under `model_attempts/sequences/sequence_<timestamp>/`; Escape or Ctrl+C stops the remaining jobs. See the [CLI reference](docs/CLI_REFERENCE.md) for recording and focus options.
 
 The live runner launches Portal 2 with `-netconport 8020` if needed, captures the selected Wayland output at 24 Hz, and releases every held action on exit. While a positive `--max-seconds` deadline is configured, `EVT|episode_failed|timeout` from the chamber is logged but ignored so the runner's own deadline remains authoritative. Use `--max-seconds 0` for an unlimited run, where chamber timeout events remain terminal. A global physical-keyboard monitor makes `Esc` an emergency stop even while Portal has focus; `Ctrl+C` remains available from the terminal. Use `wf-recorder -L` followed by `--output OUTPUT_NAME` if the wrong monitor is captured. Before allowing input, a useful capture-only check is:
 

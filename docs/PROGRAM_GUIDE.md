@@ -79,6 +79,7 @@ For each episode, the cache contains:
 The ten training labels are `move_w`, `move_a`, `move_s`, `move_d`, `jump`, `use`, `fire_left`, `fire_right`, `mouse_dx`, and `mouse_dy`. The recorded `crouch` column is retained in the CSV but excluded from this policy. Existing complete caches are skipped; `--overwrite` rebuilds them. [`models/imitation/dataset.py`](../models/imitation/dataset.py) memory-maps cached arrays, stacks four frames into `(12, 180, 320)`, and excludes leading idle frames before the first recorded action. Splits are made by whole episode, not by individual frame.
 
 On this machine, `episodes/` and `data/datasets/cached_frames/` are symlinks into `/mnt/extra/Project-SHIONN/`. The drive must be mounted before recording, preprocessing, or training. The paths used in commands stay the same.
+The checkpoint and backup directories under `models/imitation/` are also symlinks to `/mnt/extra/Project-SHIONN/models/imitation/`. Put future runs under `models/imitation/checkpoints/runs/<name>` so they use the extra drive without another symlink.
 
 ## 5. Network, training, and checkpoints
 
@@ -96,11 +97,13 @@ The trainer's episode-level random split measures performance on held-out record
 
 [`run_imitation.py`](../run_imitation.py) loads a checkpoint through [`models/imitation/inference.py`](../models/imitation/inference.py), connects to Portal 2, optionally loads a map, starts the same Wayland capture path, and predicts actions at `--fps`. Inference applies the same frame conversion and normalization contract used for training. It keeps a four-frame history, repeats the first frame until the history fills, and uses the controller to apply key transitions and relative mouse motion.
 
-`--dry-run` still captures and predicts but does not apply predicted controls. `--record-video` writes a model-attempt MP4 under `model_attempts/` by default and a matching JSONL log. `--log-actions` writes JSONL without video. Logs contain metadata, per-tick actions and model diagnostics, focus state, console events, errors/stops, and a final summary. These are **model-generated attempts**, not expert training labels.
+`--dry-run` still captures and predicts but does not apply predicted controls. `--record-video` writes a model-attempt MP4 under `model_attempts/` by default and a matching JSONL log. `--log-actions` writes JSONL without video. Logs contain metadata, per-tick actions and model diagnostics, focus state, console events, terminal outcomes, errors/stops, and a final summary with its stop reason. These are **model-generated attempts**, not expert training labels.
 
 The runner normally stops at its `--max-seconds` limit or a goal/failure event. When `--max-seconds` is positive, a chamber `episode_failed|timeout` message is logged but does not end the run; the runner's own time limit controls it. With `--max-seconds 0`, chamber timeout is terminal. Escape from a readable physical keyboard and Ctrl+C are stop paths. Held actions are released in cleanup. `--keep-focused` asks Hyprland to focus Portal 2 and restore input if focus is lost.
 
 `run_model.sh` and `run_model.fish` provide local defaults; `run_model_ssh.sh` also sets `--no-launch` and `--keep-focused` for an existing desktop/game reached over SSH. Their extra arguments are passed to `run_imitation.py`.
+
+[`run_model_sequence.py`](../run_model_sequence.py) runs every requested checkpoint/chamber pair, repeating the matrix if requested. Each attempt starts a fresh `run_imitation.py` process, loads its map, and stores its video and diagnostic log in its own directory. A `sequence.jsonl` file records the model, chamber, stop reason, duration, and output paths. The sequence stops on Escape, Ctrl+C, or a runner error by default; a chamber failure is recorded as a completed attempt so the remaining comparisons can run.
 
 ## 7. Setup, maintenance, and tests
 

@@ -379,6 +379,7 @@ def main() -> None:
     visual_change_samples = 0
     previous_frame_sample = None
     input_ready = None
+    stop_reason = "time_limit"
 
     try:
         escape_monitor.start()
@@ -466,6 +467,7 @@ def main() -> None:
         while not args.max_seconds or time.monotonic() - started < args.max_seconds:
             if escape_monitor.stop_requested:
                 print("\nEscape pressed. Stopping policy run.")
+                stop_reason = "escape_key"
                 if attempt_log is not None:
                     attempt_log.write("stop", reason="escape_key")
                 break
@@ -509,8 +511,21 @@ def main() -> None:
             if terminal_received:
                 policy.reset()
                 controller.release_policy_actions()
+                if "EVT|goal_reached" in console_output:
+                    terminal_outcome = "goal_reached"
+                    failure_reason = None
+                else:
+                    terminal_outcome = "episode_failed"
+                    match = EPISODE_FAILURE_PATTERN.search(console_output)
+                    failure_reason = match.group(1).strip() if match else None
+                if attempt_log is not None:
+                    attempt_log.write(
+                        "terminal", outcome=terminal_outcome,
+                        reason=failure_reason,
+                    )
                 print("Episode terminal event received.")
                 if not args.continue_after_event:
+                    stop_reason = terminal_outcome
                     break
 
             now = time.monotonic()
@@ -567,9 +582,11 @@ def main() -> None:
                 next_tick = time.monotonic()
     except KeyboardInterrupt:
         print("\nEmergency stop requested.")
+        stop_reason = "keyboard_interrupt"
         if attempt_log is not None:
             attempt_log.write("stop", reason="keyboard_interrupt")
     except Exception as error:
+        stop_reason = "error"
         if attempt_log is not None:
             attempt_log.write("error", error_type=type(error).__name__, message=str(error))
         raise
@@ -592,6 +609,7 @@ def main() -> None:
                     visual_change_total / visual_change_samples
                     if visual_change_samples else None
                 ),
+                stop_reason=stop_reason,
             )
             attempt_log.close()
             print(f"Attempt diagnostics saved to: {log_path}")

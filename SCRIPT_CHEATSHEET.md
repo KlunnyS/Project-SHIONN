@@ -14,12 +14,13 @@ Run these commands from the repository root. Use `.venv/bin/python` on this Linu
 | Record 20 successful runs on a chamber | `.venv/bin/python record_dataset.py --map dataset_test2 --episodes 20` | Saves every attempt, retries failures, and returns to the game menu after 20 successes. Omit `--episodes` to run until Ctrl+C. |
 | Check recorded outcomes and chambers | `.venv/bin/python dataset_stats.py` | Counts completed episodes and action rows by outcome, date, and chamber. |
 | Prepare successful episodes for training | `.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes/goal_reached` | Creates missing cached RGB frames and action arrays under `data/datasets/cached_frames`. |
-| Train a new candidate | `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir /mnt/extra/Project-SHIONN/checkpoints_new_v3 --checkpoint-every 0` | Trains from the default cache; stops after three unimproved validation epochs, logs epoch metrics, and stores checkpoints on the extra drive without periodic step files. |
-| Run the current model | `./run_model.sh` or `./run_model.fish` | Runs a 60-second attempt on `dataset_test1`, saving a review video and diagnostics. |
+| Train a new candidate | `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints/runs/new_v3 --checkpoint-every 0` | Trains from the default cache; stops after three unimproved validation epochs, logs epoch metrics, and stores checkpoints on the extra drive without periodic step files. |
+| Run a configured model | `./run_model.sh` or `./run_model.fish` | Runs a 60-second attempt on `dataset_test1`, saving a review video and diagnostics. Bash uses `checkpoints_v3`; Fish uses `checkpoints_450_v3`. |
+| Compare models across chambers | `.venv/bin/python run_model_sequence.py --checkpoint old=models/imitation/checkpoints_v3/best.pt --checkpoint new=models/imitation/checkpoints_450_v3/best.pt --map dataset_test1 --map evaluation1 --repeats 3 --output DP-1` | Runs 12 separate attempts and writes per-attempt videos/logs plus a sequence summary. Add `--plan-only` to inspect the order first. |
 | Run the model from an SSH session | `./run_model_ssh.sh` | Uses the already-running game and Hyprland focus recovery. |
 | Run automated tests | `.venv/bin/python -m unittest discover -s tests -p 'test_*.py'` | Runs the isolated Python test suite. |
 
-The raw `episodes/` and `data/datasets/cached_frames/` paths are symlinks to `/mnt/extra/Project-SHIONN/` on this machine. Mount `/mnt/extra` before recording, preprocessing, or training.
+The raw `episodes/`, `data/datasets/cached_frames/`, and checkpoint paths under `models/imitation/` are symlinks to `/mnt/extra/Project-SHIONN/` on this machine. Mount `/mnt/extra` before recording, preprocessing, training, or inference. New checkpoints go under `models/imitation/checkpoints/runs/<name>`.
 
 ## Shell and Fish launchers
 
@@ -29,10 +30,10 @@ The raw `episodes/` and `data/datasets/cached_frames/` paths are symlinks to `/m
 | `install_dependencies.sh` | `./install_dependencies.sh [--system\|--permissions\|--all]` | Installs Python requirements by default; optional flags install `wf-recorder` and configure `/dev/input`/`uinput` access. `--help` lists options. |
 | `hammerpp-home.sh` | `./hammerpp-home.sh` | Starts the active Hammer++ editor through Wine. |
 | `run_model.sh` | `./run_model.sh [run_imitation.py options]` | Bash desktop launcher. Defaults: `checkpoints_v3/best.pt`, output `DP-1`, map `dataset_test1`, 60 seconds, video and verbose diagnostics. Later arguments override defaults. |
-| `run_model.fish` | `./run_model.fish [run_imitation.py options]` | Fish equivalent of `run_model.sh`; requires Fish. |
+| `run_model.fish` | `./run_model.fish [run_imitation.py options]` | Fish launcher; uses `checkpoints_450_v3/best.pt` by default and requires Fish. |
 | `run_model_ssh.sh` | `./run_model_ssh.sh [run_imitation.py options]` | Bash launcher for an already-running game; adds `--no-launch` and `--keep-focused`. |
 
-Example override: `./run_model.sh --map dataset_test2 --checkpoint models/imitation/checkpoints_new_run/best.pt`. List live-runner flags with `.venv/bin/python run_imitation.py --help`.
+Example override: `./run_model.sh --map dataset_test2 --checkpoint models/imitation/checkpoints/runs/new_v3/best.pt`. List live-runner flags with `.venv/bin/python run_imitation.py --help`.
 
 ## Python entry points
 
@@ -41,8 +42,9 @@ Example override: `./run_model.sh --map dataset_test2 --checkpoint models/imitat
 | `record_dataset.py` | `.venv/bin/python record_dataset.py --map dataset_test2 --episodes 20` | Human demonstration recorder. `--episodes` counts only `goal_reached`; failed attempts are saved and retried. `--duration` sets the local attempt limit, `--output` selects a monitor from `wf-recorder -L`, and `--mouse-device` selects the physical pointer. `--help` lists all flags. |
 | `dataset_stats.py` | `.venv/bin/python dataset_stats.py [episodes_directory]` | Reports outcome/date/chamber counts. The default directory is `episodes`; pass `episodes/goal_reached` to count only successes. |
 | `models/imitation/preprocess.py` | `.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes/goal_reached` | Converts each completed MP4 and CSV into 320×180 RGB frame arrays plus cached action arrays. Skips existing cache files; add `--overwrite` to rebuild them. `--cache-dir` changes the destination. |
-| `models/imitation/train_bc.py` | `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints_new_run` | Behavior-cloning trainer. Common flags: `--cache-dir`, `--epochs`, `--early-stop-patience`, `--batch-size`, `--device auto\|cuda\|cpu`, `--workers`, and `--resume PATH`. Use a new checkpoint directory for a new dataset run. |
+| `models/imitation/train_bc.py` | `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints/runs/new_run` | Behavior-cloning trainer. Common flags: `--cache-dir`, `--epochs`, `--early-stop-patience`, `--batch-size`, `--device auto\|cuda\|cpu`, `--workers`, and `--resume PATH`. Use a new run directory inside the symlink for each dataset. |
 | `run_imitation.py` | `.venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints_v3/best.pt --map dataset_test2` | Direct live-policy runner. Use `--dry-run --max-seconds 10` to inspect predictions without sending actions. `--record-video` saves model attempts; `--keep-focused` supports Hyprland. `--help` lists all flags. |
+| `run_model_sequence.py` | `.venv/bin/python run_model_sequence.py --checkpoint old=models/imitation/checkpoints_v3/best.pt --checkpoint new=models/imitation/checkpoints_450_v3/best.pt --map dataset_test1 --map dataset_test2` | Runs each model on each map in order, with one video/log per attempt and `sequence.jsonl` results. `--repeats N` repeats the matrix; `--plan-only` previews it. |
 | `recorder.py` | `.venv/bin/python recorder.py` | Lower-level event listener. It waits for `EVT` signals from a game already connected on netconsole port 8020 and does not load/reset a map; use `record_dataset.py` for normal data collection. |
 | `wrapper.py` | `.venv/bin/python wrapper.py` | Manual netconsole and input smoke test. Loads `puzzlemaker/preview` and tries a jump. It can wait if the map/player is unavailable; it is also imported by active scripts. |
 
@@ -70,6 +72,7 @@ Run them together with the test command in **Common workflow**. Each is an autom
 | `tests/test_record_dataset.py` | Recorder events, input-device selection, episode metadata/outcome handling, and success quota. |
 | `tests/test_dataset_stats.py` | Outcome/date/chamber counts and incomplete episode handling. |
 | `tests/test_imitation_pipeline.py` | Frame preparation, model/data contracts, inference helpers, and timeout behavior. |
+| `tests/test_run_model_sequence.py` | Model/chamber order, runner options, and stopping the sequence after Escape. |
 
 ## Manual hardware diagnostics
 
@@ -88,6 +91,6 @@ These were moved from the repository root to `scripts/legacy/`. Run the Python f
 
 | File | Usage and effect |
 |---|---|
-| `scripts/legacy/run_sequence.py` | `.venv/bin/python -m scripts.legacy.run_sequence` — loads `puzzlemaker/preview` and runs a hard-coded movement/use sequence; not part of the dataset workflow. |
+| `scripts/legacy/run_sequence.py` | `.venv/bin/python -m scripts.legacy.run_sequence` — loads `puzzlemaker/preview` and runs a hard-coded movement/use sequence; use `run_model_sequence.py` for model/chamber comparisons. |
 | `scripts/legacy/example_usage.py` | `.venv/bin/python -m scripts.legacy.example_usage` — replays `sequences/TEST_0_mimic_sequence/actions.csv` at 60 FPS. |
 | `scripts/legacy/hammerpp_notas.sh` | `./scripts/legacy/hammerpp_notas.sh` — alternate Hammer++ launcher for `/home/user/.local/share/Steam/...`; update that path before use on a different install. |

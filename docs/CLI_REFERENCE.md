@@ -47,7 +47,7 @@ The command checks frame/action alignment and stops with an error when a source 
 
 ## `models.imitation.train_bc`
 
-Example: `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir /mnt/extra/Project-SHIONN/checkpoints_new_v3 --checkpoint-every 0`
+Example: `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints/runs/new_v3 --checkpoint-every 0`
 
 | Flag | Default | Meaning |
 |---|---:|---|
@@ -59,7 +59,7 @@ Example: `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir /mnt/ex
 | `--seed N` | `0` | Shuffle seed for episode split and epoch order. |
 | `--workers N` | `0` | PyTorch data-loader worker processes. |
 | `--device auto\|cuda\|cpu` | `auto` | Training device; `auto` uses CUDA when available. |
-| `--checkpoint-dir PATH` | `models/imitation/checkpoints_v3` | Directory for `best.pt`, `last.pt`, step checkpoints, and matching JSON files. Use a new directory for a new dataset run. |
+| `--checkpoint-dir PATH` | `models/imitation/checkpoints_v3` | Directory for `best.pt`, `last.pt`, step checkpoints, and matching JSON files. Use `models/imitation/checkpoints/runs/<name>` for a new run on the extra drive. |
 | `--checkpoint-every N` | `1000` | Save a `step_*.pt` checkpoint and refresh `last.pt` every N optimizer steps. `0` disables step checkpoints; epoch-end `last.pt` and improved `best.pt` remain. |
 | `--log-every N` | `100` | Print average running loss every N training batches. `0` suppresses batch logs. |
 | `--early-stop-patience N` | `3` | Stop after N complete epochs without a lower validation loss. `0` disables early stopping; `--epochs` remains the maximum. The counter starts fresh when resuming. |
@@ -73,7 +73,7 @@ Example: `.venv/bin/python run_imitation.py --checkpoint models/imitation/checkp
 
 | Flag | Default | Meaning |
 |---|---:|---|
-| `--checkpoint PATH` | `models/imitation/checkpoints/best.pt` | Checkpoint to load. The Bash/Fish launchers override this with `checkpoints_v3/best.pt`. |
+| `--checkpoint PATH` | `models/imitation/checkpoints/best.pt` | Checkpoint to load. Bash/SSH launchers choose `checkpoints_v3/best.pt`; Fish chooses `checkpoints_450_v3/best.pt`. |
 | `--device auto\|cuda\|cpu` | `auto` | Device for policy inference. |
 | `--port N` | `8020` | Portal 2 netconsole port. |
 | `--fps FLOAT` | `24` | Prediction tick rate; screen capture/video FPS use a rounded positive integer. |
@@ -97,6 +97,39 @@ Example: `.venv/bin/python run_imitation.py --checkpoint models/imitation/checkp
 
 Positive `--max-seconds` makes the runner ignore chamber-only `episode_failed|timeout` as a stop signal; its own time limit remains authoritative. `--max-seconds 0` lets that event end the run. Escape and Ctrl+C stop the policy; held controls are released during cleanup.
 
+## `run_model_sequence.py`
+
+Example: `.venv/bin/python run_model_sequence.py --checkpoint old=models/imitation/checkpoints_v3/best.pt --checkpoint new=models/imitation/checkpoints_450_v3/best.pt --map dataset_test1 --map evaluation1 --repeats 3 --output DP-1`
+
+The runner makes a full checkpoint × chamber matrix. By default, each repeat visits one chamber with every model before moving to the next chamber. Add `--plan-only` to print the jobs without opening Portal 2. All checkpoints and matching `.json` files must exist before the sequence starts.
+
+| Flag | Default | Meaning |
+|---|---:|---|
+| `--checkpoint PATH` or `--checkpoint LABEL=PATH` | required, repeatable | Model checkpoint. A label names its result folders; without one, the checkpoint directory and filename become the label. |
+| `--map NAME` | required, repeatable | Chamber to load for every model. |
+| `--repeats N` | `1` | Number of attempts per model/chamber pair. |
+| `--order map-first\|model-first` | `map-first` | Visit models within each chamber or chambers within each model, repeated N times. |
+| `--recording-root PATH` | `model_attempts/sequences` | Parent directory for timestamped sequence folders. |
+| `--max-seconds SECONDS` | `60` | Maximum live-policy time per attempt; `0` waits for an event or manual stop. |
+| `--countdown SECONDS` | `3` | Delay before each policy attempt. |
+| `--pause-seconds SECONDS` | `1` | Pause between attempts. |
+| `--output NAME` | first detected output | Wayland monitor passed to each run. |
+| `--device auto\|cuda\|cpu` | `auto` | Policy inference device. |
+| `--port N` | `8020` | Portal 2 netconsole port. |
+| `--fps FLOAT` | `24` | Prediction/capture rate. |
+| `--width N`, `--height N` | `1920`, `1080` | Screen/video size. |
+| `--status-every SECONDS` | `1` | Status and focus-check interval passed to each run. |
+| `--hyprland-instance VALUE` | `auto` | Hyprland instance signature for focus handling. |
+| `--no-video` | off | Keep JSONL diagnostics but omit MP4 videos. |
+| `--no-launch` | off | Require an already-running game. |
+| `--keep-focused` | off | Restore Portal focus/input on Hyprland. |
+| `--dry-run` | off | Predict without applying controls; still loads maps and records attempts. |
+| `--verbose` | off | Print periodic live-runner status. |
+| `--continue-on-error` | off | Try later jobs after a runner process fails; the sequence still exits nonzero. |
+| `--plan-only` | off | Show the job order without creating files or launching the game. |
+
+Every job gets a separate `attempt_*.jsonl` and, unless `--no-video` is used, MP4. `sequence.jsonl` in the timestamped folder records each job's checkpoint, map, return code, stop reason, and paths. `goal_reached` and `episode_failed` require chamber event signals; `time_limit` means no terminal event was received before the local deadline. Escape or Ctrl+C cancels the remaining jobs. The sequence stops on a process error unless `--continue-on-error` is set.
+
 ## Shell, Fish, and direct diagnostics
 
 | Command | Options/defaults |
@@ -105,7 +138,7 @@ Positive `--max-seconds` makes the runner ignore chamber-only `episode_failed|ti
 | `./check_dependencies.sh` | No flags. Reports environment and hardware setup. |
 | `./hammerpp-home.sh` | No flags. Opens Hammer++ from the configured Steam path. |
 | `./run_model.sh [options]` | Bash wrapper for `run_imitation.py`: `checkpoints_v3/best.pt`, `--device auto`, `--output DP-1`, `--map dataset_test1`, `--max-seconds 60`, `--record-video`, and `--verbose`. Appended runner flags override values. |
-| `./run_model.fish [options]` | Fish wrapper with the same runner defaults. |
+| `./run_model.fish [options]` | Fish wrapper with the same capture/map defaults; its checkpoint is `models/imitation/checkpoints_450_v3/best.pt`. |
 | `./run_model_ssh.sh [options]` | Bash wrapper with the same defaults plus `--no-launch` and `--keep-focused`. |
 | `.venv/bin/python recorder.py` | No flags. Low-level recorder that listens for game events without loading/resetting the chamber. |
 | `.venv/bin/python wrapper.py` | No flags. Manual preview-map and jump smoke test. |
