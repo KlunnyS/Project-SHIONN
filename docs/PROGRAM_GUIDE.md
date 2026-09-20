@@ -103,7 +103,9 @@ The runner normally stops at its `--max-seconds` limit or a goal/failure event. 
 
 `run_model.sh` and `run_model.fish` provide local defaults; `run_model_ssh.sh` also sets `--no-launch` and `--keep-focused` for an existing desktop/game reached over SSH. Their extra arguments are passed to `run_imitation.py`.
 
-[`run_model_sequence.py`](../run_model_sequence.py) runs every requested checkpoint/chamber pair, repeating the matrix if requested. Each attempt starts a fresh `run_imitation.py` process, loads its map, and stores its video and diagnostic log in its own directory. A `sequence.jsonl` file records the model, chamber, stop reason, duration, and output paths. The sequence stops on Escape, Ctrl+C, or a runner error by default; a chamber failure is recorded as a completed attempt so the remaining comparisons can run.
+[`run_model_sequence.py`](../run_model_sequence.py) runs every requested checkpoint/chamber pair, repeating the matrix if requested. Each attempt starts a fresh `run_imitation.py` process, loads its map, and stores its video and diagnostic log in its own directory. A `sequence.jsonl` file records the model, chamber, stop reason, duration, and output paths; completed sequences also write `benchmark_summary.json`. The sequence stops on Escape, Ctrl+C, or a runner error by default; a chamber failure is recorded as a completed attempt so the remaining comparisons can run.
+
+[`benchmark_expert.py`](../benchmark_expert.py) compares a checkpoint's predicted controls with human actions on the same held-out cached frames, including a final-frame segment. The trainer saves validation episode names in each new checkpoint. [`benchmark_sequence.py`](../benchmark_sequence.py) summarizes repeated live attempts by checkpoint and chamber, with success rates and durations. Evaluation demonstrations can be recorded to `episodes_eval` using `record_dataset.py --episodes-root episodes_eval` and cached separately. See [the benchmark workflow](BENCHMARKING.md) for commands and interpretation.
 
 ## 7. Setup, maintenance, and tests
 

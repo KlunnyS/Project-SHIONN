@@ -10,6 +10,7 @@ from record_dataset import (
     parse_args, record_episodes, validate_args,
 )
 from recorder import EpisodeRecorder, _pointer_score, find_input_devices
+from record_recovery import main as record_recovery
 
 
 class FakePointerDevice:
@@ -80,6 +81,21 @@ class EpisodeEventStreamTest(unittest.TestCase):
 
 
 class EpisodeRecorderOutcomeTest(unittest.TestCase):
+    @patch("recorder.get_default_output", return_value="DP-1")
+    @patch("recorder.WaylandCamera")
+    @patch("recorder.InputTracker")
+    @patch("recorder.find_input_devices", return_value=([Mock()], [Mock()]))
+    def test_evaluation_recordings_use_separate_root(
+        self, find_devices, tracker, camera, default_output
+    ):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory) / "episodes_eval"
+            recorder = EpisodeRecorder(episodes_root=root, controller=Mock())
+
+            self.assertEqual(Path(recorder.episodes_root), root)
+            self.assertEqual(Path(recorder.in_progress_root), root / ".in_progress")
+            self.assertTrue((root / ".in_progress").is_dir())
+
     @patch("recorder.threading.Thread")
     @patch("recorder.FFmpegVideoWriter")
     def test_new_episode_records_map_name(self, video_writer, thread):
@@ -91,10 +107,14 @@ class EpisodeRecorderOutcomeTest(unittest.TestCase):
             recorder.fps = 24
             recorder.video_crf = 20
 
-            recorder.start_recording(map_name="dataset_test2")
+            recorder.start_recording(map_name="dataset_test2", metadata_extra={
+                "source": "model_recovery", "source_attempt": "/tmp/attempt.jsonl",
+            })
             try:
                 metadata = json.loads((Path(recorder.ep_dir) / "metadata.json").read_text())
                 self.assertEqual(metadata["map"], "dataset_test2")
+                self.assertEqual(metadata["source"], "model_recovery")
+                self.assertEqual(metadata["source_attempt"], "/tmp/attempt.jsonl")
                 self.assertTrue((Path(recorder.ep_dir) / "actions.csv").is_file())
                 thread.return_value.start.assert_called_once()
             finally:
@@ -134,11 +154,13 @@ class EpisodeRecorderOutcomeTest(unittest.TestCase):
 class RecordingQuotaTest(unittest.TestCase):
     def test_repeated_map_flags_share_one_per_map_target(self):
         args = parse_args([
-            "--map", "dataset_test5", "--map", "dataset_test6", "--episodes", "3"
+            "--map", "dataset_test5", "--map", "dataset_test6", "--episodes", "3",
+            "--episodes-root", "episodes_eval",
         ])
         validate_args(args)
         self.assertEqual(args.map_names, ["dataset_test5", "dataset_test6"])
         self.assertEqual(args.episodes, 3)
+        self.assertEqual(args.episodes_root, Path("episodes_eval"))
 
     def test_duplicate_maps_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "unique"):
@@ -172,6 +194,7 @@ class RecordingQuotaTest(unittest.TestCase):
         )
         controller.send_command.assert_called_once_with("disconnect")
 
+
     @patch("record_dataset.time.sleep")
     @patch("record_dataset.wait_for_terminal_event")
     @patch("record_dataset.load_map_and_wait_for_ready")
@@ -203,6 +226,39 @@ class RecordingQuotaTest(unittest.TestCase):
         self.assertEqual(progress.successes_by_map, {"dataset_test5": 2, "dataset_test6": 2})
         self.assertEqual(progress.attempts, 5)
         controller.send_command.assert_called_once_with("disconnect")
+
+
+class RecoveryRecordingTest(unittest.TestCase):
+    @patch("record_recovery.time.sleep")
+    @patch("record_recovery.wait_for_terminal_event", return_value="goal_reached")
+    @patch("record_recovery.wait_for_camera")
+    @patch("record_recovery.connect_controller")
+    @patch("record_recovery.EpisodeRecorder")
+    @patch("record_recovery.is_game_running", return_value=True)
+    def test_recovers_from_current_state_without_loading_a_map(
+        self, game_running, recorder_class, connect, camera_ready, terminal, sleep
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            attempt = Path(directory) / "attempt.jsonl"
+            attempt.touch()
+            recorder = recorder_class.return_value
+            recorder.recording = False
+
+            record_recovery([
+                "--map", "dataset_test9", "--source-attempt", str(attempt),
+                "--episodes-root", str(Path(directory) / "recovery"),
+                "--focus-delay", "0",
+            ])
+
+            recorder.start_recording.assert_called_once_with(
+                map_name="dataset_test9",
+                metadata_extra={
+                    "source": "model_recovery", "source_attempt": str(attempt.resolve()),
+                },
+            )
+            recorder.stop_recording.assert_called_once_with("goal_reached")
+            recorder.controller.load_map.assert_not_called()
+            recorder.controller.send_command.assert_not_called()
 
 
 if __name__ == "__main__":

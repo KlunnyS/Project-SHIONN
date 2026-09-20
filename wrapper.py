@@ -210,7 +210,7 @@ class Portal2Controller:
         try:
             from evdev import UInput, ecodes as e
             capabilities = {
-                e.EV_KEY: [e.BTN_LEFT, e.BTN_RIGHT],
+                e.EV_KEY: [e.BTN_LEFT, e.BTN_RIGHT, e.BTN_MIDDLE],
                 e.EV_REL: [e.REL_X, e.REL_Y],
             }
             self.ui = UInput(capabilities, name="portal2-wrapper-mouse")
@@ -252,7 +252,11 @@ class Portal2Controller:
             time.sleep(0.5)
         try:
             from evdev import ecodes as e
-            code = {"left": e.BTN_LEFT, "right": e.BTN_RIGHT}[button]
+            code = {
+                "left": e.BTN_LEFT,
+                "right": e.BTN_RIGHT,
+                "middle": e.BTN_MIDDLE,
+            }[button]
             self.ui.write(e.EV_KEY, code, 1)
             self.ui.syn()
             time.sleep(0.03)

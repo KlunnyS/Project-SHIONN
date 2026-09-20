@@ -6,7 +6,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 from unittest.mock import patch
 
 import cv2
@@ -14,17 +14,38 @@ import numpy as np
 import torch
 
 from models.imitation.checkpoint import load_checkpoint, save_checkpoint
-from models.imitation.dataset import BehaviorCloningDataset, discover_cached_episodes, split_episode_manifests
+from models.imitation.dataset import BehaviorCloningDataset, EpisodeManifest, discover_cached_episodes, split_episode_manifests
 from models.imitation.inference import PolicyInference
 from models.imitation.network import ImitationPolicy
 from models.imitation.preprocess import PREPROCESSING_CONFIG
 from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_episodes
-from models.imitation.train_bc import EarlyStopping, format_duration, make_binary_class_weights, make_training_loader
+from models.imitation.train_bc import EarlyStopping, binary_class_weights_for_mode, format_duration, make_binary_class_weights, make_training_loader, select_maps, training_sampling_weights
 from recorder import FFmpegVideoWriter
-from run_imitation import AttemptLog, EscapeKeyMonitor, action_label, apply_predicted_action, classify_terminal_events, frame_change, hyprland_instance_candidates, make_attempt_recording_path, parse_args
+from run_imitation import AttemptLog, EscapeKeyMonitor, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, frame_change, hyprland_instance_candidates, make_attempt_recording_path, parse_args
+from wrapper import Portal2Controller
 
 
 class ImitationPipelineTest(unittest.TestCase):
+    def test_cutdown_map_selection_keeps_only_requested_episodes(self):
+        manifests = [
+            EpisodeManifest(f"episode_{index}", Path("frames.npy"), Path("actions.npy"), 1, map_name)
+            for index, map_name in enumerate(("dataset_test1", "dataset_test2", "dataset_test5", "dataset_test9"))
+        ]
+
+        selected = select_maps(manifests, ["dataset_test2", "dataset_test5", "dataset_test9"])
+
+        self.assertEqual([item.map_name for item in selected], ["dataset_test2", "dataset_test5", "dataset_test9"])
+        with self.assertRaisesRegex(ValueError, "dataset_test99"):
+            select_maps(manifests, ["dataset_test99"])
+
+    def test_unweighted_binary_loss_uses_recorded_action_frequencies(self):
+        counts = torch.tensor([60, 10, 1, 10, 1, 0, 0, 0], dtype=torch.float32)
+
+        weights = binary_class_weights_for_mode(counts, 100, "none")
+
+        self.assertTrue(torch.equal(weights, torch.ones((8, 2))))
+        self.assertGreater(binary_class_weights_for_mode(counts, 100, "balanced")[0, 0], 1)
+
     def test_early_stopping_preserves_best_loss_and_counts_unimproved_epochs(self):
         stopping = EarlyStopping(patience=3)
         self.assertEqual(stopping.update(3.0), (True, False))
@@ -132,6 +153,68 @@ class ImitationPipelineTest(unittest.TestCase):
 
     def test_explicit_hyprland_instance_does_not_depend_on_session_environment(self):
         self.assertEqual(hyprland_instance_candidates("test-signature"), ["test-signature"])
+
+    @patch("run_imitation.time.sleep")
+    @patch("run_imitation.subprocess.run")
+    @patch("run_imitation.focus_portal_window")
+    @patch("run_imitation.query_hyprland_active_window")
+    def test_activation_does_not_warp_an_already_focused_game_or_fire_portal(
+        self, active_window, focus_window, run_command, _sleep
+    ):
+        window = {
+            "portal_focused": True,
+            "at": [100, 200],
+            "size": [800, 600],
+            "hyprland_instance": "test-signature",
+        }
+        active_window.return_value = window
+        controller = Mock()
+        controller.click_virtual_mouse.return_value = True
+
+        self.assertEqual(activate_portal_input(controller), window)
+
+        focus_window.assert_not_called()
+        run_command.assert_not_called()
+        controller.click_virtual_mouse.assert_called_once_with("middle")
+        controller.send_command.assert_called_once_with("unpause")
+
+    @patch("run_imitation.time.sleep")
+    @patch("run_imitation.subprocess.run")
+    @patch("run_imitation.focus_portal_window")
+    @patch("run_imitation.query_hyprland_active_window")
+    def test_activation_refocuses_before_clicking_without_firing(
+        self, active_window, focus_window, run_command, _sleep
+    ):
+        window = {
+            "portal_focused": True,
+            "at": [100, 200],
+            "size": [800, 600],
+            "hyprland_instance": "test-signature",
+        }
+        active_window.side_effect = [{"portal_focused": False}, window]
+        focus_window.return_value = window
+        controller = Mock()
+        controller.click_virtual_mouse.return_value = True
+
+        self.assertEqual(activate_portal_input(controller), window)
+
+        focus_window.assert_called_once_with("auto")
+        self.assertIn("movecursor", run_command.call_args.args[0])
+        controller.click_virtual_mouse.assert_called_once_with("middle")
+
+    @patch("wrapper.time.sleep")
+    def test_middle_activation_click_emits_only_middle_button(self, _sleep):
+        import evdev
+
+        controller = Portal2Controller(log_file=None)
+        controller.ui = Mock()
+
+        self.assertTrue(controller.click_virtual_mouse("middle"))
+
+        self.assertEqual(controller.ui.write.call_args_list, [
+            call(evdev.ecodes.EV_KEY, evdev.ecodes.BTN_MIDDLE, 1),
+            call(evdev.ecodes.EV_KEY, evdev.ecodes.BTN_MIDDLE, 0),
+        ])
 
     def test_attempt_log_writes_line_delimited_json(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -300,6 +383,55 @@ class ImitationPipelineTest(unittest.TestCase):
         )
         self.assertEqual(len(legacy_train), 8)
         self.assertEqual(len(legacy_validation), 2)
+
+    def test_opening_and_correction_sampling_allocate_expected_draws(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            manifests = []
+            for name, map_name, count in (
+                ("base_a", "map_a", 4), ("base_b", "map_b", 8),
+                ("correction", "map_a", 4),
+            ):
+                frames_path = root / f"{name}.npy"
+                actions_path = root / f"{name}.actions.npy"
+                np.save(frames_path, np.zeros((count, 180, 320, 3), dtype=np.uint8))
+                actions = np.zeros((count, len(ACTION_COLUMNS)), dtype=np.float32)
+                actions[1:, 0] = 1
+                np.save(actions_path, actions)
+                manifests.append(EpisodeManifest(name, frames_path, actions_path, count, map_name))
+            dataset = BehaviorCloningDataset(manifests)
+            plain = training_sampling_weights(dataset, "chamber-balanced")
+            boosted = training_sampling_weights(
+                dataset, "chamber-balanced", start_window_frames=2,
+                start_sampling_boost=4,
+            )
+            opening = np.array([
+                frame - dataset.first_action_frames[episode] < 2
+                for episode, frame in dataset.index
+            ])
+            self.assertGreater(boosted[opening].sum(), plain[opening].sum())
+            self.assertAlmostEqual(boosted.sum(), len(dataset))
+            map_a = np.array([
+                dataset.episode_maps[episode] == "map_a"
+                for episode, _ in dataset.index
+            ])
+            self.assertAlmostEqual(boosted[map_a].sum(), len(dataset) / 2)
+            correction = training_sampling_weights(
+                dataset, "chamber-balanced", start_window_frames=2,
+                start_sampling_boost=4, correction_episode_names={"correction"},
+                correction_sampling_fraction=0.25,
+            )
+            self.assertAlmostEqual(correction[-3:].sum() / correction.sum(), 0.25)
+            args = SimpleNamespace(
+                sampling="chamber-balanced", seed=4, batch_size=2, workers=0,
+                start_window_frames=2, start_sampling_boost=4,
+                correction_sampling_fraction=0.25,
+            )
+            loader = make_training_loader(
+                dataset, args, False, epoch=1,
+                correction_episode_names={"correction"},
+            )
+            np.testing.assert_allclose(loader.sampler.weights.numpy(), correction)
 
     def test_class_weights_balance_supported_actions_without_amplifying_noise(self):
         counts = np.asarray([80, 20, 1, 25, 5, 0, 0, 0], dtype=np.float64)

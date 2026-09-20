@@ -27,6 +27,7 @@ This records one success on each map before starting the next round. A failed at
 | `--width N` | `1920` | Captured/video frame width. |
 | `--height N` | `1080` | Captured/video frame height. |
 | `--crf N` | `20` | H.264 encoder CRF passed to FFmpeg. |
+| `--episodes-root PATH` | `episodes` | Recording root. Use `episodes_eval` for held-out evaluation references. |
 | `--output NAME` | first detected output | Wayland monitor name from `wf-recorder -L`. |
 | `--mouse-device PATH_OR_NAME` | auto-detected pointer | Exact `/dev/input/event*` path or case-insensitive fragment of a device name. |
 | `--no-launch` | off | Require Portal 2 to be running instead of launching it through Steam. |
@@ -61,12 +62,21 @@ Example: `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/
 | Flag | Default | Meaning |
 |---|---:|---|
 | `--cache-dir PATH` | `data/datasets/cached_frames` | Cached frame/action dataset. |
+| `--train-extra-cache-dir PATH` | none | Repeat to add cached correction episodes to training only, after the base episode split. |
+| `--correction-sampling-fraction FLOAT` | `0` | Expected fraction of optimizer draws from the extra caches, such as `0.10`; requires extra cached episodes. |
+| `--start-window-frames N` | `8` | Usable frames after each episode's first action eligible for opening sampling boost. |
+| `--start-sampling-boost FLOAT` | `1` | Multiply opening-frame sampling weight; `5` gives openings more training exposure. |
+| `--map NAME` | all cached maps | Repeat to train on only the named chambers. An unknown or duplicate name is an error. |
 | `--epochs N` | `20` | Total number of epochs in the run; on resume this remains the total target. |
 | `--batch-size N` | `8` | Training and validation batch size. |
 | `--learning-rate FLOAT` | `3e-4` | AdamW learning rate. |
 | `--validation-fraction FLOAT` | `0.2` | Fraction of complete episodes used for validation. |
 | `--seed N` | `0` | Shuffle seed for episode split and epoch order. |
 | `--sampling chamber-balanced\|uniform` | `chamber-balanced` | Draw equal expected numbers of usable frames from each training map per epoch, or use legacy uniform frame sampling. The epoch still contains one draw per usable training frame. |
+| `--binary-class-weighting balanced\|none` | `balanced` | Reweight binary action losses, or leave every class at weight 1 so recorded action frequencies determine the loss. |
+| `--jump-positive-weight FLOAT` | class weighting default | Set the positive jump weight as a multiple of the no-jump weight; use separate runs to test values such as 3 and 5. |
+| `--mouse-head gaussian\|binned` | `gaussian` | Existing Gaussian head or independent dx/dy classification heads. |
+| `--mouse-bins N` | `15` | Requested odd class count per axis for the binned head. Quantile edges are fitted from usable training actions only, with an exact zero class. |
 | `--workers N` | `0` | PyTorch data-loader worker processes. |
 | `--device auto\|cuda\|cpu` | `auto` | Training device; `auto` uses CUDA when available. |
 | `--checkpoint-dir PATH` | `models/imitation/checkpoints_v3` | Directory for `best.pt`, `last.pt`, step checkpoints, and matching JSON files. Use `models/imitation/checkpoints/runs/<name>` for a new run on the extra drive. |
@@ -75,7 +85,22 @@ Example: `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/
 | `--early-stop-patience N` | `3` | Stop after N complete epochs without a lower validation loss. `0` disables early stopping; `--epochs` remains the maximum. The counter starts fresh when resuming. |
 | `--resume PATH` | none | Resume model and optimizer from a compatible checkpoint. The trainer checks the architecture and data/target-processing contract. |
 
-The default cache is not filtered by chamber or outcome; prepare it intentionally. On a larger dataset, frequent step checkpoints can consume substantial disk space. Each completed epoch also appends train/validation totals and per-action losses to `metrics.jsonl` in the checkpoint directory. The number of epochs and batches determines training time; this command does not run the live game.
+The default cache is not filtered by chamber or outcome; prepare it intentionally. With the default opening and correction weights, `--sampling uniform` shuffles every usable training frame once per epoch, retaining the recorded frame proportions between maps. Boosted openings or a correction fraction use weighted draws with replacement. `--binary-class-weighting none` disables action-class reweighting. Mouse deltas are still scaled numerically for Gaussian training; this does not change sample frequencies. On a larger dataset, frequent step checkpoints can consume substantial disk space. Each completed epoch also appends train/validation totals and per-action losses to `metrics.jsonl` in the checkpoint directory. The number of epochs and batches determines training time; this command does not run the live game.
+
+For the mouse-bin experiment and its jump-weight follow-ups, see [the mouse policy workflow](MOUSE_POLICY_EXPERIMENT.md). Binned checkpoints keep the fitted edges and representative deltas inside the checkpoint. They use argmax independently on each axis during inference.
+
+For the 450-episode cutdown experiment (`dataset_test2` and `dataset_test5` through `dataset_test12`), use a separate checkpoint directory:
+
+```bash
+.venv/bin/python -m models.imitation.train_bc \
+  --map dataset_test2 \
+  --map dataset_test5 --map dataset_test6 --map dataset_test7 --map dataset_test8 \
+  --map dataset_test9 --map dataset_test10 --map dataset_test11 --map dataset_test12 \
+  --sampling uniform --binary-class-weighting none \
+  --device cuda \
+  --checkpoint-dir models/imitation/checkpoints/runs/cutdown_uniform_v1 \
+  --checkpoint-every 0
+```
 
 ## `run_imitation.py`
 
@@ -85,6 +110,8 @@ Example: `.venv/bin/python run_imitation.py --checkpoint models/imitation/checkp
 |---|---:|---|
 | `--checkpoint PATH` | `models/imitation/checkpoints/best.pt` | Checkpoint to load. Bash/SSH launchers choose `checkpoints_v3/best.pt`; Fish chooses `checkpoints_450_v3/best.pt`. |
 | `--device auto\|cuda\|cpu` | `auto` | Device for policy inference. |
+| `--jump-threshold FLOAT` | binary argmax | Use a validation-selected threshold between 0 and 1 for the jump action. |
+| `--move-w-threshold FLOAT` | binary argmax | Override the forward action threshold between 0 and 1 for calibration tests. |
 | `--port N` | `8020` | Portal 2 netconsole port. |
 | `--fps FLOAT` | `24` | Prediction tick rate; screen capture/video FPS use a rounded positive integer. |
 | `--width N` | `1920` | Capture/video frame width. |
@@ -125,6 +152,8 @@ The runner makes a full checkpoint × chamber matrix. By default, each repeat vi
 | `--pause-seconds SECONDS` | `1` | Pause between attempts. |
 | `--output NAME` | first detected output | Wayland monitor passed to each run. |
 | `--device auto\|cuda\|cpu` | `auto` | Policy inference device. |
+| `--jump-threshold FLOAT` | binary argmax | Pass a validation-selected jump threshold to every live attempt. |
+| `--move-w-threshold FLOAT` | binary argmax | Pass a forward action threshold to every live attempt. |
 | `--port N` | `8020` | Portal 2 netconsole port. |
 | `--fps FLOAT` | `24` | Prediction/capture rate. |
 | `--width N`, `--height N` | `1920`, `1080` | Screen/video size. |
@@ -138,7 +167,23 @@ The runner makes a full checkpoint × chamber matrix. By default, each repeat vi
 | `--continue-on-error` | off | Try later jobs after a runner process fails; the sequence still exits nonzero. |
 | `--plan-only` | off | Show the job order without creating files or launching the game. |
 
-Every job gets a separate `attempt_*.jsonl` and, unless `--no-video` is used, MP4. `sequence.jsonl` in the timestamped folder records each job's checkpoint, map, return code, stop reason, and paths. `goal_reached` and `episode_failed` require chamber event signals; `time_limit` means no terminal event was received before the local deadline. Escape or Ctrl+C cancels the remaining jobs. The sequence stops on a process error unless `--continue-on-error` is set.
+Every job gets a separate `attempt_*.jsonl` and, unless `--no-video` is used, MP4. `sequence.jsonl` in the timestamped folder records each job's checkpoint, map, return code, stop reason, and paths. A completed sequence also writes `benchmark_summary.json` with per-model, per-map success rates. `goal_reached` and `episode_failed` require chamber event signals; `time_limit` means no terminal event was received before the local deadline. Escape or Ctrl+C cancels the remaining jobs. The sequence stops on a process error unless `--continue-on-error` is set.
+
+## Benchmark reports
+
+See [the benchmark workflow](BENCHMARKING.md) for complete commands and how to keep evaluation recordings outside the training cache.
+
+`.venv/bin/python benchmark_expert.py --checkpoint PATH` scores held-out expert frames named by the checkpoint's training split. `--cache-dir PATH` selects a cache, `--map NAME` limits maps, `--subset all` scores every episode in a separate evaluation cache, `--final-frames N` changes the final-frame segment, and `--output-dir PATH` chooses where `summary.json` and `action_comparison.csv` are written. The default output is a timestamped folder under `model_attempts/benchmarks/`.
+
+`.venv/bin/python benchmark_sequence.py PATH` summarizes a `run_model_sequence.py` directory or its `sequence.jsonl`. It writes `benchmark_summary.json` beside the manifest by default; `--output PATH` changes the report path.
+
+`.venv/bin/python benchmark_jump.py PATH/TO/action_comparison.csv` sweeps jump thresholds on an expert-frame comparison CSV and writes per-map and overall precision/recall to `jump_thresholds.json`. Repeat `--threshold FLOAT` to use custom thresholds.
+
+`.venv/bin/python analyze_mouse_rollout.py PATH/TO/attempt.jsonl --wall-window START:END` reports bin entropy, peak gap, opposing-direction peaks, and jump rates for manually annotated wall-facing seconds of a binned live attempt. Repeat `--wall-window` for separate sections.
+
+`.venv/bin/python analyze_mouse_validation.py PATH/TO/action_comparison.csv --wall-ranges PATH/TO/wall_ranges.csv` measures those mouse-bin statistics and jump false positives on annotated expert validation frames. The annotation CSV needs `episode,start_frame,end_frame` columns with inclusive frame ranges. `--jump-threshold` selects a calibrated threshold for the error comparison.
+
+`.venv/bin/python record_recovery.py --map NAME --source-attempt PATH/TO/attempt.jsonl` records a human recovery from the current Portal 2 position without reloading the chamber. It saves under `episodes/recovery/goal_reached` on success. `--max-seconds`, `--focus-delay`, `--episodes-root`, `--port`, `--fps`, `--output`, and `--mouse-device` adjust capture settings.
 
 ## Shell, Fish, and direct diagnostics
 

@@ -43,7 +43,7 @@ Unlike scripted bots or rule-based agents, SHIONN:
 * **Behavior cloning:** architecture `shionn_imitation_v3` has been trained and deployed in Portal 2 on an earlier dataset. The expanded-data candidate reached a best validation loss of `2.8933` at epoch 6; its epoch-20 `last.pt` is retained separately from `best.pt`. The existing checkpoints do not incorporate the newest 450-episode dataset.
 * **Live evaluation:** the policy can complete the initial navigation chamber, but still sometimes enters wall-facing states and fails to recover. Its performance on the newer chambers needs live evaluation.
 * **Next milestone:** stabilize Stage 2 navigation and recovery behavior before adding the Stage 3 actor-critic/value head. PPO, reward shaping, recurrence, and portal-mechanics curricula remain planned work.
-* **Automated checks:** 33 unit tests currently cover recording, preprocessing, checkpointing, inference utilities, dataset statistics, timeout handling, the Escape-key stop path, and model/chamber sequence planning.
+* **Automated checks:** Unit tests cover recording, preprocessing, checkpointing, inference utilities, dataset statistics, timeout handling, the Escape-key stop path, model/chamber sequence planning, and policy diagnostics.
 
 ---
 
@@ -610,6 +610,10 @@ To compare several models on several chambers, run the sequence tool. It tries e
 ```
 
 Append `--plan-only` to inspect the 12-job order without launching the game. Results go under `model_attempts/sequences/sequence_<timestamp>/`; Escape or Ctrl+C stops the remaining jobs. See the [CLI reference](docs/CLI_REFERENCE.md) for recording and focus options.
+
+For reproducible action comparisons, autonomous success reports, and evaluation-only expert recordings, follow the [benchmark workflow](docs/BENCHMARKING.md). New training checkpoints record their validation episode names so `benchmark_expert.py` can score only unseen expert recordings; `benchmark_sequence.py` summarizes live attempt outcomes by chamber.
+
+The [mouse policy experiment](docs/MOUSE_POLICY_EXPERIMENT.md) covers the optional binned dx/dy heads, wall-facing rollout diagnostics, jump calibration, and recovery recordings. The Gaussian policy remains available for existing checkpoints and controlled comparisons.
 
 The live runner launches Portal 2 with `-netconport 8020` if needed, captures the selected Wayland output at 24 Hz, and releases every held action on exit. While a positive `--max-seconds` deadline is configured, `EVT|episode_failed|timeout` from the chamber is logged but ignored so the runner's own deadline remains authoritative. Use `--max-seconds 0` for an unlimited run, where chamber timeout events remain terminal. A global physical-keyboard monitor makes `Esc` an emergency stop even while Portal has focus; `Ctrl+C` remains available from the terminal. Use `wf-recorder -L` followed by `--output OUTPUT_NAME` if the wrong monitor is captured. Before allowing input, a useful capture-only check is:
 

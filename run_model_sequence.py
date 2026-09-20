@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from benchmark_sequence import main as write_benchmark_summary
+
 
 ROOT = Path(__file__).resolve().parent
 
@@ -88,6 +90,10 @@ def runner_command(job: Job, run_dir: Path, args: argparse.Namespace) -> list[st
         command.append("--record-video")
     if args.output:
         command.extend(("--output", args.output))
+    if args.jump_threshold is not None:
+        command.extend(("--jump-threshold", str(args.jump_threshold)))
+    if args.move_w_threshold is not None:
+        command.extend(("--move-w-threshold", str(args.move_w_threshold)))
     if args.no_launch:
         command.append("--no-launch")
     if args.keep_focused:
@@ -135,6 +141,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--pause-seconds", type=float, default=1.0, help="Delay between attempts")
     parser.add_argument("--output", help="Wayland output name, such as DP-1")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
+    parser.add_argument("--jump-threshold", type=float,
+                        help="Override the binary jump decision threshold for every live attempt")
+    parser.add_argument("--move-w-threshold", type=float,
+                        help="Override the forward decision threshold for every live attempt")
     parser.add_argument("--port", type=int, default=8020)
     parser.add_argument("--fps", type=float, default=24.0)
     parser.add_argument("--width", type=int, default=1920)
@@ -157,6 +167,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     for name in ("fps", "width", "height", "status_every", "port"):
         if getattr(args, name) <= 0:
             parser.error(f"--{name.replace('_', '-')} must be greater than zero")
+    if args.jump_threshold is not None and not 0 < args.jump_threshold < 1:
+        parser.error("--jump-threshold must be between 0 and 1")
+    if args.move_w_threshold is not None and not 0 < args.move_w_threshold < 1:
+        parser.error("--move-w-threshold must be between 0 and 1")
     if not all(args.maps) or len(set(args.maps)) != len(args.maps):
         parser.error("--map values must be nonempty and unique")
     try:
@@ -231,7 +245,8 @@ def main(argv: list[str] | None = None) -> int:
                 except KeyboardInterrupt:
                     print("\nSequence interrupted; remaining jobs were skipped.")
                     return 130
-    print(f"\nSequence complete. Summary: {manifest_path}")
+    write_benchmark_summary([str(manifest_path)])
+    print(f"\nSequence complete. Manifest: {manifest_path}")
     return 1 if had_error else 0
 
 

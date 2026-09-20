@@ -131,6 +131,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run a trained imitation checkpoint in Portal 2.")
     parser.add_argument("--checkpoint", type=Path, default=Path("models/imitation/checkpoints/best.pt"))
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
+    parser.add_argument("--jump-threshold", type=float,
+                        help="Override the binary jump decision threshold for live runs")
+    parser.add_argument("--move-w-threshold", type=float,
+                        help="Override the forward decision threshold for a live calibration test")
     parser.add_argument("--port", type=int, default=8020)
     parser.add_argument("--fps", type=float, default=24.0)
     parser.add_argument("--width", type=int, default=1920)
@@ -261,9 +265,12 @@ def focus_portal_window(instance: str = "auto") -> dict | None:
 def activate_portal_input(
     controller: Portal2Controller, instance: str = "auto"
 ) -> dict | None:
-    """Focus Portal, click inside it to acquire XWayland input, and unpause."""
-    status = focus_portal_window(instance)
-    if status is None:
+    """Focus Portal, acquire XWayland input without firing, and unpause."""
+    status = query_hyprland_active_window(instance)
+    already_focused = bool((status or {}).get("portal_focused"))
+    if not already_focused:
+        status = focus_portal_window(instance)
+    if not (status or {}).get("portal_focused"):
         return None
     position = status.get("at")
     size = status.get("size")
@@ -274,19 +281,20 @@ def activate_portal_input(
         and candidate
     ):
         return None
-    center_x = int(position[0] + size[0] / 2)
-    center_y = int(position[1] + size[1] / 2)
-    try:
-        subprocess.run(
-            ["hyprctl", "-i", candidate, "dispatch", "movecursor", str(center_x), str(center_y)],
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=2,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    if not controller.click_virtual_mouse("left"):
+    if not already_focused:
+        center_x = int(position[0] + size[0] / 2)
+        center_y = int(position[1] + size[1] / 2)
+        try:
+            subprocess.run(
+                ["hyprctl", "-i", candidate, "dispatch", "movecursor", str(center_x), str(center_y)],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+    if not controller.click_virtual_mouse("middle"):
         return None
     controller.send_command("unpause")
     time.sleep(0.1)
@@ -350,7 +358,10 @@ def main() -> None:
     if not args.checkpoint.is_file():
         raise FileNotFoundError(f"Checkpoint not found: {args.checkpoint}")
 
-    policy = PolicyInference(args.checkpoint, device=args.device)
+    policy = PolicyInference(
+        args.checkpoint, device=args.device, jump_threshold=args.jump_threshold,
+        move_w_threshold=args.move_w_threshold,
+    )
 
     if not is_game_running():
         if args.no_launch:
@@ -441,6 +452,9 @@ def main() -> None:
                 video=str(video_path) if video_path else None,
                 dry_run=args.dry_run,
                 keep_focused=args.keep_focused,
+                jump_threshold=args.jump_threshold,
+                move_w_threshold=args.move_w_threshold,
+                mouse_bins=policy.mouse_bins.config if policy.mouse_bins is not None else None,
             )
             print(f"Writing attempt diagnostics to: {log_path}")
 

@@ -21,6 +21,7 @@ LOCAL_DATASET_CHAMBER_SETUP.md
 # Recorded demonstrations and generated training data
 episodes*
 data/datasets/cached_frames
+data/datasets/evaluation_cached_frames/
 models/imitation/checkpoints*
 models/imitation/backups
 model_attempts/
@@ -35,3 +36,5 @@ Thumbs.db
 *.tmp
 *.swp
 *~
+
+docs/navigation_chamber_layouts.svg

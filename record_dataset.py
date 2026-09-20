@@ -13,6 +13,7 @@ import re
 import time
 from collections import deque
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from recorder import EpisodeRecorder
 from wrapper import Portal2Controller, is_game_running, launch_game
@@ -79,6 +80,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--width", type=int, default=1920)
     parser.add_argument("--height", type=int, default=1080)
     parser.add_argument("--crf", type=int, default=20)
+    parser.add_argument(
+        "--episodes-root", type=Path, default=Path("episodes"),
+        help="Recording directory; use episodes_eval for held-out evaluation runs.",
+    )
     parser.add_argument(
         "--output",
         help="Wayland output name from `wf-recorder -L`; defaults to the first output.",
@@ -295,6 +300,7 @@ def main() -> None:
         controller=Portal2Controller(args.port),
         output_name=args.output,
         mouse_device=args.mouse_device,
+        episodes_root=args.episodes_root,
     )
     controller = recorder.controller
     event_stream = EpisodeEventStream()

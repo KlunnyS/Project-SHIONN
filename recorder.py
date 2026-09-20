@@ -406,6 +406,7 @@ class EpisodeRecorder:
         controller=None,
         output_name=None,
         mouse_device=None,
+        episodes_root="episodes",
     ):
         self.fps = fps
         self.kbds, self.mice = find_input_devices(mouse_selector=mouse_device)
@@ -433,11 +434,11 @@ class EpisodeRecorder:
         
         self.frame_idx = 0
         
-        self.episodes_root = "episodes"
+        self.episodes_root = os.fspath(episodes_root)
         self.in_progress_root = os.path.join(self.episodes_root, ".in_progress")
         os.makedirs(self.in_progress_root, exist_ok=True)
         
-    def start_recording(self, map_name=None):
+    def start_recording(self, map_name=None, metadata_extra=None):
         print("\n--- STARTING RECORDING ---")
         # Include microseconds so rapid automatic map resets cannot reuse an
         # episode directory created earlier in the same second.
@@ -446,7 +447,7 @@ class EpisodeRecorder:
         self.ep_dir = os.path.join(self.in_progress_root, self.episode_name)
         os.makedirs(self.ep_dir, exist_ok=True)
         with open(os.path.join(self.ep_dir, "metadata.json"), "w", encoding="utf-8") as metadata_file:
-            json.dump({"map": map_name}, metadata_file, indent=2)
+            json.dump({"map": map_name, **(metadata_extra or {})}, metadata_file, indent=2)
             metadata_file.write("\n")
         
         # Open CSV

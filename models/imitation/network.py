@@ -8,6 +8,7 @@ from torch import Tensor, nn
 from .dataset import BINARY_ACTION_COLUMNS
 
 ARCHITECTURE_VERSION = "shionn_imitation_v3"
+BINNED_ARCHITECTURE_VERSION = "shionn_imitation_v4_binned"
 
 
 class LegacyImitationPolicy(nn.Module):
@@ -79,4 +80,27 @@ class ImitationPolicy(nn.Module):
         mouse = self.mouse_head(features)
         output["mouse_mean"] = mouse[:, :2]
         output["mouse_log_std"] = mouse[:, 2:].clamp(-8.0, 4.0)
+        return output
+
+
+class BinnedImitationPolicy(nn.Module):
+    """The v3 visual trunk with independent discrete dx and dy heads."""
+
+    def __init__(self, dx_classes: int, dy_classes: int) -> None:
+        super().__init__()
+        if dx_classes < 3 or dy_classes < 3:
+            raise ValueError("Each mouse axis needs a negative, zero, and positive bin")
+        # Keep the v3 trunk and binary-head initialization identical for a
+        # controlled comparison with an otherwise matching Gaussian run.
+        base = ImitationPolicy()
+        self.trunk = base.trunk
+        self.binary_heads = base.binary_heads
+        self.mouse_dx_head = nn.Linear(512, dx_classes)
+        self.mouse_dy_head = nn.Linear(512, dy_classes)
+
+    def forward(self, frames: Tensor) -> dict[str, Tensor]:
+        features = self.trunk((frames - 0.5) / 0.25)
+        output = {name: head(features) for name, head in self.binary_heads.items()}
+        output["mouse_dx_logits"] = self.mouse_dx_head(features)
+        output["mouse_dy_logits"] = self.mouse_dy_head(features)
         return output

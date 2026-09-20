@@ -103,7 +103,9 @@ class BehaviorCloningDataset:
             raise ValueError("This v1 architecture is specified for exactly four stacked frames")
         self.frame_stack = frame_stack
         self.episodes: list[tuple[np.ndarray, np.ndarray]] = []
+        self.episode_names: list[str] = []
         self.episode_maps: list[str] = []
+        self.first_action_frames: list[int] = []
         self.index: list[tuple[int, int]] = []
         self.leading_idle_frames = 0
         for manifest in manifests:
@@ -113,8 +115,10 @@ class BehaviorCloningDataset:
             actions = self._load_actions(manifest.actions_path, manifest.frame_count)
             episode_index = len(self.episodes)
             self.episodes.append((frames, actions))
+            self.episode_names.append(manifest.name)
             self.episode_maps.append(manifest.map_name)
             first_frame = self._first_action_frame(actions) if trim_leading_idle else 0
+            self.first_action_frames.append(first_frame)
             self.leading_idle_frames += first_frame
             self.index.extend(
                 (episode_index, frame_idx)
@@ -130,13 +134,18 @@ class BehaviorCloningDataset:
         indices = np.flatnonzero(active)
         return int(indices[0]) if len(indices) else len(actions)
 
-    def action_statistics(self, balance_chambers: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    def action_statistics(
+        self, balance_chambers: bool = False, weights: np.ndarray | None = None
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Return action statistics, optionally weighted to match training sampling."""
         targets = np.stack(
             [self.episodes[episode_index][1][frame_idx] for episode_index, frame_idx in self.index]
         )
-        if balance_chambers:
-            weights = self.chamber_sampling_weights()
+        if balance_chambers or weights is not None:
+            if weights is None:
+                weights = self.chamber_sampling_weights()
+            if len(weights) != len(targets) or np.any(weights <= 0):
+                raise ValueError("Action statistic weights must match usable frames and be positive")
             positive_counts = np.sum(targets[:, :8] * weights[:, None], axis=0, dtype=np.float64)
             mouse_mean = np.average(targets[:, 8:10], axis=0, weights=weights)
             mouse_scale = np.sqrt(np.average(
@@ -146,6 +155,13 @@ class BehaviorCloningDataset:
             positive_counts = targets[:, :8].sum(axis=0, dtype=np.float64)
             mouse_scale = targets[:, 8:10].std(axis=0, dtype=np.float64)
         return positive_counts, np.maximum(mouse_scale, 1.0).astype(np.float32)
+
+    def mouse_deltas(self) -> np.ndarray:
+        """Return actual usable mouse labels in index order for bin fitting."""
+        return np.stack([
+            self.episodes[episode_index][1][frame_idx, 8:10]
+            for episode_index, frame_idx in self.index
+        ])
 
     @staticmethod
     def _load_actions(path: Path, expected_count: int) -> np.ndarray:

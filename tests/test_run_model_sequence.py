@@ -9,6 +9,35 @@ from run_model_sequence import Model, build_jobs, main, parse_args, runner_comma
 
 
 class ModelSequenceTest(unittest.TestCase):
+    def test_completed_sequence_writes_benchmark_summary(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            checkpoint = root / "best.pt"
+            checkpoint.touch()
+            checkpoint.with_suffix(".json").touch()
+
+            def fake_run(command, *, cwd, check):
+                run_dir = Path(command[command.index("--recording-dir") + 1])
+                run_dir.mkdir()
+                (run_dir / "attempt_test.jsonl").write_text("".join(
+                    json.dumps(row) + "\n" for row in (
+                        {"type": "metadata", "capture": {"fps": 24}, "dry_run": False},
+                        {"type": "summary", "stop_reason": "goal_reached", "ticks": 120},
+                    )
+                ))
+                return SimpleNamespace(returncode=0)
+
+            with patch("run_model_sequence.subprocess.run", side_effect=fake_run):
+                exit_code = main([
+                    "--checkpoint", str(checkpoint), "--map", "test1",
+                    "--recording-root", str(root / "results"),
+                ])
+
+            self.assertEqual(exit_code, 0)
+            report_path = next((root / "results").glob("sequence_*/benchmark_summary.json"))
+            report = json.loads(report_path.read_text())
+            self.assertEqual(report["summary"][0]["success_rate"], 1.0)
+
     def test_map_first_plan_repeats_every_model_chamber_pair(self):
         models = [Model("old", Path("old.pt")), Model("new", Path("new.pt"))]
         jobs = build_jobs(models, ["test1", "test2"], repeats=2, order="map-first")
@@ -31,6 +60,7 @@ class ModelSequenceTest(unittest.TestCase):
             args = parse_args([
                 "--checkpoint", f"candidate={checkpoint}", "--map", "dataset_test1",
                 "--no-video", "--keep-focused", "--output", "DP-1",
+                "--move-w-threshold", "0.2",
             ])
             job = build_jobs(args.models, args.maps, 1, args.order)[0]
             run_dir = Path(temporary_directory) / "attempt"
@@ -42,6 +72,7 @@ class ModelSequenceTest(unittest.TestCase):
             self.assertEqual(command[command.index("--recording-dir") + 1], str(run_dir))
             self.assertIn("--log-actions", command)
             self.assertIn("--keep-focused", command)
+            self.assertEqual(command[command.index("--move-w-threshold") + 1], "0.2")
             self.assertNotIn("--record-video", command)
 
     def test_escape_in_one_attempt_stops_the_rest_of_the_sequence(self):
