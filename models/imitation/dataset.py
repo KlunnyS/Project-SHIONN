@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import random
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,6 +23,17 @@ class EpisodeManifest:
     frames_path: Path
     actions_path: Path
     frame_count: int
+    map_name: str = "unknown"
+
+
+def episode_map_name(metadata: dict) -> str:
+    """Read the cached map label, falling back to older source recordings."""
+    map_name = metadata.get("map")
+    if not map_name and metadata.get("actions_csv"):
+        source_metadata = Path(metadata["actions_csv"]).parent / "metadata.json"
+        if source_metadata.is_file():
+            map_name = json.loads(source_metadata.read_text(encoding="utf-8")).get("map")
+    return map_name if isinstance(map_name, str) and map_name.strip() else "unknown"
 
 
 def discover_cached_episodes(cache_dir: Path) -> list[EpisodeManifest]:
@@ -34,22 +46,47 @@ def discover_cached_episodes(cache_dir: Path) -> list[EpisodeManifest]:
             actions_path = Path(metadata["actions_csv"])
         if not frames_path.is_file() or not actions_path.is_file():
             raise FileNotFoundError(f"Incomplete cached episode described by {metadata_path}")
-        manifests.append(EpisodeManifest(metadata["episode"], frames_path, actions_path, int(metadata["frame_count"])))
+        manifests.append(EpisodeManifest(
+            metadata["episode"], frames_path, actions_path,
+            int(metadata["frame_count"]), episode_map_name(metadata),
+        ))
     return manifests
 
 
 def split_episode_manifests(
-    manifests: list[EpisodeManifest], validation_fraction: float = 0.2, seed: int = 0
+    manifests: list[EpisodeManifest], validation_fraction: float = 0.2, seed: int = 0,
+    stratify: bool = True,
 ) -> tuple[list[EpisodeManifest], list[EpisodeManifest]]:
     """Split whole episodes, never adjacent frames, into train and validation."""
     if len(manifests) < 2:
         raise ValueError("At least two cached episodes are required for an episode-level train/validation split.")
     if not 0.0 < validation_fraction < 1.0:
         raise ValueError("validation_fraction must be between 0 and 1")
-    ordered = list(manifests)
-    random.Random(seed).shuffle(ordered)
-    validation_count = max(1, min(len(ordered) - 1, round(len(ordered) * validation_fraction)))
-    return ordered[validation_count:], ordered[:validation_count]
+    if not stratify:
+        ordered = list(manifests)
+        random.Random(seed).shuffle(ordered)
+        validation_count = max(1, min(len(ordered) - 1, round(len(ordered) * validation_fraction)))
+        return ordered[validation_count:], ordered[:validation_count]
+    by_map: dict[str, list[EpisodeManifest]] = defaultdict(list)
+    for manifest in manifests:
+        by_map[manifest.map_name].append(manifest)
+    rng = random.Random(seed)
+    train: list[EpisodeManifest] = []
+    validation: list[EpisodeManifest] = []
+    for map_name in sorted(by_map):
+        ordered = sorted(by_map[map_name], key=lambda item: item.name)
+        rng.shuffle(ordered)
+        validation_count = (
+            max(1, min(len(ordered) - 1, round(len(ordered) * validation_fraction)))
+            if len(ordered) > 1 else 0
+        )
+        validation.extend(ordered[:validation_count])
+        train.extend(ordered[validation_count:])
+    if not validation:
+        raise ValueError("At least one chamber needs two episodes for validation")
+    rng.shuffle(train)
+    rng.shuffle(validation)
+    return train, validation
 
 
 class BehaviorCloningDataset:
@@ -66,6 +103,7 @@ class BehaviorCloningDataset:
             raise ValueError("This v1 architecture is specified for exactly four stacked frames")
         self.frame_stack = frame_stack
         self.episodes: list[tuple[np.ndarray, np.ndarray]] = []
+        self.episode_maps: list[str] = []
         self.index: list[tuple[int, int]] = []
         self.leading_idle_frames = 0
         for manifest in manifests:
@@ -75,6 +113,7 @@ class BehaviorCloningDataset:
             actions = self._load_actions(manifest.actions_path, manifest.frame_count)
             episode_index = len(self.episodes)
             self.episodes.append((frames, actions))
+            self.episode_maps.append(manifest.map_name)
             first_frame = self._first_action_frame(actions) if trim_leading_idle else 0
             self.leading_idle_frames += first_frame
             self.index.extend(
@@ -91,13 +130,21 @@ class BehaviorCloningDataset:
         indices = np.flatnonzero(active)
         return int(indices[0]) if len(indices) else len(actions)
 
-    def action_statistics(self) -> tuple[np.ndarray, np.ndarray]:
-        """Return binary positive counts and mouse scale for sampled frames."""
+    def action_statistics(self, balance_chambers: bool = False) -> tuple[np.ndarray, np.ndarray]:
+        """Return action statistics, optionally weighted to match training sampling."""
         targets = np.stack(
             [self.episodes[episode_index][1][frame_idx] for episode_index, frame_idx in self.index]
         )
-        positive_counts = targets[:, :8].sum(axis=0, dtype=np.float64)
-        mouse_scale = targets[:, 8:10].std(axis=0, dtype=np.float64)
+        if balance_chambers:
+            weights = self.chamber_sampling_weights()
+            positive_counts = np.sum(targets[:, :8] * weights[:, None], axis=0, dtype=np.float64)
+            mouse_mean = np.average(targets[:, 8:10], axis=0, weights=weights)
+            mouse_scale = np.sqrt(np.average(
+                (targets[:, 8:10] - mouse_mean) ** 2, axis=0, weights=weights
+            ))
+        else:
+            positive_counts = targets[:, :8].sum(axis=0, dtype=np.float64)
+            mouse_scale = targets[:, 8:10].std(axis=0, dtype=np.float64)
         return positive_counts, np.maximum(mouse_scale, 1.0).astype(np.float32)
 
     @staticmethod
@@ -121,6 +168,20 @@ class BehaviorCloningDataset:
 
     def __len__(self) -> int:
         return len(self.index)
+
+    def chamber_sample_counts(self) -> Counter[str]:
+        """Count usable frames by chamber after leading-idle trimming."""
+        return Counter(self.episode_maps[episode_index] for episode_index, _ in self.index)
+
+    def chamber_sampling_weights(self) -> np.ndarray:
+        """Give each chamber equal expected frame draws while keeping epoch length."""
+        counts = self.chamber_sample_counts()
+        per_map_scale = len(self.index) / len(counts)
+        return np.fromiter(
+            (per_map_scale / counts[self.episode_maps[episode_index]]
+             for episode_index, _ in self.index),
+            dtype=np.float64, count=len(self.index),
+        )
 
     def __getitem__(self, item: int) -> tuple[np.ndarray, np.ndarray]:
         episode_index, frame_idx = self.index[item]

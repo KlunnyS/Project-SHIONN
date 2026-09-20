@@ -83,7 +83,20 @@ def cache_episode(episode_dir: Path, cache_dir: Path, overwrite: bool = False) -
     output_path = cache_dir / f"{episode_dir.name}.npy"
     cached_actions_path = cache_dir / f"{episode_dir.name}.actions.npy"
     metadata_path = cache_dir / f"{episode_dir.name}.json"
+    source_metadata_path = episode_dir / "metadata.json"
+    map_name = None
+    if source_metadata_path.is_file():
+        source_metadata = json.loads(source_metadata_path.read_text(encoding="utf-8"))
+        if isinstance(source_metadata.get("map"), str) and source_metadata["map"].strip():
+            map_name = source_metadata["map"]
     if output_path.exists() and cached_actions_path.exists() and metadata_path.exists() and not overwrite:
+        if map_name:
+            cached_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            if cached_metadata.get("map") != map_name:
+                cached_metadata["map"] = map_name
+                temporary_metadata = metadata_path.with_suffix(".tmp.json")
+                temporary_metadata.write_text(json.dumps(cached_metadata, indent=2) + "\n", encoding="utf-8")
+                os.replace(temporary_metadata, metadata_path)
         return output_path
 
     capture = cv2.VideoCapture(str(video_path))
@@ -134,6 +147,8 @@ def cache_episode(episode_dir: Path, cache_dir: Path, overwrite: bool = False) -
         "source_fps": source_fps,
         "preprocessing": PREPROCESSING_CONFIG,
     }
+    if map_name:
+        metadata["map"] = map_name
     temporary_metadata = metadata_path.with_suffix(".tmp.json")
     temporary_metadata.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     os.replace(temporary_metadata, metadata_path)

@@ -12,7 +12,7 @@ import os
 import re
 import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from recorder import EpisodeRecorder
 from wrapper import Portal2Controller, is_game_running, launch_game
@@ -56,11 +56,14 @@ class EpisodeEventStream:
         return self._events.popleft() if self._events else None
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Continuously record 24 FPS/FHD Portal 2 demonstration episodes."
     )
-    parser.add_argument("--map", dest="map_name", default="dataset_test1")
+    parser.add_argument(
+        "--map", dest="map_names", action="append", metavar="NAME",
+        help="Map to record. Repeat for round-robin recording; defaults to dataset_test1.",
+    )
     parser.add_argument("--port", type=int, default=8020)
     parser.add_argument("--duration", type=float, default=30.0)
     parser.add_argument("--focus-delay", type=float, default=5.0)
@@ -70,7 +73,7 @@ def parse_args() -> argparse.Namespace:
         "--episodes", "--episode",
         type=int,
         default=0,
-        help="Number of successful episodes to record; failures are retried. 0 records until Ctrl+C.",
+        help="Successful episodes per map; failures retry the same map. 0 cycles until Ctrl+C.",
     )
     parser.add_argument("--fps", type=int, default=24)
     parser.add_argument("--width", type=int, default=1920)
@@ -89,10 +92,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Fail instead of launching Portal 2 when it is not running.",
     )
-    return parser.parse_args()
+    args = parser.parse_args(argv)
+    args.map_names = args.map_names or ["dataset_test1"]
+    return args
 
 
 def validate_args(args: argparse.Namespace) -> None:
+    if len(set(args.map_names)) != len(args.map_names):
+        raise ValueError("--map names must be unique")
+    if any(not re.fullmatch(r"[A-Za-z0-9_-]+", name) for name in args.map_names):
+        raise ValueError("--map names must contain only letters, digits, underscores, or hyphens")
     if args.duration <= 0:
         raise ValueError("--duration must be greater than zero")
     if args.focus_delay < 0 or args.restart_delay < 0:
@@ -208,6 +217,7 @@ def wait_for_terminal_event(
 class RecordingProgress:
     successes: int = 0
     attempts: int = 0
+    successes_by_map: dict[str, int] = field(default_factory=dict)
 
 
 def record_episodes(
@@ -217,17 +227,20 @@ def record_episodes(
     args: argparse.Namespace,
     progress: RecordingProgress,
 ) -> None:
-    while not args.episodes or progress.successes < args.episodes:
+    progress.successes_by_map = {name: 0 for name in args.map_names}
+    map_index = 0
+    while True:
+        map_name = args.map_names[map_index]
         load_map_and_wait_for_ready(
             controller,
             event_stream,
-            args.map_name,
+            map_name,
             args.ready_timeout,
         )
         # Discard Alt-Tab/menu/reset input accumulated while no episode was
         # active. Held movement keys remain held and are captured on tick 0.
         recorder.tracker.get_snapshot_and_reset()
-        recorder.start_recording(map_name=args.map_name)
+        recorder.start_recording(map_name=map_name)
         outcome = wait_for_terminal_event(
             controller,
             event_stream,
@@ -237,14 +250,20 @@ def record_episodes(
         progress.attempts += 1
         if outcome == "goal_reached":
             progress.successes += 1
+            progress.successes_by_map[map_name] += 1
+            map_index = (map_index + 1) % len(args.map_names)
 
-        target = f"/{args.episodes}" if args.episodes else ""
+        map_target = f"/{args.episodes}" if args.episodes else ""
+        total_target = f"/{args.episodes * len(args.map_names)}" if args.episodes else ""
         attempt_word = "attempt" if progress.attempts == 1 else "attempts"
         print(
-            f"Successful episodes: {progress.successes}{target} "
+            f"{map_name}: {progress.successes_by_map[map_name]}{map_target} successful; "
+            f"overall: {progress.successes}{total_target} "
             f"({progress.attempts} {attempt_word}; last outcome: {outcome})."
         )
-        if args.episodes and progress.successes >= args.episodes:
+        if args.episodes and all(
+            count >= args.episodes for count in progress.successes_by_map.values()
+        ):
             print("Success target reached. Returning Portal 2 to the main menu.")
             controller.send_command("disconnect")
             time.sleep(0.5)

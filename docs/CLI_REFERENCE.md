@@ -6,15 +6,23 @@ Run commands from the repository root. Python commands use `.venv/bin/python` on
 
 Example: `.venv/bin/python record_dataset.py --map dataset_test3 --episodes 20`
 
+For round-robin collection, repeat `--map`; `--episodes` is the successful-run target **for each map**:
+
+```bash
+.venv/bin/python record_dataset.py --map dataset_test5 --map dataset_test6 --map dataset_test7 --episodes 50
+```
+
+This records one success on each map before starting the next round. A failed attempt is saved and retried on the same map, so failures do not advance the round.
+
 | Flag | Default | Meaning |
 |---|---:|---|
-| `--map NAME` | `dataset_test1` | Chamber sent as `map NAME`; also saved in each episode's `metadata.json`. |
+| `--map NAME` | `dataset_test1` | Chamber sent as `map NAME`; repeat this flag to cycle distinct maps in order. Saved in each episode's `metadata.json`. |
 | `--port N` | `8020` | Portal 2 netconsole TCP port. An existing game must have been launched with this port. |
 | `--duration SECONDS` | `30` | Local maximum length of one recording; reaching it saves the attempt as `timeout`. |
 | `--focus-delay SECONDS` | `5` | Time to focus Portal 2 before the first map load. |
 | `--restart-delay SECONDS` | `1` | Pause after a completed attempt before loading the chamber again. |
 | `--ready-timeout SECONDS` | `60` | Maximum wait for `EVT|chamber_ready` after a map load. |
-| `--episodes N`, `--episode N` | `0` | Stop after N **successful** `goal_reached` episodes. Failures are saved and retried. `0` continues until Ctrl+C. After a finite target, return Portal 2 to the menu. |
+| `--episodes N`, `--episode N` | `0` | Stop after N **successful** `goal_reached` episodes per map. Failures are saved and retried on that map. `0` cycles until Ctrl+C. After every map meets a finite target, return Portal 2 to the menu. |
 | `--fps N` | `24` | Recording tick and video frame rate. |
 | `--width N` | `1920` | Captured/video frame width. |
 | `--height N` | `1080` | Captured/video frame height. |
@@ -23,7 +31,7 @@ Example: `.venv/bin/python record_dataset.py --map dataset_test3 --episodes 20`
 | `--mouse-device PATH_OR_NAME` | auto-detected pointer | Exact `/dev/input/event*` path or case-insensitive fragment of a device name. |
 | `--no-launch` | off | Require Portal 2 to be running instead of launching it through Steam. |
 
-The recorder validates positive duration, ready timeout, FPS, width, and height; delays and episode target must be nonnegative. Run it as the desktop user, not with `sudo`.
+The recorder validates positive duration, ready timeout, FPS, width, and height; delays and episode target must be nonnegative, and map names must be unique. Run it as the desktop user, not with `sudo`.
 
 ## `dataset_stats.py`
 
@@ -44,6 +52,7 @@ Recommended command: `.venv/bin/python -m models.imitation.preprocess --recordin
 | `--overwrite` | off | Rebuild episodes already present in the cache. Without it, complete cached episodes are skipped. |
 
 The command checks frame/action alignment and stops with an error when a source episode violates the cache contract.
+New caches store the map name. Training can also read it from the source recording for older caches.
 
 ## `models.imitation.train_bc`
 
@@ -57,6 +66,7 @@ Example: `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/
 | `--learning-rate FLOAT` | `3e-4` | AdamW learning rate. |
 | `--validation-fraction FLOAT` | `0.2` | Fraction of complete episodes used for validation. |
 | `--seed N` | `0` | Shuffle seed for episode split and epoch order. |
+| `--sampling chamber-balanced\|uniform` | `chamber-balanced` | Draw equal expected numbers of usable frames from each training map per epoch, or use legacy uniform frame sampling. The epoch still contains one draw per usable training frame. |
 | `--workers N` | `0` | PyTorch data-loader worker processes. |
 | `--device auto\|cuda\|cpu` | `auto` | Training device; `auto` uses CUDA when available. |
 | `--checkpoint-dir PATH` | `models/imitation/checkpoints_v3` | Directory for `best.pt`, `last.pt`, step checkpoints, and matching JSON files. Use `models/imitation/checkpoints/runs/<name>` for a new run on the extra drive. |

@@ -19,7 +19,7 @@ from models.imitation.inference import PolicyInference
 from models.imitation.network import ImitationPolicy
 from models.imitation.preprocess import PREPROCESSING_CONFIG
 from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_episodes
-from models.imitation.train_bc import EarlyStopping, format_duration, make_binary_class_weights
+from models.imitation.train_bc import EarlyStopping, format_duration, make_binary_class_weights, make_training_loader
 from recorder import FFmpegVideoWriter
 from run_imitation import AttemptLog, EscapeKeyMonitor, action_label, apply_predicted_action, classify_terminal_events, frame_change, hyprland_instance_candidates, make_attempt_recording_path, parse_args
 
@@ -186,14 +186,24 @@ class ImitationPipelineTest(unittest.TestCase):
             for value in range(5):
                 writer.write(np.full((18, 32, 3), value * 40, dtype=np.uint8))
             writer.release()
+            (episode / "metadata.json").write_text('{"map": "dataset_test5"}\n')
             with (episode / "actions.csv").open("w", newline="", encoding="utf-8") as handle:
                 output = csv.DictWriter(handle, fieldnames=["frame_idx", *ACTION_COLUMNS])
                 output.writeheader()
                 for index in range(5):
                     output.writerow({"frame_idx": index, **{name: index if name.startswith("mouse") else index % 2 for name in ACTION_COLUMNS}})
             cache_episode(episode, root / "cache")
+            cache_metadata_path = root / "cache" / "one.json"
+            cache_metadata = json.loads(cache_metadata_path.read_text())
+            self.assertEqual(cache_metadata["map"], "dataset_test5")
+            del cache_metadata["map"]
+            cache_metadata_path.write_text(json.dumps(cache_metadata))
+            with patch("models.imitation.preprocess.cv2.VideoCapture", side_effect=AssertionError("video was decoded again")):
+                cache_episode(episode, root / "cache")
+            self.assertEqual(json.loads(cache_metadata_path.read_text())["map"], "dataset_test5")
             manifests = discover_cached_episodes(root / "cache")
             self.assertEqual(manifests[0].actions_path.parent, root / "cache")
+            self.assertEqual(manifests[0].map_name, "dataset_test5")
             dataset = BehaviorCloningDataset(manifests)
             frames, action = dataset[0]
             self.assertEqual(frames.shape, (12, 180, 320))
@@ -224,6 +234,72 @@ class ImitationPipelineTest(unittest.TestCase):
             self.assertEqual(dataset.leading_idle_frames, 2)
             self.assertEqual(positive_counts[0], 2)
             self.assertTrue(np.all(mouse_scale >= 1))
+
+    def test_existing_cache_reads_map_from_recording_metadata(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source = root / "episodes" / "episode_old"
+            source.mkdir(parents=True)
+            (source / "metadata.json").write_text('{"map": "dataset_test1"}\n')
+            cache = root / "cache"
+            cache.mkdir()
+            (cache / "episode_old.npy").touch()
+            (cache / "episode_old.actions.npy").touch()
+            (cache / "episode_old.json").write_text(json.dumps({
+                "episode": "episode_old", "frame_count": 2,
+                "actions_csv": str(source / "actions.csv"),
+                "cached_actions": "episode_old.actions.npy",
+            }))
+
+            manifests = discover_cached_episodes(cache)
+
+            self.assertEqual(manifests[0].map_name, "dataset_test1")
+
+    def test_balanced_sampling_equalizes_usable_frames_by_map(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            from models.imitation.dataset import EpisodeManifest
+            manifests = []
+            for name, count in (("short", 2), ("long", 6)):
+                frames_path = root / f"{name}.npy"
+                actions_path = root / f"{name}.actions.npy"
+                np.save(frames_path, np.zeros((count, 180, 320, 3), dtype=np.uint8))
+                actions = np.zeros((count, len(ACTION_COLUMNS)), dtype=np.float32)
+                actions[:, 0 if name == "short" else 8] = 1
+                np.save(actions_path, actions)
+                manifests.append(EpisodeManifest(name, frames_path, actions_path, count, name))
+            dataset = BehaviorCloningDataset(manifests)
+
+            weights = dataset.chamber_sampling_weights()
+            self.assertEqual(dataset.chamber_sample_counts(), {"short": 2, "long": 6})
+            self.assertAlmostEqual(weights[:2].sum(), 4.0)
+            self.assertAlmostEqual(weights[2:].sum(), 4.0)
+            self.assertEqual(dataset.action_statistics()[0][0], 2)
+            self.assertAlmostEqual(dataset.action_statistics(balance_chambers=True)[0][0], 4.0)
+            args = SimpleNamespace(sampling="chamber-balanced", seed=4, batch_size=2, workers=0)
+            loader = make_training_loader(dataset, args, False, epoch=1)
+            self.assertEqual(next(iter(loader))[0].shape, (2, 12, 180, 320))
+            first = list(make_training_loader(dataset, args, False, epoch=1).sampler)
+            second = list(make_training_loader(dataset, args, False, epoch=1).sampler)
+            self.assertEqual(first, second)
+            self.assertEqual(len(first), len(dataset))
+
+    def test_episode_split_stratifies_chambers(self):
+        from models.imitation.dataset import EpisodeManifest
+        manifests = [
+            EpisodeManifest(f"{name}_{index}", Path("unused"), Path("unused"), 1, name)
+            for name in ("map_a", "map_b") for index in range(5)
+        ]
+        train, validation = split_episode_manifests(manifests, 0.2, seed=3)
+
+        self.assertEqual({name: sum(item.map_name == name for item in validation) for name in ("map_a", "map_b")}, {"map_a": 1, "map_b": 1})
+        self.assertFalse({item.name for item in train} & {item.name for item in validation})
+
+        legacy_train, legacy_validation = split_episode_manifests(
+            manifests, 0.2, seed=3, stratify=False
+        )
+        self.assertEqual(len(legacy_train), 8)
+        self.assertEqual(len(legacy_validation), 2)
 
     def test_class_weights_balance_supported_actions_without_amplifying_noise(self):
         counts = np.asarray([80, 20, 1, 25, 5, 0, 0, 0], dtype=np.float64)

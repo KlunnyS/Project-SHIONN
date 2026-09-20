@@ -10,7 +10,7 @@ from pathlib import Path
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from .checkpoint import load_checkpoint, save_checkpoint
 from .dataset import BINARY_ACTION_COLUMNS, BehaviorCloningDataset, discover_cached_episodes, split_episode_manifests
@@ -160,16 +160,24 @@ def checkpoint_config(args, binary_class_weights, mouse_scale) -> dict:
             "learning_rate": args.learning_rate,
             "validation_fraction": args.validation_fraction,
             "seed": args.seed,
+            "sampling": args.sampling,
         },
     }
 
 
 def make_training_loader(dataset, args, pin_memory: bool, epoch: int) -> DataLoader:
-    """A deterministic per-epoch order lets periodic checkpoints resume mid-epoch."""
+    """Use deterministic chamber-balanced draws for each resumable epoch."""
     generator = torch.Generator()
     generator.manual_seed(args.seed + epoch)
+    sampler = None
+    if args.sampling == "chamber-balanced":
+        sampler = WeightedRandomSampler(
+            torch.from_numpy(dataset.chamber_sampling_weights()),
+            num_samples=len(dataset), replacement=True, generator=generator,
+        )
     return DataLoader(
-        dataset, batch_size=args.batch_size, shuffle=True, generator=generator,
+        dataset, batch_size=args.batch_size, shuffle=sampler is None,
+        sampler=sampler, generator=generator,
         num_workers=args.workers, pin_memory=pin_memory,
     )
 
@@ -182,6 +190,11 @@ def main() -> None:
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--validation-fraction", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--sampling", choices=("chamber-balanced", "uniform"),
+        default="chamber-balanced",
+        help="Equal expected training frames per map, or legacy uniform frame sampling.",
+    )
     parser.add_argument("--workers", type=int, default=0, help="Use 0 for portable Windows/headless operation; raise on Linux after validation")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
     parser.add_argument("--checkpoint-dir", type=Path, default=Path("models/imitation/checkpoints_v3"))
@@ -193,7 +206,10 @@ def main() -> None:
     run_started_at = time.perf_counter()
     torch.manual_seed(args.seed)
     manifests = discover_cached_episodes(args.cache_dir)
-    train_manifests, validation_manifests = split_episode_manifests(manifests, args.validation_fraction, args.seed)
+    train_manifests, validation_manifests = split_episode_manifests(
+        manifests, args.validation_fraction, args.seed,
+        stratify=args.sampling == "chamber-balanced",
+    )
     print("train episodes:", ", ".join(item.name for item in train_manifests))
     print("validation episodes:", ", ".join(item.name for item in validation_manifests))
     if args.workers < 0:
@@ -209,13 +225,18 @@ def main() -> None:
     pin_memory = device.type == "cuda"
     train_dataset = BehaviorCloningDataset(train_manifests)
     validation_dataset = BehaviorCloningDataset(validation_manifests)
-    positive_counts, mouse_scale_values = train_dataset.action_statistics()
+    positive_counts, mouse_scale_values = train_dataset.action_statistics(
+        balance_chambers=args.sampling == "chamber-balanced"
+    )
     sample_count = len(train_dataset)
     binary_class_weights = make_binary_class_weights(positive_counts, sample_count)
     print(
         f"excluded leading idle frames: train={train_dataset.leading_idle_frames} "
         f"validation={validation_dataset.leading_idle_frames}"
     )
+    print(f"training sampling: {args.sampling}; usable frames by map: " + ", ".join(
+        f"{name}={count}" for name, count in sorted(train_dataset.chamber_sample_counts().items())
+    ))
     print(
         "binary positive rates: "
         + " ".join(
@@ -245,6 +266,8 @@ def main() -> None:
         compatibility_keys = ("architecture", "preprocessing", "action_columns", "target_processing")
         if any(restored["config"].get(key) != config.get(key) for key in compatibility_keys):
             raise ValueError("Resume checkpoint model or target processing differs from this run")
+        if restored["config"].get("training", {}).get("sampling", "uniform") != args.sampling:
+            raise ValueError("Resume checkpoint sampling strategy differs from this run")
         best_validation = float(restored["best_val_loss"])
         global_step = int(restored["global_step"])
         resume_step_in_epoch = int(restored.get("step_in_epoch", 0))

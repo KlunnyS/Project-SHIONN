@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 from record_dataset import (
     EpisodeEvent, EpisodeEventStream, RecordingProgress, event_outcome,
-    record_episodes,
+    parse_args, record_episodes, validate_args,
 )
 from recorder import EpisodeRecorder, _pointer_score, find_input_devices
 
@@ -132,6 +132,18 @@ class EpisodeRecorderOutcomeTest(unittest.TestCase):
 
 
 class RecordingQuotaTest(unittest.TestCase):
+    def test_repeated_map_flags_share_one_per_map_target(self):
+        args = parse_args([
+            "--map", "dataset_test5", "--map", "dataset_test6", "--episodes", "3"
+        ])
+        validate_args(args)
+        self.assertEqual(args.map_names, ["dataset_test5", "dataset_test6"])
+        self.assertEqual(args.episodes, 3)
+
+    def test_duplicate_maps_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "unique"):
+            validate_args(parse_args(["--map", "dataset_test5", "--map", "dataset_test5"]))
+
     @patch("record_dataset.time.sleep")
     @patch("record_dataset.wait_for_terminal_event")
     @patch("record_dataset.load_map_and_wait_for_ready")
@@ -142,7 +154,7 @@ class RecordingQuotaTest(unittest.TestCase):
             "timeout", "goal_reached", "out_of_bounds", "goal_reached"
         ]
         args = SimpleNamespace(
-            episodes=2, map_name="dataset_test2", ready_timeout=60.0,
+            episodes=2, map_names=["dataset_test2"], ready_timeout=60.0,
             duration=30.0, restart_delay=1.0,
         )
         recorder = Mock()
@@ -158,6 +170,38 @@ class RecordingQuotaTest(unittest.TestCase):
             [call.args[0] for call in recorder.stop_recording.call_args_list],
             ["timeout", "goal_reached", "out_of_bounds", "goal_reached"],
         )
+        controller.send_command.assert_called_once_with("disconnect")
+
+    @patch("record_dataset.time.sleep")
+    @patch("record_dataset.wait_for_terminal_event")
+    @patch("record_dataset.load_map_and_wait_for_ready")
+    def test_cycles_maps_after_success_and_retries_failure_on_same_map(
+        self, load_map, wait_for_terminal, sleep
+    ):
+        wait_for_terminal.side_effect = [
+            "goal_reached", "timeout", "goal_reached", "goal_reached", "goal_reached"
+        ]
+        args = SimpleNamespace(
+            episodes=2, map_names=["dataset_test5", "dataset_test6"],
+            ready_timeout=60.0, duration=30.0, restart_delay=1.0,
+        )
+        recorder = Mock()
+        controller = Mock()
+        progress = RecordingProgress()
+
+        record_episodes(recorder, controller, EpisodeEventStream(), args, progress)
+
+        expected_maps = [
+            "dataset_test5", "dataset_test6", "dataset_test6",
+            "dataset_test5", "dataset_test6",
+        ]
+        self.assertEqual([call.args[2] for call in load_map.call_args_list], expected_maps)
+        self.assertEqual(
+            [call.kwargs["map_name"] for call in recorder.start_recording.call_args_list],
+            expected_maps,
+        )
+        self.assertEqual(progress.successes_by_map, {"dataset_test5": 2, "dataset_test6": 2})
+        self.assertEqual(progress.attempts, 5)
         controller.send_command.assert_called_once_with("disconnect")
 
 

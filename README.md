@@ -246,7 +246,7 @@ For continuous human-demonstration capture on `dataset_test1`, run:
 .venv/bin/python record_dataset.py
 ```
 
-The command launches Portal 2 with netconsole enabled when needed, waits five seconds for the user to focus the game, and repeatedly loads `dataset_test1`. Each `EVT|chamber_ready` starts a synchronized 1920×1080 video/action recording at 24 FPS; audio is disabled. `EVT|goal_reached`, `EVT|episode_failed`, or a local 30-second safety limit ends the episode. The chamber reloads while the success target remains unmet. Recording continues until `Ctrl+C`; use `--map NAME` to select and label a different chamber, `--episodes N` to stop after N successful episodes, `--focus-delay SECONDS` to change the initial delay, `--restart-delay SECONDS` to change the pause between attempts, `--output NAME` to select a monitor reported by `wf-recorder -L`, and `--mouse-device PATH_OR_NAME` to override pointer detection. Failed attempts are saved under their outcome but do not count toward `--episodes`; the recorder reports progress after each attempt and returns Portal 2 to the main menu when the target is reached.
+The command launches Portal 2 with netconsole enabled when needed, waits five seconds for the user to focus the game, and repeatedly loads `dataset_test1`. Each `EVT|chamber_ready` starts a synchronized 1920×1080 video/action recording at 24 FPS; audio is disabled. `EVT|goal_reached`, `EVT|episode_failed`, or a local 30-second safety limit ends the episode. Recording continues until `Ctrl+C`; use `--map NAME` to select and label a chamber, repeat `--map` to cycle through several chambers one success at a time, and use `--episodes N` to stop after N successful episodes **per chamber**. `--focus-delay SECONDS` changes the initial delay, `--restart-delay SECONDS` changes the pause between attempts, `--output NAME` selects a monitor reported by `wf-recorder -L`, and `--mouse-device PATH_OR_NAME` overrides pointer detection. Failed attempts are saved under their outcome and retried on the same map; the recorder reports progress after each attempt and returns Portal 2 to the main menu when every map reaches its target.
 
 To count completed episodes and aligned action rows by outcome, recording date, and chamber, run:
 
@@ -562,7 +562,7 @@ Install dependencies in the project virtual environment, then convert completed 
   --checkpoint-dir models/imitation/checkpoints/runs/candidate
 ```
 
-Preprocessing skips already cached episodes unless `--overwrite` is supplied, so the same command safely adds new recordings. The trainer splits complete episodes rather than adjacent frames, excludes ambiguous waiting frames before the demonstrator's first action, balances supported binary heads, and standardizes mouse deltas from the training split. The normalized GroupNorm/SiLU trunk avoids the constant-feature collapse observed in the earlier ReLU model.
+Preprocessing skips already cached episodes unless `--overwrite` is supplied, so the same command safely adds new recordings. The trainer splits complete episodes within each chamber rather than adjacent frames, excludes ambiguous waiting frames before the demonstrator's first action, and by default draws equal expected numbers of training frames from each chamber. Binary class weights and mouse scaling follow that balanced distribution. The normalized GroupNorm/SiLU trunk avoids the constant-feature collapse observed in the earlier ReLU model.
 
 ### `.npy` cache contract
 

@@ -48,9 +48,9 @@ The normal recording contract is 1920×1080 at 24 FPS with CRF 20. These values 
 
 ## 3. Human demonstration recorder
 
-[`record_dataset.py`](../record_dataset.py) is the normal data-collection entry point. It connects to netconsole, starts input and camera capture, waits for the focus delay, loads the selected map, then waits for `EVT|chamber_ready`. After ready, each 24 Hz tick writes a frame and its aligned input snapshot. The first goal or failure event, or the local `--duration` limit, ends the attempt. The chamber reloads if the success target has not been reached.
+[`record_dataset.py`](../record_dataset.py) is the normal data-collection entry point. It connects to netconsole, starts input and camera capture, waits for the focus delay, loads the selected map, then waits for `EVT|chamber_ready`. After ready, each 24 Hz tick writes a frame and its aligned input snapshot. The first goal or failure event, or the local `--duration` limit, ends the attempt. Repeating `--map` selects multiple chambers; after each successful run it advances to the next map, cycling through the list until every map reaches its target. A failure retries the current map.
 
-`--episodes N` counts **successful** `goal_reached` episodes. Failed attempts are still saved and retried; they do not advance the success quota. The terminal prints successful count and total attempts after each completed recording. At the target, the recorder sends `disconnect` to return Portal 2 to its menu. With `--episodes 0` (the default), recording continues until Ctrl+C. An interrupted active episode is finalized under `interrupted`.
+`--episodes N` counts **successful** `goal_reached` episodes per map. Failed attempts are still saved and retried; they do not advance the success quota. The terminal prints per-map and overall counts plus total attempts after each completed recording. Once every map reaches the target, the recorder sends `disconnect` to return Portal 2 to its menu. With `--episodes 0` (the default), recording continues until Ctrl+C. An interrupted active episode is finalized under `interrupted`.
 
 Episodes start in `episodes/.in_progress/` and move to `episodes/<outcome>/episode_<timestamp>/` only after the video writer finalizes. A finished episode contains:
 
@@ -68,7 +68,7 @@ The folder name records the outcome, while `metadata.json` records the chamber. 
 
 [`models/imitation/preprocess.py`](../models/imitation/preprocess.py) discovers episodes with both `video.mp4` and `actions.csv`. Point `--recordings-dir` at `episodes/goal_reached` when preparing expert demonstrations; the default `episodes` includes all outcomes. Before publishing a cache, it checks that `frame_idx` starts at zero and is contiguous and that the declared video frame count equals the CSV row count. It decodes BGR video, converts frames to RGB, and resizes them to 320×180 with area interpolation.
 
-For each episode, the cache contains:
+For each episode, the cache contains the map label when present in the source recording. Older caches without that field can resolve it from their source `metadata.json`. The cache also contains:
 
 | File | Contents |
 |---|---|
@@ -85,7 +85,7 @@ The checkpoint and backup directories under `models/imitation/` are also symlink
 
 [`models/imitation/network.py`](../models/imitation/network.py) defines the current `shionn_imitation_v3` policy. It takes four 320×180 RGB frames as 12 channels. A convolutional trunk with GroupNorm and SiLU produces features for eight independent binary action heads and one Gaussian mouse head (mean and log standard deviation for `dx` and `dy`). `LegacyImitationPolicy` remains available to load older v1/v2 checkpoints. The model does not read the chamber label or netconsole messages.
 
-[`models/imitation/train_bc.py`](../models/imitation/train_bc.py) trains the v3 model on cached expert episodes. It chooses CPU or CUDA, splits complete episodes into train and validation sets, computes class weights for supported binary actions, and standardizes mouse targets using statistics from the training split. Its loss adds eight binary cross-entropies and a Gaussian mouse negative log likelihood. The optimizer is AdamW; CUDA training uses mixed precision. Validation loss selects `best.pt`.
+[`models/imitation/train_bc.py`](../models/imitation/train_bc.py) trains the v3 model on cached expert episodes. It chooses CPU or CUDA, splits complete episodes into train and validation sets within each chamber, and by default draws equal expected numbers of training frames from each chamber each epoch. Longer recordings and older maps therefore do not dominate training. `--sampling uniform` restores the previous uniform-frame behavior. Binary class weights and mouse scale use the same chamber balance as training. Its loss adds eight binary cross-entropies and a Gaussian mouse negative log likelihood. The optimizer is AdamW; CUDA training uses mixed precision. Validation loss selects `best.pt`.
 
 Training has a 20-epoch maximum by default and stops after three complete epochs without a new lowest validation loss. `--early-stop-patience 0` disables this; a resumed run starts a fresh patience count. Each completed epoch is appended to `metrics.jsonl` in the checkpoint directory with train/validation loss components, optimizer step, and epoch duration. This JSONL file can be plotted or compared across runs; TensorBoard event files are not currently written.
 
