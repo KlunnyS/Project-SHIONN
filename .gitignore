@@ -17,11 +17,11 @@ venv/
 .env.*
 !.env.example
 LOCAL_DATASET_CHAMBER_SETUP.md
+.agent
 
 # Recorded demonstrations and generated training data
 episodes*
-data/datasets/cached_frames
-data/datasets/evaluation_cached_frames/
+data/datasets/*cached_frames
 models/imitation/checkpoints*
 models/imitation/backups
 model_attempts/

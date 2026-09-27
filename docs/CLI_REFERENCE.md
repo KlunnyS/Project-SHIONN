@@ -57,7 +57,7 @@ New caches store the map name. Training can also read it from the source recordi
 
 ## `models.imitation.train_bc`
 
-Example: `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints/runs/new_v3 --checkpoint-every 0`
+Example: `.venv/bin/python -m models.imitation.train_bc --holdout-map dataset_test12 --checkpoint-dir models/imitation/checkpoints/runs/new_v5 --checkpoint-every 0`
 
 | Flag | Default | Meaning |
 |---|---:|---|
@@ -67,19 +67,26 @@ Example: `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/
 | `--start-window-frames N` | `8` | Usable frames after each episode's first action eligible for opening sampling boost. |
 | `--start-sampling-boost FLOAT` | `1` | Multiply opening-frame sampling weight; `5` gives openings more training exposure. |
 | `--map NAME` | all cached maps | Repeat to train on only the named chambers. An unknown or duplicate name is an error. |
+| `--holdout-map NAME` | none | Repeat to reserve complete chambers for validation. This replaces the within-chamber random validation split and directly tests transfer to unseen layouts. |
 | `--epochs N` | `20` | Total number of epochs in the run; on resume this remains the total target. |
 | `--batch-size N` | `8` | Training and validation batch size. |
-| `--learning-rate FLOAT` | `3e-4` | AdamW learning rate. |
+| `--learning-rate FLOAT` | `2e-4` | AdamW learning rate. |
+| `--weight-decay FLOAT` | `1e-4` | AdamW parameter regularization. |
+| `--max-grad-norm FLOAT` | `1` | Global gradient clipping threshold; `0` disables clipping. |
+| `--label-smoothing FLOAT` | `0.01` | Cross-entropy label smoothing for binary and binned mouse heads. |
+| `--brightness-augmentation FLOAT` | `0.05` | Per-stack random brightness offset. All temporal frames receive the same transform. |
+| `--contrast-augmentation FLOAT` | `0.10` | Per-stack random contrast variation around 1.0. |
+| `--horizontal-flip-probability FLOAT` | `0` | Optional mirror augmentation. The trainer swaps A/D and negates mouse dx; it remains off by default because the Portal gun/HUD is asymmetric. |
 | `--validation-fraction FLOAT` | `0.2` | Fraction of complete episodes used for validation. |
 | `--seed N` | `0` | Shuffle seed for episode split and epoch order. |
 | `--sampling chamber-balanced\|uniform` | `chamber-balanced` | Draw equal expected numbers of usable frames from each training map per epoch, or use legacy uniform frame sampling. The epoch still contains one draw per usable training frame. |
-| `--binary-class-weighting balanced\|none` | `balanced` | Reweight binary action losses, or leave every class at weight 1 so recorded action frequencies determine the loss. |
-| `--jump-positive-weight FLOAT` | class weighting default | Set the positive jump weight as a multiple of the no-jump weight; use separate runs to test values such as 3 and 5. |
-| `--mouse-head gaussian\|binned` | `gaussian` | Existing Gaussian head or independent dx/dy classification heads. |
+| `--binary-class-weighting balanced\|none` | `none` | Reweight binary action losses, or leave every class at weight 1 so recorded action frequencies determine the loss. Unweighted is the calibrated default. |
+| `--jump-positive-weight FLOAT` | `3` | Set the positive jump weight as a multiple of the no-jump weight. |
+| `--mouse-head gaussian\|binned` | `binned` | Gaussian head or independent dx/dy classification heads. Bins avoid averaging conflicting left/right demonstrations. |
 | `--mouse-bins N` | `15` | Requested odd class count per axis for the binned head. Quantile edges are fitted from usable training actions only, with an exact zero class. |
 | `--workers N` | `0` | PyTorch data-loader worker processes. |
 | `--device auto\|cuda\|cpu` | `auto` | Training device; `auto` uses CUDA when available. |
-| `--checkpoint-dir PATH` | `models/imitation/checkpoints_v3` | Directory for `best.pt`, `last.pt`, step checkpoints, and matching JSON files. Use `models/imitation/checkpoints/runs/<name>` for a new run on the extra drive. |
+| `--checkpoint-dir PATH` | `models/imitation/checkpoints_v5` | Directory for `best.pt`, `last.pt`, step checkpoints, and matching JSON files. Use `models/imitation/checkpoints/runs/<name>` for a new run on the extra drive. |
 | `--checkpoint-every N` | `1000` | Save a `step_*.pt` checkpoint and refresh `last.pt` every N optimizer steps. `0` disables step checkpoints; epoch-end `last.pt` and improved `best.pt` remain. |
 | `--log-every N` | `100` | Print average running loss every N training batches. `0` suppresses batch logs. |
 | `--early-stop-patience N` | `3` | Stop after N complete epochs without a lower validation loss. `0` disables early stopping; `--epochs` remains the maximum. The counter starts fresh when resuming. |

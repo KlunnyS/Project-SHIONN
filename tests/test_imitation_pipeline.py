@@ -16,16 +16,45 @@ import torch
 from models.imitation.checkpoint import load_checkpoint, save_checkpoint
 from models.imitation.dataset import BehaviorCloningDataset, EpisodeManifest, discover_cached_episodes, split_episode_manifests
 from models.imitation.inference import PolicyInference
-from models.imitation.network import ImitationPolicy
+from models.imitation.network import ARCHITECTURE_VERSION, ImitationPolicy
 from models.imitation.preprocess import PREPROCESSING_CONFIG
 from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_episodes
-from models.imitation.train_bc import EarlyStopping, binary_class_weights_for_mode, format_duration, make_binary_class_weights, make_training_loader, select_maps, training_sampling_weights
+from models.imitation.train_bc import EarlyStopping, augment_batch, binary_class_weights_for_mode, format_duration, make_binary_class_weights, make_training_loader, select_maps, split_training_manifests, training_sampling_weights
 from recorder import FFmpegVideoWriter
 from run_imitation import AttemptLog, EscapeKeyMonitor, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, frame_change, hyprland_instance_candidates, make_attempt_recording_path, parse_args
 from wrapper import Portal2Controller
 
 
 class ImitationPipelineTest(unittest.TestCase):
+    def test_whole_chamber_holdout_never_leaks_into_training(self):
+        manifests = [
+            EpisodeManifest(f"{map_name}_{index}", Path("f"), Path("a"), 1, map_name)
+            for map_name in ("map_a", "map_b", "map_c")
+            for index in range(2)
+        ]
+
+        train, validation = split_training_manifests(
+            manifests, 0.2, seed=0, stratify=True, holdout_maps=["map_c"]
+        )
+
+        self.assertEqual({item.map_name for item in validation}, {"map_c"})
+        self.assertEqual({item.map_name for item in train}, {"map_a", "map_b"})
+
+    def test_horizontal_flip_updates_pixels_strafe_and_mouse_labels(self):
+        frames = torch.arange(24, dtype=torch.float32).reshape(1, 12, 1, 2)
+        targets = torch.zeros((1, 10), dtype=torch.float32)
+        targets[0, 1] = 1
+        targets[0, 8] = 9
+
+        flipped_frames, flipped_targets = augment_batch(
+            frames, targets, horizontal_flip_probability=1.0
+        )
+
+        self.assertTrue(torch.equal(flipped_frames, frames.flip(-1)))
+        self.assertEqual(flipped_targets[0, 1].item(), 0)
+        self.assertEqual(flipped_targets[0, 3].item(), 1)
+        self.assertEqual(flipped_targets[0, 8].item(), -9)
+
     def test_cutdown_map_selection_keeps_only_requested_episodes(self):
         manifests = [
             EpisodeManifest(f"episode_{index}", Path("frames.npy"), Path("actions.npy"), 1, map_name)
@@ -489,7 +518,7 @@ class ImitationPipelineTest(unittest.TestCase):
             model = ImitationPolicy()
             optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
             config = {
-                "architecture": "shionn_imitation_v3",
+                "architecture": ARCHITECTURE_VERSION,
                 "preprocessing": PREPROCESSING_CONFIG,
                 "action_columns": ["move_w", "move_a", "move_s", "move_d", "jump", "use", "fire_left", "fire_right", "mouse_dx", "mouse_dy"],
                 "target_processing": {"mouse_scale": [100.0, 20.0]},

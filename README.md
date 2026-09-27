@@ -36,11 +36,11 @@ Unlike scripted bots or rule-based agents, SHIONN:
   * Reinforcement Learning
   * Curriculum Learning
 
-### Current progress (2026-09-19)
+### Current progress (2026-09-27)
 
 * **Environment and recording pipeline:** operational end to end on Linux/Wayland, including screen capture, physical-input recording, virtual-input playback, netconsole events, automatic map loading, and outcome-grouped episodes.
-* **Dataset:** 450 completed `goal_reached` demonstrations across four chambers, containing 128,957 aligned frame/action rows. All 450 are cached for training. Generated recordings and caches are intentionally excluded from Git.
-* **Behavior cloning:** architecture `shionn_imitation_v3` has been trained and deployed in Portal 2 on an earlier dataset. The expanded-data candidate reached a best validation loss of `2.8933` at epoch 6; its epoch-20 `last.pt` is retained separately from `best.pt`. The existing checkpoints do not incorporate the newest 450-episode dataset.
+* **Dataset:** 850 completed `goal_reached` demonstrations across 12 chambers, containing 221,883 aligned frame/action rows (2.57 hours at 24 Hz), plus one 247-frame recovery clip. All base demonstrations are cached. The dataset has no positive `use` or portal-fire labels yet, and recovery/off-route behavior remains substantially underrepresented. Generated recordings and caches are intentionally excluded from Git.
+* **Behavior cloning:** new training uses the 13.2M-parameter residual `shionn_imitation_v5` family with regularization, binned mouse actions by default, and complete-chamber validation support. Exact loaders for the deployed v1-v4 checkpoints remain available. A fresh v5 checkpoint still needs to be trained and compared with the earlier 850-episode binned/Gaussian candidates.
 * **Live evaluation:** the policy can complete the initial navigation chamber, but still sometimes enters wall-facing states and fails to recover. Its performance on the newer chambers needs live evaluation.
 * **Next milestone:** stabilize Stage 2 navigation and recovery behavior before adding the Stage 3 actor-critic/value head. PPO, reward shaping, recurrence, and portal-mechanics curricula remain planned work.
 * **Automated checks:** Unit tests cover recording, preprocessing, checkpointing, inference utilities, dataset statistics, timeout handling, the Escape-key stop path, model/chamber sequence planning, and policy diagnostics.
@@ -300,20 +300,21 @@ Requirements: screen capture pipeline, kernel-level input control, automatic cha
 ```
 Input: 4 × 320×180 RGB frames stacked as 12 channels
   ↓
-Seven-layer CNN trunk (64 → 128 → 256 → 384 channels,
-GroupNorm + SiLU, adaptive 4×4 pooling, FC 1024 → 512)
+Residual CNN trunk (64 → 128 → 256 → 384 channels,
+GroupNorm + SiLU + channel attention, adaptive 3×5 pooling,
+dropout-regularized FC 1024 → 512)
   ↓
 Factored action heads (see Action Space Design):
   move_w, move_a, move_s, move_d   → binary
   jump, use, fire_left, fire_right → binary
-  mouse_dx, mouse_dy               → Gaussian (mean + log-std)
+  mouse_dx, mouse_dy               → discrete bins by default (or Gaussian)
 ```
 
 No recurrence and no value head are used at this stage. The recording, cache, training, checkpoint, and live-inference formats are now validated end to end.
 
 **Success criteria:** demonstration data is being recorded reliably (validated via the playback function), in the exact factored-action format the model will be trained on.
 
-**Current status:** achieved for the recorded navigation chambers. The local dataset contains 450 successful demonstrations and 128,957 aligned action rows; the existing model checkpoints predate the newest recordings.
+**Current status:** achieved for the recorded navigation chambers. The local base dataset contains 850 successful demonstrations and 221,883 aligned rows across 12 chambers, but only one short recovery clip. Existing deployed checkpoints use older architectures; the residual v5 candidate still needs a full training and live benchmark run.
 
 ---
 
@@ -562,7 +563,7 @@ Install dependencies in the project virtual environment, then convert completed 
   --checkpoint-dir models/imitation/checkpoints/runs/candidate
 ```
 
-Preprocessing skips already cached episodes unless `--overwrite` is supplied, so the same command safely adds new recordings. The trainer splits complete episodes within each chamber rather than adjacent frames, excludes ambiguous waiting frames before the demonstrator's first action, and by default draws equal expected numbers of training frames from each chamber. Binary class weights and mouse scaling follow that balanced distribution. The normalized GroupNorm/SiLU trunk avoids the constant-feature collapse observed in the earlier ReLU model.
+Preprocessing skips already cached episodes unless `--overwrite` is supplied, so the same command safely adds new recordings. The trainer splits complete episodes rather than adjacent frames, excludes ambiguous waiting frames before the demonstrator's first action, and by default draws equal expected numbers of training frames from each chamber. Pass `--holdout-map NAME` to reserve complete layouts for a real unseen-chamber validation split. The residual GroupNorm/SiLU trunk avoids the constant-feature collapse observed in the earlier ReLU model; dropout, weight decay, mild lighting augmentation, label smoothing, and gradient clipping regularize the larger policy.
 
 ### `.npy` cache contract
 

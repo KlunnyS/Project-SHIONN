@@ -96,6 +96,7 @@ def behavior_cloning_loss(
     binary_class_weights: torch.Tensor | None = None,
     mouse_scale: torch.Tensor | None = None,
     mouse_bins: MouseBins | None = None,
+    label_smoothing: float = 0.0,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     """Sum binary losses and the selected Gaussian or binned mouse loss."""
     losses: dict[str, torch.Tensor] = {}
@@ -103,15 +104,22 @@ def behavior_cloning_loss(
     for index, name in enumerate(BINARY_ACTION_COLUMNS):
         weight = None if binary_class_weights is None else binary_class_weights[index]
         loss = nn.functional.cross_entropy(
-            prediction[name], targets[:, index].long(), weight=weight
+            prediction[name], targets[:, index].long(), weight=weight,
+            label_smoothing=label_smoothing,
         )
         losses[name] = loss
         total = total + loss
     if mouse_bins is not None:
         dx_target, dy_target = mouse_bins.encode(targets[:, 8:10])
         mouse_loss = (
-            nn.functional.cross_entropy(prediction["mouse_dx_logits"], dx_target)
-            + nn.functional.cross_entropy(prediction["mouse_dy_logits"], dy_target)
+            nn.functional.cross_entropy(
+                prediction["mouse_dx_logits"], dx_target,
+                label_smoothing=label_smoothing,
+            )
+            + nn.functional.cross_entropy(
+                prediction["mouse_dy_logits"], dy_target,
+                label_smoothing=label_smoothing,
+            )
         )
     else:
         if mouse_scale is None:
@@ -124,11 +132,58 @@ def behavior_cloning_loss(
     return total + mouse_loss, losses
 
 
+def augment_batch(
+    frames: torch.Tensor,
+    targets: torch.Tensor,
+    *,
+    brightness: float = 0.0,
+    contrast: float = 0.0,
+    horizontal_flip_probability: float = 0.0,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Apply temporally consistent image transforms and matching controls.
+
+    All four stacked frames receive the same transform.  A horizontal flip is
+    only valid when strafing labels and horizontal mouse motion are transformed
+    with the pixels.
+    """
+    if brightness < 0 or contrast < 0:
+        raise ValueError("Brightness and contrast augmentation must be non-negative")
+    if not 0 <= horizontal_flip_probability <= 1:
+        raise ValueError("Horizontal flip probability must be in [0, 1]")
+    if brightness:
+        offset = torch.empty(
+            (len(frames), 1, 1, 1), device=frames.device, dtype=frames.dtype
+        ).uniform_(-brightness, brightness)
+        frames = frames + offset
+    if contrast:
+        factor = torch.empty(
+            (len(frames), 1, 1, 1), device=frames.device, dtype=frames.dtype
+        ).uniform_(1.0 - contrast, 1.0 + contrast)
+        mean = frames.mean(dim=(1, 2, 3), keepdim=True)
+        frames = (frames - mean) * factor + mean
+    if brightness or contrast:
+        frames = frames.clamp_(0.0, 1.0)
+    if horizontal_flip_probability:
+        flip = torch.rand(len(frames), device=frames.device) < horizontal_flip_probability
+        if flip.any():
+            frames = frames.clone()
+            targets = targets.clone()
+            frames[flip] = frames[flip].flip(-1)
+            move_a = targets[flip, 1].clone()
+            targets[flip, 1] = targets[flip, 3]
+            targets[flip, 3] = move_a
+            targets[flip, 8] = -targets[flip, 8]
+    return frames, targets
+
+
 def run_epoch(
     model, loader, optimizer, scaler, device, train: bool,
     binary_class_weights: torch.Tensor, mouse_scale: torch.Tensor,
     global_step: int = 0, on_step=None, skip_batches: int = 0,
     log_every: int = 0, mouse_bins: MouseBins | None = None,
+    brightness: float = 0.0, contrast: float = 0.0,
+    horizontal_flip_probability: float = 0.0,
+    label_smoothing: float = 0.0, max_grad_norm: float = 0.0,
 ) -> tuple[dict[str, float], int]:
     model.train(train)
     totals: dict[str, float] = {name: 0.0 for name in (*BINARY_ACTION_COLUMNS, "mouse", "total")}
@@ -136,19 +191,31 @@ def run_epoch(
     for batch_index, (frames, targets) in enumerate(loader):
         if batch_index < skip_batches:
             continue
-        frames = frames.to(device=device, dtype=torch.float32, non_blocking=True).div_(255.0)
+        frames = frames.to(device=device, dtype=torch.float32, non_blocking=True)
+        if device.type == "cuda":
+            frames = frames.contiguous(memory_format=torch.channels_last)
+        frames.div_(255.0)
         targets = targets.to(device=device, dtype=torch.float32, non_blocking=True)
+        if train:
+            frames, targets = augment_batch(
+                frames, targets, brightness=brightness, contrast=contrast,
+                horizontal_flip_probability=horizontal_flip_probability,
+            )
         if train:
             optimizer.zero_grad(set_to_none=True)
         with torch.amp.autocast(device_type=device.type, enabled=device.type == "cuda"):
             prediction = model(frames)
             loss, parts = behavior_cloning_loss(
-                prediction, targets, binary_class_weights, mouse_scale, mouse_bins
+                prediction, targets, binary_class_weights, mouse_scale, mouse_bins,
+                label_smoothing,
             )
         if not torch.isfinite(loss):
             raise FloatingPointError("Non-finite training loss")
         if train:
             scaler.scale(loss).backward()
+            if max_grad_norm:
+                scaler.unscale_(optimizer)
+                nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             scaler.step(optimizer)
             scaler.update()
             global_step += 1
@@ -200,7 +267,11 @@ def checkpoint_config(
         "training": {
             "batch_size": args.batch_size,
             "learning_rate": args.learning_rate,
+            "weight_decay": args.weight_decay,
+            "max_grad_norm": args.max_grad_norm,
+            "label_smoothing": args.label_smoothing,
             "validation_fraction": args.validation_fraction,
+            "holdout_maps": sorted(args.holdout_maps),
             "seed": args.seed,
             "sampling": args.sampling,
             "binary_class_weighting": args.binary_class_weighting,
@@ -211,6 +282,11 @@ def checkpoint_config(
             "start_window_frames": args.start_window_frames,
             "start_sampling_boost": args.start_sampling_boost,
             "correction_sampling_fraction": args.correction_sampling_fraction,
+            "augmentation": {
+                "brightness": args.brightness_augmentation,
+                "contrast": args.contrast_augmentation,
+                "horizontal_flip_probability": args.horizontal_flip_probability,
+            },
         },
     }
 
@@ -227,6 +303,31 @@ def select_maps(manifests, map_names: list[str]):
         raise ValueError("No cached episodes for map(s): " + ", ".join(sorted(missing)))
     selected = set(map_names)
     return [manifest for manifest in manifests if manifest.map_name in selected]
+
+
+def split_training_manifests(
+    manifests, validation_fraction: float, seed: int, stratify: bool,
+    holdout_maps: list[str],
+):
+    """Split episodes normally, or reserve complete chambers for validation."""
+    if not holdout_maps:
+        return split_episode_manifests(
+            manifests, validation_fraction, seed, stratify=stratify
+        )
+    if len(holdout_maps) != len(set(holdout_maps)):
+        raise ValueError("--holdout-map values must be unique")
+    available = {manifest.map_name for manifest in manifests}
+    missing = set(holdout_maps) - available
+    if missing:
+        raise ValueError(
+            "No cached episodes for holdout map(s): " + ", ".join(sorted(missing))
+        )
+    held_out = set(holdout_maps)
+    train = [item for item in manifests if item.map_name not in held_out]
+    validation = [item for item in manifests if item.map_name in held_out]
+    if not train:
+        raise ValueError("At least one non-holdout chamber is required for training")
+    return train, validation
 
 
 def training_sampling_weights(
@@ -299,10 +400,14 @@ def make_training_loader(
             torch.from_numpy(weights),
             num_samples=len(dataset), replacement=True, generator=generator,
         )
+    loader_options = {}
+    if args.workers:
+        loader_options.update(persistent_workers=True, prefetch_factor=2)
     return DataLoader(
         dataset, batch_size=args.batch_size, shuffle=sampler is None,
         sampler=sampler, generator=generator,
         num_workers=args.workers, pin_memory=pin_memory,
+        **loader_options,
     )
 
 
@@ -320,9 +425,24 @@ def main() -> None:
                         help="Multiply opening-frame sampling weight; 1 keeps the original sampler")
     parser.add_argument("--map", dest="maps", action="append", default=[], metavar="NAME",
                         help="Train only on this chamber; repeat for multiple chambers")
+    parser.add_argument(
+        "--holdout-map", dest="holdout_maps", action="append", default=[],
+        metavar="NAME",
+        help="Reserve every episode from this chamber for validation; repeat as needed",
+    )
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=8, help="Tier-1 default for an 8 GB GPU")
-    parser.add_argument("--learning-rate", type=float, default=3e-4)
+    parser.add_argument("--learning-rate", type=float, default=2e-4)
+    parser.add_argument("--weight-decay", type=float, default=1e-4)
+    parser.add_argument("--max-grad-norm", type=float, default=1.0,
+                        help="Clip the global gradient norm; 0 disables clipping")
+    parser.add_argument("--label-smoothing", type=float, default=0.01)
+    parser.add_argument("--brightness-augmentation", type=float, default=0.05,
+                        help="Random per-stack brightness offset in normalized image units")
+    parser.add_argument("--contrast-augmentation", type=float, default=0.10,
+                        help="Random per-stack contrast range around 1.0")
+    parser.add_argument("--horizontal-flip-probability", type=float, default=0.0,
+                        help="Optional mirrored-view augmentation with A/D and mouse-dx correction")
     parser.add_argument("--validation-fraction", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
@@ -331,18 +451,18 @@ def main() -> None:
         help="Equal expected frames per map, or one draw per recorded usable frame.",
     )
     parser.add_argument(
-        "--binary-class-weighting", choices=("balanced", "none"), default="balanced",
+        "--binary-class-weighting", choices=("balanced", "none"), default="none",
         help="Balance rare binary actions, or use their raw recorded frequencies.",
     )
-    parser.add_argument("--jump-positive-weight", type=float,
+    parser.add_argument("--jump-positive-weight", type=float, default=3.0,
                         help="Override jump-positive weight as a ratio to no-jump; 3 and 5 are sweep candidates")
-    parser.add_argument("--mouse-head", choices=("gaussian", "binned"), default="gaussian",
+    parser.add_argument("--mouse-head", choices=("gaussian", "binned"), default="binned",
                         help="Use the existing Gaussian mouse head or independent dx/dy classification")
     parser.add_argument("--mouse-bins", type=int, default=15,
                         help="Requested odd number of classes per mouse axis when --mouse-head binned")
     parser.add_argument("--workers", type=int, default=0, help="Use 0 for portable Windows/headless operation; raise on Linux after validation")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
-    parser.add_argument("--checkpoint-dir", type=Path, default=Path("models/imitation/checkpoints_v3"))
+    parser.add_argument("--checkpoint-dir", type=Path, default=Path("models/imitation/checkpoints_v5"))
     parser.add_argument("--checkpoint-every", type=int, default=1_000, help="Save a resumable checkpoint every N optimizer steps; 0 disables periodic saves")
     parser.add_argument("--log-every", type=int, default=100, help="Print running training loss every N batches; 0 disables batch logs")
     parser.add_argument("--early-stop-patience", type=int, default=3, help="Stop after N epochs without improved validation loss; 0 disables early stopping")
@@ -351,9 +471,10 @@ def main() -> None:
     run_started_at = time.perf_counter()
     torch.manual_seed(args.seed)
     manifests = select_maps(discover_cached_episodes(args.cache_dir), args.maps)
-    train_manifests, validation_manifests = split_episode_manifests(
+    train_manifests, validation_manifests = split_training_manifests(
         manifests, args.validation_fraction, args.seed,
         stratify=args.sampling == "chamber-balanced",
+        holdout_maps=args.holdout_maps,
     )
     known_episodes = {item.name for item in manifests}
     correction_episode_names: set[str] = set()
@@ -361,6 +482,7 @@ def main() -> None:
         additions = discover_cached_episodes(extra_dir)
         if args.maps:
             additions = [item for item in additions if item.map_name in args.maps]
+        additions = [item for item in additions if item.map_name not in args.holdout_maps]
         if not additions:
             raise ValueError(f"No selected cached correction episodes in {extra_dir}")
         duplicate = known_episodes & {item.name for item in additions}
@@ -383,6 +505,16 @@ def main() -> None:
         raise ValueError("--mouse-bins must be odd and at least 3")
     if args.jump_positive_weight is not None and args.jump_positive_weight <= 0:
         raise ValueError("--jump-positive-weight must be greater than zero")
+    if args.learning_rate <= 0 or args.weight_decay < 0:
+        raise ValueError("Learning rate must be positive and weight decay non-negative")
+    if args.max_grad_norm < 0:
+        raise ValueError("--max-grad-norm must be non-negative")
+    if not 0 <= args.label_smoothing < 1:
+        raise ValueError("--label-smoothing must be in [0, 1)")
+    if args.brightness_augmentation < 0 or args.contrast_augmentation < 0:
+        raise ValueError("Image augmentation strengths must be non-negative")
+    if not 0 <= args.horizontal_flip_probability <= 1:
+        raise ValueError("--horizontal-flip-probability must be in [0, 1]")
     if args.start_window_frames < 1 or args.start_sampling_boost < 1:
         raise ValueError("--start-window-frames must be positive and --start-sampling-boost at least 1")
     if not 0 <= args.correction_sampling_fraction < 1:
@@ -391,6 +523,11 @@ def main() -> None:
         raise ValueError("--correction-sampling-fraction needs --train-extra-cache-dir")
     device = resolve_device(args.device)
     print(f"device: {device}")
+    if device.type == "cuda":
+        torch.set_float32_matmul_precision("high")
+        torch.backends.cudnn.benchmark = True
+    if args.holdout_maps:
+        print("whole-chamber validation: " + ", ".join(sorted(args.holdout_maps)))
     pin_memory = device.type == "cuda"
     train_dataset = BehaviorCloningDataset(train_manifests)
     validation_dataset = BehaviorCloningDataset(validation_manifests)
@@ -466,13 +603,22 @@ def main() -> None:
     print("jump class weights: " + str(binary_class_weights[BINARY_ACTION_COLUMNS.index("jump")].tolist()))
     binary_class_weights = binary_class_weights.to(device)
     mouse_scale = torch.as_tensor(mouse_scale_values, device=device)
-    validation_loader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=pin_memory)
+    validation_loader = DataLoader(
+        validation_dataset, batch_size=args.batch_size, shuffle=False,
+        num_workers=args.workers, pin_memory=pin_memory,
+        **({"persistent_workers": True, "prefetch_factor": 2} if args.workers else {}),
+    )
     model = (
         BinnedImitationPolicy(*mouse_bins.class_counts()) if mouse_bins is not None
         else ImitationPolicy()
     ).to(device)
+    if device.type == "cuda":
+        model = model.to(memory_format=torch.channels_last)
     parameter_count = sum(parameter.numel() for parameter in model.parameters())
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay,
+        fused=device.type == "cuda",
+    )
     scaler = torch.amp.GradScaler(device.type, enabled=device.type == "cuda")
     args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
     config = checkpoint_config(
@@ -492,11 +638,28 @@ def main() -> None:
             raise ValueError("Resume checkpoint model or target processing differs from this run")
         if restored["config"].get("training", {}).get("sampling", "uniform") != args.sampling:
             raise ValueError("Resume checkpoint sampling strategy differs from this run")
-        for key, default in (
-            ("start_window_frames", 8), ("start_sampling_boost", 1.0),
-            ("correction_sampling_fraction", 0.0),
-        ):
-            if restored["config"].get("training", {}).get(key, default) != getattr(args, key):
+        restored_training = restored["config"].get("training", {})
+        resume_settings = {
+            "batch_size": args.batch_size,
+            "learning_rate": args.learning_rate,
+            "weight_decay": args.weight_decay,
+            "max_grad_norm": args.max_grad_norm,
+            "label_smoothing": args.label_smoothing,
+            "holdout_maps": sorted(args.holdout_maps),
+            "binary_class_weighting": args.binary_class_weighting,
+            "jump_positive_weight": args.jump_positive_weight,
+            "mouse_head": args.mouse_head,
+            "start_window_frames": args.start_window_frames,
+            "start_sampling_boost": args.start_sampling_boost,
+            "correction_sampling_fraction": args.correction_sampling_fraction,
+            "augmentation": {
+                "brightness": args.brightness_augmentation,
+                "contrast": args.contrast_augmentation,
+                "horizontal_flip_probability": args.horizontal_flip_probability,
+            },
+        }
+        for key, current_value in resume_settings.items():
+            if restored_training.get(key) != current_value:
                 raise ValueError(f"Resume checkpoint {key} differs from this run")
         previous_training = restored["config"].get("training", {}).get("training_episodes")
         if previous_training is not None and previous_training != config["training"]["training_episodes"]:
@@ -534,6 +697,11 @@ def main() -> None:
             binary_class_weights=binary_class_weights, mouse_scale=mouse_scale,
             global_step=global_step, on_step=save_periodic, skip_batches=skip_batches,
             log_every=args.log_every, mouse_bins=mouse_bins,
+            brightness=args.brightness_augmentation,
+            contrast=args.contrast_augmentation,
+            horizontal_flip_probability=args.horizontal_flip_probability,
+            label_smoothing=args.label_smoothing,
+            max_grad_norm=args.max_grad_norm,
         )
         resume_step_in_epoch = 0
         with torch.no_grad():

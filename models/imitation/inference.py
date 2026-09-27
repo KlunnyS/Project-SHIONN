@@ -12,7 +12,17 @@ import torch
 from .checkpoint import load_checkpoint
 from .dataset import BINARY_ACTION_COLUMNS
 from .mouse_bins import MouseBins
-from .network import BINNED_ARCHITECTURE_VERSION, BinnedImitationPolicy, ImitationPolicy, LegacyImitationPolicy
+from .network import (
+    ARCHITECTURE_VERSION,
+    BINNED_ARCHITECTURE_VERSION,
+    V3_ARCHITECTURE_VERSION,
+    V4_BINNED_ARCHITECTURE_VERSION,
+    BinnedImitationPolicy,
+    ImitationPolicy,
+    LegacyImitationPolicy,
+    V3ImitationPolicy,
+    V4BinnedImitationPolicy,
+)
 from .preprocess import PREPROCESSING_CONFIG, preprocess_bgr_frame
 
 
@@ -35,7 +45,8 @@ class PolicyInference:
         config = checkpoint["config"]
         architecture = config.get("architecture")
         if architecture not in (
-            "shionn_imitation_v1", "shionn_imitation_v2", "shionn_imitation_v3",
+            "shionn_imitation_v1", "shionn_imitation_v2", V3_ARCHITECTURE_VERSION,
+            V4_BINNED_ARCHITECTURE_VERSION, ARCHITECTURE_VERSION,
             BINNED_ARCHITECTURE_VERSION,
         ):
             raise ValueError(f"Unsupported architecture: {config.get('architecture')!r}")
@@ -45,18 +56,32 @@ class PolicyInference:
         target_processing = config.get("target_processing", {})
         self.mouse_bins = (
             MouseBins(target_processing["mouse_bins"])
-            if architecture == BINNED_ARCHITECTURE_VERSION else None
+            if architecture in (
+                V4_BINNED_ARCHITECTURE_VERSION, BINNED_ARCHITECTURE_VERSION
+            ) else None
         )
         self.mouse_scale = None
         if self.mouse_bins is not None:
-            self.policy = BinnedImitationPolicy(*self.mouse_bins.class_counts()).to(self.device)
+            policy_class = (
+                BinnedImitationPolicy
+                if architecture == BINNED_ARCHITECTURE_VERSION
+                else V4BinnedImitationPolicy
+            )
+            self.policy = policy_class(*self.mouse_bins.class_counts()).to(self.device)
         else:
             self.mouse_scale = np.asarray(target_processing.get("mouse_scale", [1.0, 1.0]), dtype=np.float32)
             if self.mouse_scale.shape != (2,) or np.any(self.mouse_scale <= 0):
                 raise ValueError(f"Invalid checkpoint mouse scale: {self.mouse_scale}")
-            policy_class = ImitationPolicy if architecture == "shionn_imitation_v3" else LegacyImitationPolicy
+            if architecture == ARCHITECTURE_VERSION:
+                policy_class = ImitationPolicy
+            elif architecture == V3_ARCHITECTURE_VERSION:
+                policy_class = V3ImitationPolicy
+            else:
+                policy_class = LegacyImitationPolicy
             self.policy = policy_class().to(self.device)
         self.policy.load_state_dict(checkpoint["model_state_dict"])
+        if self.device.type == "cuda":
+            self.policy = self.policy.to(memory_format=torch.channels_last)
         self.policy.eval()
         self.frames: deque[np.ndarray] = deque(maxlen=PREPROCESSING_CONFIG["frame_stack"])
 
@@ -83,8 +108,11 @@ class PolicyInference:
         while len(stacked) < PREPROCESSING_CONFIG["frame_stack"]:
             stacked.insert(0, stacked[0])
         tensor = torch.from_numpy(np.ascontiguousarray(np.stack(stacked).transpose(0, 3, 1, 2).reshape(12, 180, 320))).unsqueeze(0)
+        input_tensor = tensor.to(self.device, dtype=torch.float32)
+        if self.device.type == "cuda":
+            input_tensor = input_tensor.contiguous(memory_format=torch.channels_last)
         with torch.no_grad():
-            output = self.policy(tensor.to(self.device, dtype=torch.float32).div_(255.0))
+            output = self.policy(input_tensor.div_(255.0))
         action = {name: int(output[name].argmax(dim=1).item()) for name in BINARY_ACTION_COLUMNS}
         probabilities = {
             name: float(torch.softmax(output[name], dim=1)[0, 1].item())
