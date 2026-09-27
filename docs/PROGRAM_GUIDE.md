@@ -1,6 +1,6 @@
 # Program guide
 
-This guide describes the implemented SHIONN pipeline. For copyable commands, see [the script cheat sheet](../SCRIPT_CHEATSHEET.md). For every command-line option and default, see [the CLI reference](CLI_REFERENCE.md). Run commands from the repository root unless stated otherwise.
+This guide describes the implemented SHIONN pipeline. For the current training state, resource limits, monitoring, and safe resume command, see [the training runbook](TRAINING_RUNBOOK.md). For copyable commands, see [the script cheat sheet](../SCRIPT_CHEATSHEET.md). For every command-line option and default, see [the CLI reference](CLI_REFERENCE.md). Run commands from the repository root unless stated otherwise.
 
 ## What runs today
 
@@ -90,6 +90,8 @@ The checkpoint and backup directories under `models/imitation/` are also symlink
 Training has a 20-epoch maximum by default and stops after three complete epochs without a new lowest validation loss. `--early-stop-patience 0` disables this; a resumed run starts a fresh patience count. Each completed epoch is appended to `metrics.jsonl` in the checkpoint directory with train/validation loss components, optimizer step, and epoch duration. This JSONL file can be plotted or compared across runs; TensorBoard event files are not currently written.
 
 [`models/imitation/checkpoint.py`](../models/imitation/checkpoint.py) saves a `.pt` file with model weights, optimizer state, epoch/step, best validation loss, and configuration, plus a matching `.json` contract. `last.pt` is written after each epoch; `best.pt` is replaced when validation improves. By default, resumable `step_*.pt` files are also written every 1,000 optimizer steps. `--checkpoint-every 0` disables only those step files. `--resume PATH` restores optimizer and model state but requires the architecture, preprocessing, action columns, and target-processing values to match; an expanded dataset can change class weights and mouse scale. Use a new checkpoint directory for a new dataset run.
+
+On the local 850-episode workstation dataset, use the systemd launch and 10,000-step checkpoint interval documented in the [training runbook](TRAINING_RUNBOOK.md). That runbook also records the required open-file limit, validated memory cap, monitoring commands, disk-retention policy, and latest resumable checkpoint.
 
 The trainer's default episode-level split measures held-out recordings from known chambers. Use `--holdout-map` for an unseen-layout validation result, then use separate frozen evaluation chambers and repeated autonomous runs for the final generalization score.
 

@@ -6,6 +6,9 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Added
 
+- Add a training operations runbook covering the current v5 resume point,
+  systemd resource containment, monitoring, file-descriptor requirements,
+  checkpoint retention, and documentation maintenance.
 - Add the 13.2M-parameter residual v5 imitation policy with GroupNorm, SiLU,
   squeeze/excitation, dropout, and a spatial 3x5 visual bottleneck.
 - Add whole-chamber validation through repeatable `--holdout-map` arguments.

@@ -1,6 +1,6 @@
 # Script cheat sheet
 
-For component behavior and data formats, see [the program guide](docs/PROGRAM_GUIDE.md). For every command-line flag and default, see [the CLI reference](docs/CLI_REFERENCE.md).
+For component behavior and data formats, see [the program guide](docs/PROGRAM_GUIDE.md). For the current training state and safe systemd launch, see [the training runbook](docs/TRAINING_RUNBOOK.md). For every command-line flag and default, see [the CLI reference](docs/CLI_REFERENCE.md).
 
 Run these commands from the repository root. Use `.venv/bin/python` on this Linux machine. The recorder and live runner require a working Wayland desktop, Portal 2, and the appropriate input permissions. Training and dataset reports can run without the game.
 
@@ -14,7 +14,7 @@ Run these commands from the repository root. Use `.venv/bin/python` on this Linu
 | Record 20 successful runs on a chamber | `.venv/bin/python record_dataset.py --map dataset_test2 --episodes 20` | Saves every attempt, retries failures, and returns to the game menu after 20 successes. Omit `--episodes` to run until Ctrl+C. |
 | Check recorded outcomes and chambers | `.venv/bin/python dataset_stats.py` | Counts completed episodes and action rows by outcome, date, and chamber. |
 | Prepare successful episodes for training | `.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes/goal_reached` | Creates missing cached RGB frames and action arrays under `data/datasets/cached_frames`. |
-| Train a new candidate | `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints/runs/new_v3 --checkpoint-every 0` | Trains from the default cache; stops after three unimproved validation epochs, logs epoch metrics, and stores checkpoints on the extra drive without periodic step files. |
+| Train a new candidate | `.venv/bin/python -u -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints/runs/new_v5 --checkpoint-every 10000` | Trains from the default cache, stops after three unimproved validation epochs, logs epoch metrics, and limits periodic checkpoint growth. Use the training runbook's systemd command for the full 850-episode workstation run. |
 | Run a configured model | `./run_model.sh` or `./run_model.fish` | Runs a 60-second attempt on `dataset_test1`, saving a review video and diagnostics. Bash uses `checkpoints_v3`; Fish uses `checkpoints_450_v3`. |
 | Compare models across chambers | `.venv/bin/python run_model_sequence.py --checkpoint old=models/imitation/checkpoints_v3/best.pt --checkpoint new=models/imitation/checkpoints_450_v3/best.pt --map dataset_test1 --map evaluation1 --repeats 3 --output DP-1` | Runs 12 separate attempts and writes per-attempt videos/logs plus a sequence summary. Add `--plan-only` to inspect the order first. |
 | Run the model from an SSH session | `./run_model_ssh.sh` | Uses the already-running game and Hyprland focus recovery. |

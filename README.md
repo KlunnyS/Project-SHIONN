@@ -2,7 +2,7 @@
 
 SHIONN is an experimental AI agent designed for the *Portal 2* environment, built to operate as a fully autonomous test subject capable of learning directly from visual input and interacting with puzzle-based physics systems.
 
-Start with the [program guide](docs/PROGRAM_GUIDE.md) for the implemented pipeline, the [CLI reference](docs/CLI_REFERENCE.md) for every flag, and the [script cheat sheet](SCRIPT_CHEATSHEET.md) for quick commands.
+Start with the [program guide](docs/PROGRAM_GUIDE.md) for the implemented pipeline, the [training runbook](docs/TRAINING_RUNBOOK.md) for the current run and safe operating commands, the [CLI reference](docs/CLI_REFERENCE.md) for every flag, and the [script cheat sheet](SCRIPT_CHEATSHEET.md) for quick commands.
 
 The goal of this project is to explore reinforcement learning, imitation learning, and curriculum learning in a structured physics-puzzle environment using only pixel-based perception and keyboard/mouse action control.
 
@@ -40,7 +40,7 @@ Unlike scripted bots or rule-based agents, SHIONN:
 
 * **Environment and recording pipeline:** operational end to end on Linux/Wayland, including screen capture, physical-input recording, virtual-input playback, netconsole events, automatic map loading, and outcome-grouped episodes.
 * **Dataset:** 850 completed `goal_reached` demonstrations across 12 chambers, containing 221,883 aligned frame/action rows (2.57 hours at 24 Hz), plus one 247-frame recovery clip. All base demonstrations are cached. The dataset has no positive `use` or portal-fire labels yet, and recovery/off-route behavior remains substantially underrepresented. Generated recordings and caches are intentionally excluded from Git.
-* **Behavior cloning:** new training uses the 13.2M-parameter residual `shionn_imitation_v5` family with regularization, binned mouse actions by default, and complete-chamber validation support. Exact loaders for the deployed v1-v4 checkpoints remain available. A fresh v5 checkpoint still needs to be trained and compared with the earlier 850-episode binned/Gaussian candidates.
+* **Behavior cloning:** new training uses the 13.2M-parameter residual `shionn_imitation_v5` family with regularization, binned mouse actions by default, and complete-chamber validation support. A v5 run holding out `dataset_test11` and `dataset_test12` has completed three epochs; epoch 2 currently has the best validation loss (`2.6780`), and the stopped run is resumable from epoch 4/global step 303,000. Exact loaders for deployed v1-v4 checkpoints remain available. See the training runbook for the dated operational status.
 * **Live evaluation:** the policy can complete the initial navigation chamber, but still sometimes enters wall-facing states and fails to recover. Its performance on the newer chambers needs live evaluation.
 * **Next milestone:** stabilize Stage 2 navigation and recovery behavior before adding the Stage 3 actor-critic/value head. PPO, reward shaping, recurrence, and portal-mechanics curricula remain planned work.
 * **Automated checks:** Unit tests cover recording, preprocessing, checkpointing, inference utilities, dataset statistics, timeout handling, the Escape-key stop path, model/chamber sequence planning, and policy diagnostics.
