@@ -30,6 +30,7 @@ def save_checkpoint(
     best_val_loss: float,
     config: dict[str, Any],
     step_in_epoch: int = 0,
+    training_state: dict[str, Any] | None = None,
 ) -> None:
     """Atomically save model, optimizer, progress and its matching JSON contract."""
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -42,6 +43,7 @@ def save_checkpoint(
         "global_step": global_step,
         "best_val_loss": best_val_loss,
         "config": config,
+        "training_state": training_state or {},
     }
     temporary_checkpoint = checkpoint_path.with_name(f".{checkpoint_path.name}.tmp")
     torch.save(payload, temporary_checkpoint)
@@ -53,6 +55,7 @@ def save_checkpoint(
         "global_step": global_step,
         "best_val_loss": best_val_loss,
         "config": config,
+        "training_state": training_state or {},
     }
     json_path = config_path(checkpoint_path)
     temporary_json = json_path.with_name(f".{json_path.name}.tmp")
@@ -79,6 +82,8 @@ def load_checkpoint(
     metadata = json.loads(json_path.read_text(encoding="utf-8"))
     if metadata.get("config") != payload["config"]:
         raise ValueError(f"Checkpoint and JSON configuration differ for {checkpoint_path}")
+    if metadata.get("training_state", {}) != payload.get("training_state", {}):
+        raise ValueError(f"Checkpoint and JSON training state differ for {checkpoint_path}")
     if model is not None:
         model.load_state_dict(payload["model_state_dict"])
     if optimizer is not None:

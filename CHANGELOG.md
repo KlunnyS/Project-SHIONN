@@ -16,16 +16,33 @@ All notable changes to Project SHIONN are documented in this file.
   label-corrected horizontal flips, label smoothing, gradient clipping, and
   configurable AdamW weight decay.
 - Add tests for whole-chamber split isolation and mirrored action labels.
+- Add regression coverage for sample-weighted partial batches, persisted
+  scheduler/early-stopping state, and legacy patience recovery from metrics.
 
 ### Changed
 
+- Reject the initial windowed v5 live benchmark after its videos exposed
+  desktop chrome and a missing viewmodel; the corrected fullscreen/equipped
+  sequence reached the goal on held-out `dataset_test12` and timed out on
+  `dataset_test1` and `dataset_test11`.
+- Make `--keep-focused` prepare a clean Hyprland fullscreen visual state and
+  equip the portal gun after each map load, recording that state in attempt
+  metadata before inference begins.
+- Use a validation-driven learning-rate reduction followed by two-epoch early
+  stopping, batch-32 validation, and 10,000-step periodic checkpoints by
+  default; sample-weight epoch metrics remain comparable across batch sizes.
+- Persist scheduler and early-stopping state in checkpoints, recover legacy
+  patience progress from epoch metrics, and avoid an extra epoch when a resumed
+  checkpoint has already met the stopping condition.
+- Complete the current v5 holdout training run at epoch 6/global step 494,292;
+  early stopping retained epoch 2 as the best validation checkpoint.
 - Make the binned mouse head, unweighted binary losses, and a 3x
   jump-positive weight the behavior-cloning defaults.
 - Use CUDA channels-last tensors, fused AdamW, persistent data workers, and
   cuDNN benchmarking where supported.
 - Strengthen checkpoint resume validation for model, optimizer, dataset,
   holdout, sampling, and augmentation settings.
-- Reduce default early-stopping patience from five unimproved epochs to three.
+- Reduce default early-stopping patience from five unimproved epochs to two.
 - Update the documented dataset status to 850 demonstrations across 12
   chambers and describe the v5 training and evaluation workflow.
 

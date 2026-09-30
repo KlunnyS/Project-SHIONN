@@ -69,8 +69,13 @@ Example: `.venv/bin/python -m models.imitation.train_bc --holdout-map dataset_te
 | `--map NAME` | all cached maps | Repeat to train on only the named chambers. An unknown or duplicate name is an error. |
 | `--holdout-map NAME` | none | Repeat to reserve complete chambers for validation. This replaces the within-chamber random validation split and directly tests transfer to unseen layouts. |
 | `--epochs N` | `20` | Total number of epochs in the run; on resume this remains the total target. |
-| `--batch-size N` | `8` | Training and validation batch size. |
+| `--batch-size N` | `8` | Training batch size. |
+| `--validation-batch-size N` | `32` | Larger inference-only validation batch. Metrics are sample-weighted, so changing it does not change the contribution of the final partial batch. |
 | `--learning-rate FLOAT` | `2e-4` | AdamW learning rate. |
+| `--lr-scheduler plateau\|none` | `plateau` | Reduce the learning rate after validation stops improving, or keep it fixed. |
+| `--lr-reduction-factor FLOAT` | `0.25` | Multiply the learning rate by this value when the plateau scheduler fires. |
+| `--lr-reduction-patience N` | `0` | Extra unimproved epochs to wait before reducing the learning rate; `0` reduces it after the first miss. |
+| `--min-learning-rate FLOAT` | `1e-6` | Learning-rate floor for plateau reductions. |
 | `--weight-decay FLOAT` | `1e-4` | AdamW parameter regularization. |
 | `--max-grad-norm FLOAT` | `1` | Global gradient clipping threshold; `0` disables clipping. |
 | `--label-smoothing FLOAT` | `0.01` | Cross-entropy label smoothing for binary and binned mouse heads. |
@@ -87,12 +92,12 @@ Example: `.venv/bin/python -m models.imitation.train_bc --holdout-map dataset_te
 | `--workers N` | `0` | PyTorch data-loader worker processes. |
 | `--device auto\|cuda\|cpu` | `auto` | Training device; `auto` uses CUDA when available. |
 | `--checkpoint-dir PATH` | `models/imitation/checkpoints_v5` | Directory for `best.pt`, `last.pt`, step checkpoints, and matching JSON files. Use `models/imitation/checkpoints/runs/<name>` for a new run on the extra drive. |
-| `--checkpoint-every N` | `1000` | Save a `step_*.pt` checkpoint and refresh `last.pt` every N optimizer steps. `0` disables step checkpoints; epoch-end `last.pt` and improved `best.pt` remain. |
+| `--checkpoint-every N` | `10000` | Save a `step_*.pt` checkpoint and refresh `last.pt` every N optimizer steps. `0` disables step checkpoints; epoch-end `last.pt` and improved `best.pt` remain. |
 | `--log-every N` | `100` | Print average running loss every N training batches. `0` suppresses batch logs. |
-| `--early-stop-patience N` | `3` | Stop after N complete epochs without a lower validation loss. `0` disables early stopping; `--epochs` remains the maximum. The counter starts fresh when resuming. |
-| `--resume PATH` | none | Resume model and optimizer from a compatible checkpoint. The trainer checks the architecture and data/target-processing contract. |
+| `--early-stop-patience N` | `2` | Stop after N complete epochs without a lower validation loss. `0` disables early stopping; `--epochs` remains the maximum. |
+| `--resume PATH` | none | Resume model, optimizer, scheduler, and early-stopping state from a compatible checkpoint. Legacy checkpoints recover the consecutive-unimproved count from `metrics.jsonl`; a checkpoint that already meets patience exits without another epoch. Use `--lr-scheduler none` for legacy fixed-LR checkpoints that predate scheduler configuration. |
 
-The default cache is not filtered by chamber or outcome; prepare it intentionally. With the default opening and correction weights, `--sampling uniform` shuffles every usable training frame once per epoch, retaining the recorded frame proportions between maps. Boosted openings or a correction fraction use weighted draws with replacement. `--binary-class-weighting none` disables action-class reweighting. Mouse deltas are still scaled numerically for Gaussian training; this does not change sample frequencies. On a larger dataset, frequent step checkpoints can consume substantial disk space. Each completed epoch also appends train/validation totals and per-action losses to `metrics.jsonl` in the checkpoint directory. The number of epochs and batches determines training time; this command does not run the live game.
+The default cache is not filtered by chamber or outcome; prepare it intentionally. With the default opening and correction weights, `--sampling uniform` shuffles every usable training frame once per epoch, retaining the recorded frame proportions between maps. Boosted openings or a correction fraction use weighted draws with replacement. `--binary-class-weighting none` disables action-class reweighting. Mouse deltas are still scaled numerically for Gaussian training; this does not change sample frequencies. On a larger dataset, frequent step checkpoints can consume substantial disk space. Each completed epoch also appends sample-weighted train/validation totals, per-action losses, the learning rate used, and the next learning rate to `metrics.jsonl`. The number of epochs and batches determines training time; this command does not run the live game.
 
 For the mouse-bin experiment and its jump-weight follow-ups, see [the mouse policy workflow](MOUSE_POLICY_EXPERIMENT.md). Binned checkpoints keep the fitted edges and representative deltas inside the checkpoint. They use argmax independently on each axis during inference.
 
@@ -136,7 +141,7 @@ Example: `.venv/bin/python run_imitation.py --checkpoint models/imitation/checkp
 | `--log-file PATH` | none | Write diagnostics to this JSONL file; implies logging. |
 | `--verbose` | off | Print a compact status line periodically. |
 | `--status-every SECONDS` | `1` | Interval for status output and focus checks. |
-| `--keep-focused` | off | On Hyprland, focus Portal 2 and try to restore focus/input after a loss. |
+| `--keep-focused` | off | On Hyprland, focus Portal 2, enter compositor fullscreen, enable/equip the portal-gun viewmodel, activate input, and restore focus/input after a loss. |
 | `--hyprland-instance VALUE` | `auto` | Hyprland instance signature; `auto` discovers candidates, including for SSH sessions. |
 
 Positive `--max-seconds` makes the runner ignore chamber-only `episode_failed|timeout` as a stop signal; its own time limit remains authoritative. `--max-seconds 0` lets that event end the run. Escape and Ctrl+C stop the policy; held controls are released during cleanup.
@@ -168,7 +173,7 @@ The runner makes a full checkpoint × chamber matrix. By default, each repeat vi
 | `--hyprland-instance VALUE` | `auto` | Hyprland instance signature for focus handling. |
 | `--no-video` | off | Keep JSONL diagnostics but omit MP4 videos. |
 | `--no-launch` | off | Require an already-running game. |
-| `--keep-focused` | off | Restore Portal focus/input on Hyprland. |
+| `--keep-focused` | off | For each job, prepare Portal fullscreen with the portal gun equipped, then restore focus/input on Hyprland. |
 | `--dry-run` | off | Predict without applying controls; still loads maps and records attempts. |
 | `--verbose` | off | Print periodic live-runner status. |
 | `--continue-on-error` | off | Try later jobs after a runner process fails; the sequence still exits nonzero. |

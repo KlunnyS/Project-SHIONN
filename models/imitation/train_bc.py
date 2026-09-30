@@ -50,7 +50,46 @@ class EarlyStopping:
             self.unimproved_epochs = 0
         else:
             self.unimproved_epochs += 1
-        return improved, self.patience > 0 and self.unimproved_epochs >= self.patience
+        return improved, self.should_stop
+
+    @property
+    def should_stop(self) -> bool:
+        return self.patience > 0 and self.unimproved_epochs >= self.patience
+
+    def state_dict(self) -> dict[str, float | int]:
+        return {
+            "best_loss": self.best_loss,
+            "unimproved_epochs": self.unimproved_epochs,
+        }
+
+    def load_state_dict(self, state: dict) -> None:
+        best_loss = float(state.get("best_loss", self.best_loss))
+        if not math.isclose(best_loss, self.best_loss):
+            raise ValueError("Checkpoint early-stopping best loss is inconsistent")
+        unimproved_epochs = int(state.get("unimproved_epochs", 0))
+        if unimproved_epochs < 0:
+            raise ValueError("Checkpoint early-stopping count must be non-negative")
+        self.unimproved_epochs = unimproved_epochs
+
+
+def consecutive_unimproved_epochs(metrics_path: Path, completed_epoch: int) -> int:
+    """Recover legacy early-stopping progress from completed metric rows."""
+    if completed_epoch < 1 or not metrics_path.is_file():
+        return 0
+    rows_by_epoch = {}
+    for line in metrics_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        if int(row["epoch"]) <= completed_epoch:
+            rows_by_epoch[int(row["epoch"])] = row
+    count = 0
+    for epoch in sorted(rows_by_epoch, reverse=True):
+        row = rows_by_epoch[epoch]
+        if row.get("improved", False):
+            break
+        count += 1
+    return count
 
 
 def make_binary_class_weights(
@@ -188,6 +227,7 @@ def run_epoch(
     model.train(train)
     totals: dict[str, float] = {name: 0.0 for name in (*BINARY_ACTION_COLUMNS, "mouse", "total")}
     batches = 0
+    samples = 0
     for batch_index, (frames, targets) in enumerate(loader):
         if batch_index < skip_batches:
             continue
@@ -221,16 +261,18 @@ def run_epoch(
             global_step += 1
             if on_step is not None:
                 on_step(global_step, batch_index + 1)
-        totals["total"] += loss.detach().item()
+        batch_samples = len(frames)
+        totals["total"] += loss.detach().item() * batch_samples
         for name, value in parts.items():
-            totals[name] += value.detach().item()
+            totals[name] += value.detach().item() * batch_samples
         batches += 1
+        samples += batch_samples
         if train and log_every and batches % log_every == 0:
             print(
                 f"  batch {batch_index + 1}/{len(loader)} "
-                f"loss={totals['total'] / batches:.4f}"
+                f"loss={totals['total'] / samples:.4f}"
             )
-    return {name: value / max(1, batches) for name, value in totals.items()}, global_step
+    return {name: value / max(1, samples) for name, value in totals.items()}, global_step
 
 
 def resolve_device(request: str) -> torch.device:
@@ -266,6 +308,7 @@ def checkpoint_config(
         },
         "training": {
             "batch_size": args.batch_size,
+            "validation_batch_size": args.validation_batch_size,
             "learning_rate": args.learning_rate,
             "weight_decay": args.weight_decay,
             "max_grad_norm": args.max_grad_norm,
@@ -286,6 +329,12 @@ def checkpoint_config(
                 "brightness": args.brightness_augmentation,
                 "contrast": args.contrast_augmentation,
                 "horizontal_flip_probability": args.horizontal_flip_probability,
+            },
+            "lr_scheduler": {
+                "name": args.lr_scheduler,
+                "factor": args.lr_reduction_factor,
+                "patience": args.lr_reduction_patience,
+                "min_learning_rate": args.min_learning_rate,
             },
         },
     }
@@ -432,7 +481,17 @@ def main() -> None:
     )
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=8, help="Tier-1 default for an 8 GB GPU")
+    parser.add_argument("--validation-batch-size", type=int, default=32,
+                        help="Larger inference-only batch used for validation")
     parser.add_argument("--learning-rate", type=float, default=2e-4)
+    parser.add_argument("--lr-scheduler", choices=("plateau", "none"), default="plateau",
+                        help="Reduce learning rate when validation stops improving")
+    parser.add_argument("--lr-reduction-factor", type=float, default=0.25,
+                        help="Learning-rate multiplier used by the plateau scheduler")
+    parser.add_argument("--lr-reduction-patience", type=int, default=0,
+                        help="Unimproved epochs before reducing learning rate")
+    parser.add_argument("--min-learning-rate", type=float, default=1e-6,
+                        help="Lower bound for plateau learning-rate reductions")
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--max-grad-norm", type=float, default=1.0,
                         help="Clip the global gradient norm; 0 disables clipping")
@@ -463,10 +522,11 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=0, help="Use 0 for portable Windows/headless operation; raise on Linux after validation")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
     parser.add_argument("--checkpoint-dir", type=Path, default=Path("models/imitation/checkpoints_v5"))
-    parser.add_argument("--checkpoint-every", type=int, default=1_000, help="Save a resumable checkpoint every N optimizer steps; 0 disables periodic saves")
+    parser.add_argument("--checkpoint-every", type=int, default=10_000, help="Save a resumable checkpoint every N optimizer steps; 0 disables periodic saves")
     parser.add_argument("--log-every", type=int, default=100, help="Print running training loss every N batches; 0 disables batch logs")
-    parser.add_argument("--early-stop-patience", type=int, default=3, help="Stop after N epochs without improved validation loss; 0 disables early stopping")
-    parser.add_argument("--resume", type=Path, help="Checkpoint to resume, including optimizer state")
+    parser.add_argument("--early-stop-patience", type=int, default=2, help="Stop after N epochs without improved validation loss; 0 disables early stopping")
+    parser.add_argument("--resume", type=Path,
+                        help="Checkpoint to resume, including optimizer and stopping state")
     args = parser.parse_args()
     run_started_at = time.perf_counter()
     torch.manual_seed(args.seed)
@@ -495,6 +555,8 @@ def main() -> None:
     print("validation episodes:", ", ".join(item.name for item in validation_manifests))
     if args.workers < 0:
         raise ValueError("--workers must be zero or greater")
+    if args.batch_size < 1 or args.validation_batch_size < 1:
+        raise ValueError("Training and validation batch sizes must be positive")
     if args.checkpoint_every < 0:
         raise ValueError("--checkpoint-every must be zero or greater")
     if args.log_every < 0:
@@ -507,6 +569,12 @@ def main() -> None:
         raise ValueError("--jump-positive-weight must be greater than zero")
     if args.learning_rate <= 0 or args.weight_decay < 0:
         raise ValueError("Learning rate must be positive and weight decay non-negative")
+    if not 0 < args.lr_reduction_factor < 1:
+        raise ValueError("--lr-reduction-factor must be between zero and one")
+    if args.lr_reduction_patience < 0:
+        raise ValueError("--lr-reduction-patience must be zero or greater")
+    if not 0 <= args.min_learning_rate < args.learning_rate:
+        raise ValueError("--min-learning-rate must be non-negative and below --learning-rate")
     if args.max_grad_norm < 0:
         raise ValueError("--max-grad-norm must be non-negative")
     if not 0 <= args.label_smoothing < 1:
@@ -604,7 +672,7 @@ def main() -> None:
     binary_class_weights = binary_class_weights.to(device)
     mouse_scale = torch.as_tensor(mouse_scale_values, device=device)
     validation_loader = DataLoader(
-        validation_dataset, batch_size=args.batch_size, shuffle=False,
+        validation_dataset, batch_size=args.validation_batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=pin_memory,
         **({"persistent_workers": True, "prefetch_factor": 2} if args.workers else {}),
     )
@@ -619,6 +687,12 @@ def main() -> None:
         model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay,
         fused=device.type == "cuda",
     )
+    scheduler = None
+    if args.lr_scheduler == "plateau":
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode="min", factor=args.lr_reduction_factor,
+            patience=args.lr_reduction_patience, min_lr=args.min_learning_rate,
+        )
     scaler = torch.amp.GradScaler(device.type, enabled=device.type == "cuda")
     args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
     config = checkpoint_config(
@@ -631,6 +705,8 @@ def main() -> None:
     start_epoch = 1
     resume_step_in_epoch = 0
     best_epoch = None
+    restored_training_state = None
+    completed_resume_epoch = 0
     if args.resume:
         restored = load_checkpoint(args.resume, model=model, optimizer=optimizer, device=device)
         compatibility_keys = ("architecture", "preprocessing", "action_columns", "target_processing")
@@ -657,9 +733,22 @@ def main() -> None:
                 "contrast": args.contrast_augmentation,
                 "horizontal_flip_probability": args.horizontal_flip_probability,
             },
+            "lr_scheduler": {
+                "name": args.lr_scheduler,
+                "factor": args.lr_reduction_factor,
+                "patience": args.lr_reduction_patience,
+                "min_learning_rate": args.min_learning_rate,
+            },
         }
         for key, current_value in resume_settings.items():
-            if restored_training.get(key) != current_value:
+            previous_value = restored_training.get(key)
+            if key == "lr_scheduler" and previous_value is None:
+                previous_value = {
+                    "name": "none", "factor": args.lr_reduction_factor,
+                    "patience": args.lr_reduction_patience,
+                    "min_learning_rate": args.min_learning_rate,
+                }
+            if previous_value != current_value:
                 raise ValueError(f"Resume checkpoint {key} differs from this run")
         previous_training = restored["config"].get("training", {}).get("training_episodes")
         if previous_training is not None and previous_training != config["training"]["training_episodes"]:
@@ -671,9 +760,47 @@ def main() -> None:
         global_step = int(restored["global_step"])
         resume_step_in_epoch = int(restored.get("step_in_epoch", 0))
         start_epoch = int(restored["epoch"]) if resume_step_in_epoch else int(restored["epoch"]) + 1
+        completed_resume_epoch = int(restored["epoch"]) - (1 if resume_step_in_epoch else 0)
+        restored_training_state = restored.get("training_state") or None
         print(f"resumed {args.resume}: epoch={restored['epoch']} step_in_epoch={resume_step_in_epoch} global_step={global_step} best_val={best_validation:.4f}")
     early_stopping = EarlyStopping(args.early_stop_patience, best_validation)
     metrics_path = args.checkpoint_dir / "metrics.jsonl"
+    if restored_training_state is not None:
+        early_stopping.load_state_dict(restored_training_state.get("early_stopping", {}))
+        if scheduler is not None and restored_training_state.get("scheduler") is not None:
+            scheduler.load_state_dict(restored_training_state["scheduler"])
+    elif args.resume:
+        early_stopping.unimproved_epochs = consecutive_unimproved_epochs(
+            args.resume.parent / "metrics.jsonl", completed_resume_epoch
+        )
+        if early_stopping.unimproved_epochs:
+            print(
+                "restored early-stopping count from metrics: "
+                f"{early_stopping.unimproved_epochs} unimproved epoch(s)"
+            )
+    if args.resume and early_stopping.should_stop:
+        print(
+            "early stopping was already satisfied at the resume checkpoint; "
+            "no additional epochs will run"
+        )
+        start_epoch = args.epochs + 1
+
+    def current_training_state() -> dict:
+        return {
+            "early_stopping": early_stopping.state_dict(),
+            "scheduler": scheduler.state_dict() if scheduler is not None else None,
+        }
+
+    def save_training_checkpoint(
+        path: Path, *, epoch: int, step: int, step_in_epoch: int = 0,
+    ) -> None:
+        save_checkpoint(
+            path, model=model, optimizer=optimizer, epoch=epoch,
+            step_in_epoch=step_in_epoch, global_step=step,
+            best_val_loss=best_validation, config=config,
+            training_state=current_training_state(),
+        )
+
     initial_global_step = global_step
     completed_epochs = 0
     epoch_durations: list[float] = []
@@ -690,8 +817,14 @@ def main() -> None:
         def save_periodic(step: int, step_in_epoch: int) -> None:
             if args.checkpoint_every and step % args.checkpoint_every == 0:
                 path = args.checkpoint_dir / f"step_{step:09d}.pt"
-                save_checkpoint(path, model=model, optimizer=optimizer, epoch=epoch, step_in_epoch=step_in_epoch, global_step=step, best_val_loss=best_validation, config=config)
-                save_checkpoint(args.checkpoint_dir / "last.pt", model=model, optimizer=optimizer, epoch=epoch, step_in_epoch=step_in_epoch, global_step=step, best_val_loss=best_validation, config=config)
+                save_training_checkpoint(
+                    path, epoch=epoch, step=step, step_in_epoch=step_in_epoch,
+                )
+                save_training_checkpoint(
+                    args.checkpoint_dir / "last.pt", epoch=epoch, step=step,
+                    step_in_epoch=step_in_epoch,
+                )
+        epoch_learning_rate = optimizer.param_groups[0]["lr"]
         train_metrics, global_step = run_epoch(
             model, train_loader, optimizer, scaler, device, train=True,
             binary_class_weights=binary_class_weights, mouse_scale=mouse_scale,
@@ -713,10 +846,17 @@ def main() -> None:
         print(f"epoch {epoch:03d} train={train_metrics['total']:.4f} validation={validation_metrics['total']:.4f} " + " ".join(f"{key}={validation_metrics[key]:.3f}" for key in (*BINARY_ACTION_COLUMNS, "mouse")))
         improved, should_stop = early_stopping.update(validation_metrics["total"])
         best_validation = early_stopping.best_loss
+        if scheduler is not None:
+            scheduler.step(validation_metrics["total"])
+        next_learning_rate = optimizer.param_groups[0]["lr"]
         if improved:
             best_epoch = epoch
-            save_checkpoint(args.checkpoint_dir / "best.pt", model=model, optimizer=optimizer, epoch=epoch, global_step=global_step, best_val_loss=best_validation, config=config)
-        save_checkpoint(args.checkpoint_dir / "last.pt", model=model, optimizer=optimizer, epoch=epoch, global_step=global_step, best_val_loss=best_validation, config=config)
+            save_training_checkpoint(
+                args.checkpoint_dir / "best.pt", epoch=epoch, step=global_step,
+            )
+        save_training_checkpoint(
+            args.checkpoint_dir / "last.pt", epoch=epoch, step=global_step,
+        )
         with metrics_path.open("a", encoding="utf-8") as metrics_file:
             metrics_file.write(json.dumps({
                 "epoch": epoch,
@@ -724,7 +864,8 @@ def main() -> None:
                 "train": train_metrics,
                 "validation": validation_metrics,
                 "best_validation_loss": best_validation,
-                "learning_rate": optimizer.param_groups[0]["lr"],
+                "learning_rate": epoch_learning_rate,
+                "next_learning_rate": next_learning_rate,
                 "epoch_seconds": time.perf_counter() - epoch_started_at,
                 "improved": improved,
             }) + "\n")

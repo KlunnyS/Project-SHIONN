@@ -19,9 +19,9 @@ from models.imitation.inference import PolicyInference
 from models.imitation.network import ARCHITECTURE_VERSION, ImitationPolicy
 from models.imitation.preprocess import PREPROCESSING_CONFIG
 from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_episodes
-from models.imitation.train_bc import EarlyStopping, augment_batch, binary_class_weights_for_mode, format_duration, make_binary_class_weights, make_training_loader, select_maps, split_training_manifests, training_sampling_weights
+from models.imitation.train_bc import EarlyStopping, augment_batch, binary_class_weights_for_mode, consecutive_unimproved_epochs, format_duration, make_binary_class_weights, make_training_loader, run_epoch, select_maps, split_training_manifests, training_sampling_weights
 from recorder import FFmpegVideoWriter
-from run_imitation import AttemptLog, EscapeKeyMonitor, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, frame_change, hyprland_instance_candidates, make_attempt_recording_path, parse_args
+from run_imitation import AttemptLog, EscapeKeyMonitor, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, frame_change, fullscreen_portal_window, hyprland_instance_candidates, make_attempt_recording_path, parse_args, prepare_portal_visual_state
 from wrapper import Portal2Controller
 
 
@@ -90,6 +90,63 @@ class ImitationPipelineTest(unittest.TestCase):
         stopping = EarlyStopping(patience=0, best_loss=2.4)
         self.assertEqual(stopping.update(3.0), (False, False))
         self.assertEqual(stopping.update(2.3), (True, False))
+
+    def test_early_stopping_state_survives_resume(self):
+        original = EarlyStopping(patience=2, best_loss=2.4)
+        self.assertEqual(original.update(2.5), (False, False))
+
+        restored = EarlyStopping(patience=2, best_loss=2.4)
+        restored.load_state_dict(original.state_dict())
+
+        self.assertEqual(restored.unimproved_epochs, 1)
+        self.assertFalse(restored.should_stop)
+        self.assertEqual(restored.update(2.6), (False, True))
+        self.assertTrue(restored.should_stop)
+
+    def test_legacy_metrics_restore_consecutive_unimproved_epochs(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            metrics = Path(temporary_directory) / "metrics.jsonl"
+            metrics.write_text("\n".join([
+                json.dumps({"epoch": 1, "improved": True}),
+                json.dumps({"epoch": 2, "improved": True}),
+                json.dumps({"epoch": 3, "improved": False}),
+                json.dumps({"epoch": 4, "improved": False}),
+                json.dumps({"epoch": 5, "improved": True}),
+            ]) + "\n")
+
+            self.assertEqual(consecutive_unimproved_epochs(metrics, 4), 2)
+            self.assertEqual(consecutive_unimproved_epochs(metrics, 5), 0)
+
+    def test_epoch_metrics_are_invariant_to_final_partial_batch(self):
+        class FixedPolicy(torch.nn.Module):
+            def forward(self, frames):
+                count = len(frames)
+                binary = {
+                    name: torch.tensor([[0.0, 2.0]]).repeat(count, 1)
+                    for name in ("move_w", "move_a", "move_s", "move_d", "jump", "use", "fire_left", "fire_right")
+                }
+                binary["mouse_mean"] = torch.zeros((count, 2))
+                binary["mouse_log_std"] = torch.zeros((count, 2))
+                return binary
+
+        frames = torch.zeros((3, 12, 1, 1), dtype=torch.uint8)
+        targets = torch.zeros((3, 10), dtype=torch.float32)
+        targets[-1, :8] = 1
+        dataset = torch.utils.data.TensorDataset(frames, targets)
+        weights = torch.ones((8, 2))
+        scale = torch.ones(2)
+        model = FixedPolicy()
+
+        single, _ = run_epoch(
+            model, torch.utils.data.DataLoader(dataset, batch_size=1), None, None,
+            torch.device("cpu"), False, weights, scale,
+        )
+        partial, _ = run_epoch(
+            model, torch.utils.data.DataLoader(dataset, batch_size=2), None, None,
+            torch.device("cpu"), False, weights, scale,
+        )
+
+        self.assertAlmostEqual(single["total"], partial["total"], places=6)
 
     def test_training_duration_readout_is_human_readable(self):
         self.assertEqual(format_duration(7.25), "7.2s")
@@ -182,6 +239,52 @@ class ImitationPipelineTest(unittest.TestCase):
 
     def test_explicit_hyprland_instance_does_not_depend_on_session_environment(self):
         self.assertEqual(hyprland_instance_candidates("test-signature"), ["test-signature"])
+
+    @patch("run_imitation.time.sleep")
+    @patch("run_imitation.subprocess.run")
+    @patch("run_imitation.query_hyprland_active_window")
+    @patch("run_imitation.focus_portal_window")
+    def test_fullscreen_preflight_dispatches_real_fullscreen(
+        self, focus_window, active_window, run_command, _sleep
+    ):
+        windowed = {
+            "portal_focused": True,
+            "fullscreen": 0,
+            "hyprland_instance": "test-signature",
+        }
+        fullscreen = {**windowed, "fullscreen": 2}
+        focus_window.return_value = windowed
+        active_window.return_value = fullscreen
+
+        self.assertEqual(fullscreen_portal_window(), fullscreen)
+
+        run_command.assert_called_once_with(
+            [
+                "hyprctl", "-i", "test-signature", "dispatch",
+                "fullscreen", "0",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        active_window.assert_called_once_with("test-signature")
+
+    @patch("run_imitation.time.sleep")
+    @patch("run_imitation.fullscreen_portal_window")
+    def test_visual_preflight_equips_visible_portal_gun(
+        self, fullscreen_window, _sleep
+    ):
+        window = {"portal_focused": True, "fullscreen": 2}
+        fullscreen_window.return_value = window
+        controller = Mock()
+
+        self.assertEqual(prepare_portal_visual_state(controller), window)
+
+        self.assertEqual(controller.send_command.call_args_list, [
+            call("r_drawviewmodel 1"),
+            call("use weapon_portalgun"),
+        ])
 
     @patch("run_imitation.time.sleep")
     @patch("run_imitation.subprocess.run")
@@ -517,6 +620,11 @@ class ImitationPipelineTest(unittest.TestCase):
             checkpoint_path = Path(temporary_directory) / "model.pt"
             model = ImitationPolicy()
             optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, factor=0.25, patience=0
+            )
+            scheduler.step(1.25)
+            scheduler.step(1.5)
             config = {
                 "architecture": ARCHITECTURE_VERSION,
                 "preprocessing": PREPROCESSING_CONFIG,
@@ -527,12 +635,23 @@ class ImitationPipelineTest(unittest.TestCase):
                 for parameter in model.parameters():
                     parameter.zero_()
                 model.mouse_head.bias[:2] = torch.tensor([0.5, -0.5])
-            save_checkpoint(checkpoint_path, model=model, optimizer=optimizer, epoch=3, global_step=42, best_val_loss=1.25, config=config)
+            training_state = {
+                "early_stopping": {"best_loss": 1.25, "unimproved_epochs": 1},
+                "scheduler": scheduler.state_dict(),
+            }
+            save_checkpoint(checkpoint_path, model=model, optimizer=optimizer, epoch=3, global_step=42, best_val_loss=1.25, config=config, training_state=training_state)
             restored_model = ImitationPolicy()
             restored_optimizer = torch.optim.AdamW(restored_model.parameters(), lr=1e-3)
             restored = load_checkpoint(checkpoint_path, model=restored_model, optimizer=restored_optimizer)
+            restored_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                restored_optimizer, factor=0.25, patience=0
+            )
+            restored_scheduler.load_state_dict(restored["training_state"]["scheduler"])
             self.assertEqual(restored["global_step"], 42)
             self.assertEqual(restored["epoch"], 3)
+            self.assertEqual(restored["training_state"], training_state)
+            self.assertAlmostEqual(restored_optimizer.param_groups[0]["lr"], 2.5e-4)
+            self.assertEqual(restored_scheduler.state_dict(), scheduler.state_dict())
             self.assertTrue(checkpoint_path.with_suffix(".json").is_file())
             policy = PolicyInference(checkpoint_path, device="cpu")
             action, diagnostics = policy.predict_with_diagnostics(

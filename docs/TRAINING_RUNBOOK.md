@@ -5,9 +5,35 @@ cloning policy on the local Arch Linux workstation. For model design and data
 contracts, see the [program guide](PROGRAM_GUIDE.md). For every trainer flag,
 see the [CLI reference](CLI_REFERENCE.md).
 
-## Current v5 run
+## Current training status
 
-Status recorded on 2026-09-27: intentionally stopped and safe to resume.
+Status recorded on 2026-09-28: no training is active. A tuned test run was
+started at 12:27 CEST due to a misunderstanding and stopped cleanly about five
+minutes later when the request was clarified as live model testing. It had not
+reached its first 10,000-step checkpoint, so its run directory is empty and the
+completed baseline checkpoints were untouched.
+
+| Item | Value |
+|---|---|
+| Run directory | `models/imitation/checkpoints/runs/v5_holdout_11_12_tuned_v1` |
+| Architecture | Residual v5 with binned mouse heads |
+| Training holdouts | `dataset_test11`, `dataset_test12` |
+| Training / validation batch | `8` / `32` |
+| Initial learning rate | `2e-4` |
+| Plateau schedule | First miss reduces LR by `0.25`; second consecutive miss stops |
+| Workers / checkpoint interval | `0` / `10,000` optimizer steps |
+| Service outcome | `shionn-train-v5-tuned-v1`: intentionally stopped, no checkpoint |
+| Baseline to beat | validation loss `2.6779654485835236` from the completed run's epoch 2 |
+
+The configuration remains available for a future from-scratch comparison, but
+do not treat this empty trial as a candidate. Keep the completed run's
+`best.pt` as the current v5 checkpoint.
+
+## Completed v5 baseline run
+
+Status recorded on 2026-09-28: completed successfully at 11:19 CEST after
+early stopping. The collected `shionn-train-v5-resume` user service exited
+with status 0.
 
 | Item | Value |
 |---|---|
@@ -15,21 +41,59 @@ Status recorded on 2026-09-27: intentionally stopped and safe to resume.
 | Architecture | Residual v5 with binned mouse heads |
 | Training holdouts | `dataset_test11`, `dataset_test12` |
 | Batch size / workers | `2` / `0` |
-| Latest checkpoint | `last.pt`: epoch 4, step 55,854 within epoch |
-| Global optimizer step | `303,000` |
+| Service outcome | `shionn-train-v5-resume`: success (collected after exit) |
+| Latest checkpoint | `last.pt`: epoch 6 complete |
+| Global optimizer step | `494,292` |
 | Best checkpoint | `best.pt`: epoch 2 |
 | Best validation loss | `2.6779654485835236` |
-| Completed epoch losses | validation `2.879048`, `2.677965`, `2.713138` |
-| Early stopping | Three newly completed unimproved epochs after resume |
+| Completed epoch losses | validation `2.879048`, `2.677965`, `2.713138`, `2.801036`, `2.988689`, `3.248011` |
+| Early stopping | Triggered after unimproved epochs 4, 5, and 6 |
 
-The epoch-3 validation loss was slightly worse than epoch 2 even though the
-training loss continued to improve. Keep `best.pt` for evaluation unless a
-later epoch establishes a new validation minimum.
+Training loss continued to improve through epoch 6, but validation loss did
+not beat epoch 2 and worsened in the final epochs. Use `best.pt`, not
+`last.pt`, for evaluation; the divergence indicates overfitting after epoch 2.
 
-The run directory currently also contains 303 legacy `step_*.pt` files from
-the original 1,000-step checkpoint interval. They occupy about 44.7 GiB of the
-46 GiB run directory. They are not tracked by Git. `last.pt` contains the exact
-resume position, while `best.pt` contains the best validation candidate.
+The run directory contains 322 periodic `step_*.pt` files: 303 legacy files
+from the original 1,000-step interval and 19 files saved at the resumed
+10,000-step interval. The complete run directory occupies about 48 GiB. These
+artifacts are not tracked by Git. `last.pt` contains the final optimizer state,
+while `best.pt` contains the best validation candidate.
+
+## Live benchmark and visual-state correction
+
+The first 2026-09-28 sequence was invalidated after video inspection. Portal 2
+was not fullscreen: whole-output capture included the desktop bar and window
+border, while the portal-gun viewmodel visible throughout the demonstrations
+was absent. Focus, input activation, and tick delivery were healthy, but this
+was a material train/live visual mismatch. Preserve the diagnostic sequence at
+`model_attempts/sequences/sequence_20260928_123405_985146/`, but do not use its
+0/3 result as a model score.
+
+The live runner now uses `--keep-focused` to enter Hyprland compositor
+fullscreen after each map load, request `r_drawviewmodel 1`, equip
+`weapon_portalgun`, and record the prepared window state in the attempt
+metadata. A corrected one-attempt sequence then produced:
+
+| Map | Result | Diagnostics |
+|---|---|---|
+| `dataset_test1` | 0/1, time limit | 1,434 ticks; 1,407 idle and 27 forward; became stuck against a wall |
+| `dataset_test11` | 0/1, time limit | 1,433 ticks; remained active but oscillated, chiefly 682 forward and 465 backward ticks |
+| `dataset_test12` | 1/1, goal reached | 566 ticks; goal signal at about 23.8 seconds |
+
+All corrected attempts recorded compositor fullscreen state `2`,
+`input_ready=true`, and zero focus losses. Videos confirm clean game framing and
+the portal gun on `dataset_test11` and `dataset_test12`; on `dataset_test1` the
+agent immediately drove against a wall, where the viewmodel moved out of frame.
+The corrected sequence is under
+`model_attempts/sequences/sequence_20260928_125751_837912/`.
+
+A small performance HUD remained visible at the top-left. This is not the
+desktop bar or an open Steam overlay, but it should be hidden before the
+authoritative repeated benchmark. An enabled but closed Steam overlay does not
+change the captured image. The 1/1 held-out success on `dataset_test12` shows
+that the checkpoint can complete an unseen chamber, but one attempt per map is
+not enough to estimate reliability. Keep the existing deployed policy as the
+baseline until repeated clean trials are available.
 
 ## Preflight checks
 
@@ -52,11 +116,14 @@ current checkpoint path resolves to:
 On 2026-09-27 this was `/dev/sdb4`, mounted at `/mnt/extra`. Do not start
 recording, preprocessing, training, or inference when that mount is absent.
 
-## Safe resume command
+## Resume command used
 
-Run training in its own systemd service instead of a VS Code terminal. The
-separate cgroup prevents a training failure from taking down the editor, and
-`python -u` makes progress messages immediately visible in the journal.
+The completed run was resumed in its own systemd service with the following
+command. Do not run it again unless deliberately extending the completed run:
+at the time this command ran, early-stopping patience still started fresh on
+every resume. The separate cgroup prevents a training failure from taking down
+the editor, and `python -u` makes progress messages immediately visible in the
+journal.
 
 ```bash
 systemd-run --user --unit=shionn-train-v5-resume --collect \
@@ -73,6 +140,7 @@ systemd-run --user --unit=shionn-train-v5-resume --collect \
   --workers 0 \
   --batch-size 2 \
   --early-stop-patience 3 \
+  --lr-scheduler none \
   --checkpoint-every 10000 \
   --checkpoint-dir models/imitation/checkpoints/runs/v5_holdout_11_12 \
   --resume models/imitation/checkpoints/runs/v5_holdout_11_12/last.pt
@@ -140,6 +208,13 @@ with the default descriptor limit failed during dataset construction with
 dataset. `--workers 0` avoids additional loader processes and is the validated
 setting on this workstation.
 
+An isolated synthetic v5 benchmark on the RTX 4060 measured approximately
+108 samples/s at batch 2 and 133 samples/s at batch 8, while peak allocated
+CUDA memory rose only from 0.36 GiB to 0.73 GiB. The next controlled run should
+therefore use training batch 8 and validation batch 32. Host memory is still
+governed mainly by the memory-mapped dataset, so retain the existing cgroup
+limits and `--workers 0`.
+
 ## Checkpoint and disk policy
 
 Each v5 checkpoint is approximately 151 MiB. Saving every 1,000 optimizer
@@ -166,10 +241,49 @@ before removing generated files.
 step, best validation loss, and the configuration contract. `best.pt` is for
 evaluation; `last.pt` is normally the correct resume source.
 
-Early-stopping patience is not persisted. It starts fresh whenever the trainer
-is resumed. With patience 3, the current run will stop after three newly
-completed epochs without beating `2.6779654485835236`. The total `--epochs`
-value remains the absolute run target rather than a count of additional epochs.
+The completed run used the old behavior in which early-stopping patience was
+not persisted. Its resume reset the counter, so it ran epochs 4, 5, and 6
+before stopping. New checkpoints persist both the consecutive-unimproved count
+and learning-rate scheduler state. Legacy checkpoints recover their count from
+`metrics.jsonl`, and a resume exits without optimizing when patience was
+already satisfied. Legacy checkpoints created before scheduler configuration
+was recorded must be resumed with `--lr-scheduler none` to preserve their
+fixed-learning-rate contract.
+
+## Tuned experiment command (not active)
+
+The stopped no-checkpoint trial used the following command, which remains the
+candidate configuration for a deliberate future run. The completed epoch-2
+`best.pt` remains the baseline. The first validation miss reduces the learning
+rate from `2e-4` to `5e-5`; a second consecutive miss stops the run. This gives
+the model one lower-rate recovery epoch instead of three full-rate misses.
+
+```bash
+systemd-run --user --unit=shionn-train-v5-tuned-v1 --collect \
+  -p WorkingDirectory=/home/user/Documents/GitHub/Project-SHIONN \
+  -p LimitNOFILE=8192 \
+  -p MemoryHigh=16G \
+  -p MemoryMax=20G \
+  -p MemorySwapMax=2G \
+  /home/user/Documents/GitHub/Project-SHIONN/.venv/bin/python -u \
+  -m models.imitation.train_bc \
+  --holdout-map dataset_test11 \
+  --holdout-map dataset_test12 \
+  --device cuda \
+  --workers 0 \
+  --batch-size 8 \
+  --validation-batch-size 32 \
+  --early-stop-patience 2 \
+  --lr-scheduler plateau \
+  --lr-reduction-patience 0 \
+  --lr-reduction-factor 0.25 \
+  --checkpoint-every 10000 \
+  --checkpoint-dir models/imitation/checkpoints/runs/v5_holdout_11_12_tuned_v1
+```
+
+If run later, this remains an experiment rather than a guaranteed improvement.
+Compare its `best.pt` against the preserved baseline with the expert benchmark
+and repeated live chamber runs before promotion.
 
 ## Documentation maintenance
 

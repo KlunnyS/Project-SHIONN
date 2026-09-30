@@ -32,6 +32,8 @@ Add `--output NAME` if the default Wayland output is wrong. Each attempt writes 
 
 The report gives successes, valid attempts, success rate, median successful run duration, outcome counts, invalid attempts, and focus losses by model and map. A runner error or manual cancellation is marked invalid instead of counting as a navigation failure. The summary also retains each attempt's video and log path. Compare multiple checkpoints by repeating `--checkpoint LABEL=PATH` in the sequence command.
 
+Review at least one saved frame before accepting a sequence. With `--keep-focused`, Hyprland should report a nonzero fullscreen state and the runner requests the same visible portal-gun viewmodel used in the demonstrations. Reject runs containing desktop bars, window borders, an open Steam overlay, or other large visual mismatches. An enabled but closed Steam overlay is harmless; hide any visible performance HUD before the authoritative repeated benchmark.
+
 ## 3. Record separate references for evaluation chambers
 
 Freeze the candidate checkpoint first. Human reference runs on `evaluation1` and `evaluation2` belong outside the training recording and cache directories:

@@ -262,6 +262,43 @@ def focus_portal_window(instance: str = "auto") -> dict | None:
     return None
 
 
+def fullscreen_portal_window(instance: str = "auto") -> dict | None:
+    """Focus Portal and put it in compositor fullscreen before capture."""
+    status = focus_portal_window(instance)
+    if not (status or {}).get("portal_focused"):
+        return status
+    if status.get("fullscreen"):
+        return status
+    candidate = status.get("hyprland_instance")
+    if not candidate:
+        return None
+    try:
+        subprocess.run(
+            ["hyprctl", "-i", candidate, "dispatch", "fullscreen", "0"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        time.sleep(0.1)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return query_hyprland_active_window(candidate)
+
+
+def prepare_portal_visual_state(
+    controller: Portal2Controller, instance: str = "auto"
+) -> dict | None:
+    """Match the clean fullscreen, equipped-viewmodel training input."""
+    status = fullscreen_portal_window(instance)
+    if not (status or {}).get("portal_focused") or not status.get("fullscreen"):
+        return None
+    controller.send_command("r_drawviewmodel 1")
+    controller.send_command("use weapon_portalgun")
+    time.sleep(0.1)
+    return status
+
+
 def activate_portal_input(
     controller: Portal2Controller, instance: str = "auto"
 ) -> dict | None:
@@ -390,12 +427,21 @@ def main() -> None:
     visual_change_samples = 0
     previous_frame_sample = None
     input_ready = None
+    visual_state = None
     stop_reason = "time_limit"
 
     try:
         escape_monitor.start()
         if args.map_name:
             controller.load_map(args.map_name, wait_for_load=True)
+        if args.keep_focused:
+            visual_state = prepare_portal_visual_state(
+                controller, args.hyprland_instance
+            )
+            if visual_state is None:
+                raise RuntimeError(
+                    "Could not prepare Portal 2's fullscreen visual state"
+                )
         camera.start()
         print(f"Policy device: {policy.device}")
         print(f"Capture output: {camera.output_name or 'wf-recorder default'}")
@@ -452,6 +498,7 @@ def main() -> None:
                 video=str(video_path) if video_path else None,
                 dry_run=args.dry_run,
                 keep_focused=args.keep_focused,
+                visual_state=visual_state,
                 jump_threshold=args.jump_threshold,
                 move_w_threshold=args.move_w_threshold,
                 mouse_bins=policy.mouse_bins.config if policy.mouse_bins is not None else None,
