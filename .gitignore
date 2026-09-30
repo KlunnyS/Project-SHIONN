@@ -26,6 +26,8 @@ models/imitation/checkpoints*
 models/imitation/backups
 model_attempts/
 
+run_tests
+
 # Editor and operating-system files
 .idea/
 .vscode/
