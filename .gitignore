@@ -16,7 +16,6 @@ venv/
 .env
 .env.*
 !.env.example
-LOCAL_DATASET_CHAMBER_SETUP.md
 .agent
 
 # Recorded demonstrations and generated training data

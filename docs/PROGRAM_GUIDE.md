@@ -1,6 +1,10 @@
 # Program guide
 
-This guide describes the implemented SHIONN pipeline. For the current training state, resource limits, monitoring, and safe resume command, see [the training runbook](TRAINING_RUNBOOK.md). For copyable commands, see [the script cheat sheet](../SCRIPT_CHEATSHEET.md). For every command-line option and default, see [the CLI reference](CLI_REFERENCE.md). Run commands from the repository root unless stated otherwise.
+This guide describes the implemented SHIONN pipeline. For the current training
+state, resource limits, monitoring, and safe resume command, see the
+[training runbook](TRAINING_RUNBOOK.md). For workflows, command-line options,
+and defaults, see the [CLI reference](CLI_REFERENCE.md). Run commands from the
+repository root unless stated otherwise.
 
 ## What runs today
 
@@ -29,6 +33,9 @@ Portal 2 + chamber VScript
 [`wrapper.py`](../wrapper.py) owns the `Portal2Controller`. It connects to the game's local netconsole, normally started with `-netconport 8020`, sends commands such as `map dataset_test3`, reads console output, and translates predicted actions into game input. If Portal 2 is not running, the recorder and live runner can launch it through Steam; an already-running game must have the matching netconsole port enabled.
 
 Each instrumented chamber contains a `logic_script` that loads [`shionn_events.nut`](../portal_assets/scripts/vscripts/shionn_events.nut). A start trigger calls `SignalChamberReady()`, a goal trigger calls `SignalGoalReached()`, and optional failure triggers call functions such as `SignalTimeout()` or `SignalOutOfBounds()`. The script emits lines of the form `EVT|chamber_ready|...`, `EVT|goal_reached|1`, and `EVT|episode_failed|reason`. Its guards prevent duplicate start and terminal signals within an attempt. The chamber must send ready on every reload or the recorder will wait until `--ready-timeout` expires.
+
+The [chamber authoring guide](CHAMBER_AUTHORING.md) is the source of truth for
+building, wiring, compiling, and hand-verifying those maps.
 
 `Portal2Controller.apply_action()` holds/release movement, jump, use, and portal-fire commands only when their predicted binary state changes. Mouse look is sent as relative `uinput` movement. `release_policy_actions()` releases held controls at boundaries and shutdown. The controller also has `play_csv()` for replaying a saved action sequence.
 
@@ -111,6 +118,6 @@ The runner normally stops at its `--max-seconds` limit or a goal/failure event. 
 
 ## 7. Setup, maintenance, and tests
 
-[`install_dependencies.sh`](../install_dependencies.sh) creates/updates `.venv`, installs Python packages from `requirements.txt`, optionally installs `wf-recorder`, and optionally configures input-device permissions. [`check_dependencies.sh`](../check_dependencies.sh) reports the current setup. `hammerpp-home.sh` opens the local Hammer++ installation. See [the script cheat sheet](../SCRIPT_CHEATSHEET.md) for the older one-off helpers under `scripts/legacy/` and manual hardware probes under `scripts/diagnostics/`.
+[`install_dependencies.sh`](../install_dependencies.sh) creates/updates `.venv`, installs Python packages from `requirements.txt`, optionally installs `wf-recorder`, and optionally configures input-device permissions. [`check_dependencies.sh`](../check_dependencies.sh) reports the current setup. `hammerpp-home.sh` opens the local Hammer++ installation. The [CLI reference](CLI_REFERENCE.md) lists the older one-off helpers under `scripts/legacy/` and manual hardware probes under `scripts/diagnostics/`.
 
 Run the automated suite with `.venv/bin/python -m unittest discover -s tests -p 'test_*.py'`. These tests cover recorder events and quota behavior, dataset reporting and preprocessing, model contracts, inference helpers, and stop/timeout handling. Hardware probes in `scripts/diagnostics/` run against real devices and are not part of that suite.

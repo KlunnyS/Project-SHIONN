@@ -21,6 +21,12 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Changed
 
+- Consolidate project documentation around one source of truth per subject:
+  shorten the README, merge the script cheat sheet into the CLI reference,
+  move chamber setup into a maintained authoring guide, and fold reusable
+  mouse/recovery diagnostics into the benchmark workflow.
+- Remove the superseded v1 imitation build plan and the experiment-specific
+  mouse policy guide after preserving their still-current operational content.
 - Reject the initial windowed v5 live benchmark after its videos exposed
   desktop chrome and a missing viewmodel; the corrected fullscreen/equipped
   sequence reached the goal on held-out `dataset_test12` and timed out on

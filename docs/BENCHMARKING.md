@@ -54,3 +54,115 @@ Freeze the candidate checkpoint first. Human reference runs on `evaluation1` and
 ```
 
 Do not pass `episodes_eval` to the training preprocessor or merge its cache into `data/datasets/cached_frames` while it is being used as a held-out evaluation set. The offline comparison asks which actions the model would take on expert images. Once the model controls the game, its images can diverge from the human recording; use autonomous success and attempt videos to judge those runs.
+
+## 4. Diagnose wall-facing and mouse failures
+
+For a binned-mouse checkpoint, annotate visually confirmed wall-facing ranges in
+the expert comparison. `action_comparison.csv` provides episode names and frame
+indices; the annotation uses inclusive ranges:
+
+```csv
+episode,start_frame,end_frame
+episode_YYYYMMDD_HHMMSS_000000,42,58
+```
+
+Then run:
+
+```bash
+.venv/bin/python analyze_mouse_validation.py \
+  model_attempts/benchmarks/candidate/action_comparison.csv \
+  --wall-ranges model_attempts/benchmarks/candidate/wall_ranges.csv
+```
+
+The report compares mouse-bin entropy, peak separation, opposing-direction
+peaks, and jump false positives inside and outside the annotated ranges. The
+ranges must come from video inspection; the dataset has no automatic wall
+label.
+
+For a live failure, save video and diagnostics, note every wall-facing time
+window, and analyze the corresponding ticks:
+
+```bash
+.venv/bin/python run_imitation.py \
+  --checkpoint models/imitation/checkpoints/runs/candidate/best.pt \
+  --map dataset_test9 --max-seconds 30 --record-video --verbose
+
+.venv/bin/python analyze_mouse_rollout.py \
+  model_attempts/attempt_TIMESTAMP.jsonl \
+  --wall-window 12:18 --wall-window 23:27
+```
+
+Opposing peaks may indicate conflicting demonstrations, while a flat
+distribution may indicate low confidence. Neither result proves a cause by
+itself; interpret it alongside the video, expert-frame metrics, visual motion,
+and focus diagnostics.
+
+## 5. Calibrate jump and forward decisions
+
+Sweep jump thresholds only on held-out expert predictions:
+
+```bash
+.venv/bin/python benchmark_jump.py \
+  model_attempts/benchmarks/candidate/action_comparison.csv
+```
+
+Choose a precision/recall trade-off before live evaluation, then pass that
+threshold consistently to `run_imitation.py` or `run_model_sequence.py` with
+`--jump-threshold`. Thresholds are checkpoint-specific; do not promote one from
+a different model merely because it performed well there.
+
+If a policy remains idle despite expert-frame evidence that forward movement is
+correct, use `--move-w-threshold FLOAT` for a short calibration run. Change one
+decision rule at a time and leave mouse decoding and other thresholds fixed.
+Threshold overrides test calibration; they do not retrain the model or prove
+that it can complete a chamber. Confirm any candidate with repeated autonomous
+runs.
+
+## 6. Record targeted recovery demonstrations
+
+Use recovery recording only after calibration shows a genuinely unfamiliar
+policy-induced state. Stop a model attempt while Portal 2 is still at the
+failure state; the runner releases held controls during cleanup. Without
+reloading the chamber, record a human recovery:
+
+```bash
+.venv/bin/python record_recovery.py \
+  --map dataset_test9 \
+  --source-attempt model_attempts/attempt_TIMESTAMP.jsonl \
+  --max-seconds 30
+```
+
+Keep successful corrections separate from the base dataset and its validation
+split:
+
+```bash
+.venv/bin/python -m models.imitation.preprocess \
+  --recordings-dir episodes/recovery/goal_reached \
+  --cache-dir data/datasets/recovery_cached_frames
+
+.venv/bin/python -m models.imitation.train_bc \
+  --cache-dir data/datasets/cached_frames \
+  --train-extra-cache-dir data/datasets/recovery_cached_frames \
+  --correction-sampling-fraction 0.10 \
+  --start-window-frames 8 --start-sampling-boost 5 \
+  --checkpoint-dir models/imitation/checkpoints/runs/candidate_recovery
+```
+
+Extra caches are added to training only after the original episode split, so
+they do not contaminate the preserved base validation set. Use a new checkpoint
+directory, review every correction video, and include several distinct
+recoveries before assigning a large sampling fraction.
+
+## Acceptance criteria
+
+A candidate is ready for promotion only when:
+
+- offline reports use data excluded from training;
+- live trials use clean, training-compatible frames;
+- runner errors and manual cancellations are marked invalid rather than failed;
+- each evaluation chamber has repeated autonomous attempts;
+- videos and diagnostics support the reported outcomes; and
+- evaluation recordings remain isolated from training data.
+
+The [CLI reference](CLI_REFERENCE.md) documents every benchmark, calibration,
+and recovery option.

@@ -1,6 +1,31 @@
 # Command-line reference
 
-Run commands from the repository root. Python commands use `.venv/bin/python` on this Linux installation. `-h` or `--help` prints the current parser for each Python entry point; the defaults below reflect the current code. See [the program guide](PROGRAM_GUIDE.md) for what each component does and [the script cheat sheet](../SCRIPT_CHEATSHEET.md) for short workflows.
+Run commands from the repository root. Python commands use `.venv/bin/python`
+on this Linux installation. `-h` or `--help` prints the current parser for each
+Python entry point; the defaults below reflect the current code. See the
+[program guide](PROGRAM_GUIDE.md) for component behavior and data contracts.
+
+## Common workflows
+
+| Task | Command |
+|---|---|
+| Check the setup | `./check_dependencies.sh` |
+| Install Python, capture, and input dependencies | `./install_dependencies.sh --all` |
+| Open Hammer++ | `./hammerpp-home.sh` |
+| Record 20 successful chamber runs | `.venv/bin/python record_dataset.py --map dataset_test2 --episodes 20` |
+| Report dataset outcomes and chambers | `.venv/bin/python dataset_stats.py` |
+| Cache successful demonstrations | `.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes/goal_reached` |
+| Train a new candidate | `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints/runs/candidate` |
+| Run a configured model | `./run_model.sh` |
+| Run automated tests | `.venv/bin/python -m unittest discover -s tests -p 'test_*.py'` |
+
+The recorder and live runner require a working Wayland desktop, Portal 2, and
+input permissions. Dataset reports and training do not require the game. On the
+current workstation, mount `/mnt/extra` before recording, preprocessing,
+training, or inference because the large artifact directories are symlinks to
+that drive. Use the [training runbook](TRAINING_RUNBOOK.md) for the active
+dataset's safe systemd command rather than treating the generic training row as
+an operational prescription.
 
 ## `record_dataset.py`
 
@@ -99,7 +124,10 @@ Example: `.venv/bin/python -m models.imitation.train_bc --holdout-map dataset_te
 
 The default cache is not filtered by chamber or outcome; prepare it intentionally. With the default opening and correction weights, `--sampling uniform` shuffles every usable training frame once per epoch, retaining the recorded frame proportions between maps. Boosted openings or a correction fraction use weighted draws with replacement. `--binary-class-weighting none` disables action-class reweighting. Mouse deltas are still scaled numerically for Gaussian training; this does not change sample frequencies. On a larger dataset, frequent step checkpoints can consume substantial disk space. Each completed epoch also appends sample-weighted train/validation totals, per-action losses, the learning rate used, and the next learning rate to `metrics.jsonl`. The number of epochs and batches determines training time; this command does not run the live game.
 
-For the mouse-bin experiment and its jump-weight follow-ups, see [the mouse policy workflow](MOUSE_POLICY_EXPERIMENT.md). Binned checkpoints keep the fitted edges and representative deltas inside the checkpoint. They use argmax independently on each axis during inference.
+For mouse, jump, and forward calibration procedures, see the
+[benchmark workflow](BENCHMARKING.md). Binned checkpoints keep the fitted edges
+and representative deltas inside the checkpoint. They use argmax independently
+on each axis during inference.
 
 For the 450-episode cutdown experiment (`dataset_test2` and `dataset_test5` through `dataset_test12`), use a separate checkpoint directory:
 
@@ -210,4 +238,28 @@ See [the benchmark workflow](BENCHMARKING.md) for complete commands and how to k
 | `.venv/bin/python recorder.py` | No flags. Low-level recorder that listens for game events without loading/resetting the chamber. |
 | `.venv/bin/python wrapper.py` | No flags. Manual preview-map and jump smoke test. |
 
-The scripts under `scripts/diagnostics/` and `scripts/legacy/` have no argument parsers. Their exact invocations and effects are listed in [the script cheat sheet](../SCRIPT_CHEATSHEET.md). Automated tests run with `.venv/bin/python -m unittest discover -s tests -p 'test_*.py'`.
+### Manual hardware diagnostics
+
+These commands operate on the real screen or input devices. Run them only in
+the intended Wayland/game session; they are not automated tests.
+
+| Command | Effect |
+|---|---|
+| `.venv/bin/python scripts/diagnostics/input_movement.py` | Waits three seconds, then presses and releases `W` through a virtual keyboard. |
+| `.venv/bin/python scripts/diagnostics/input_mouselook.py` | Waits three seconds, then sends a short relative mouse movement. |
+| `.venv/bin/python scripts/diagnostics/capture_bytes.py` | Reads five seconds of raw `wf-recorder` bytes from `DP-1` at 1280×720/20 FPS. |
+| `.venv/bin/python scripts/diagnostics/capture_motion.py` | Captures two Wayland frames and reports visual change. |
+
+### Legacy helpers
+
+These one-off helpers are retained under `scripts/legacy/` for reproducibility,
+not as recommended workflows:
+
+| Command | Purpose |
+|---|---|
+| `.venv/bin/python -m scripts.legacy.run_sequence` | Runs a hard-coded movement/use sequence in `puzzlemaker/preview`. |
+| `.venv/bin/python -m scripts.legacy.example_usage` | Replays `sequences/TEST_0_mimic_sequence/actions.csv` at 60 FPS. |
+| `./scripts/legacy/hammerpp_notas.sh` | Uses an alternate, machine-specific Hammer++ path that may need editing. |
+
+Automated tests run with
+`.venv/bin/python -m unittest discover -s tests -p 'test_*.py'`.

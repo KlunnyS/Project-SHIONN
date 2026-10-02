@@ -289,9 +289,13 @@ and repeated live chamber runs before promotion.
 
 When training state or behavior changes:
 
-1. Update the dated **Current v5 run** section in this file.
-2. Update the README's current-progress summary after a meaningful milestone.
-3. Update `CLI_REFERENCE.md` when flags or defaults change.
+1. Update the dated **Current training status** section in this file whenever a
+   run is started, stopped, resumed, completed, or superseded.
+2. Update the README's short milestone summary only after a meaningful result;
+   keep exact operational state here.
+3. Update `CLI_REFERENCE.md` when commands, flags, or defaults change.
 4. Update `PROGRAM_GUIDE.md` when architecture, data flow, or contracts change.
-5. Add a concise entry to `CHANGELOG.md`.
-6. Never commit datasets, recordings, checkpoints, or diagnostic media.
+5. Update `CHAMBER_AUTHORING.md` or `BENCHMARKING.md` when those workflows
+   change; do not copy the procedure into another document.
+6. Add a concise entry to `CHANGELOG.md`.
+7. Never commit datasets, recordings, checkpoints, or diagnostic media.

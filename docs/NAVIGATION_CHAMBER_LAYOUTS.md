@@ -1,8 +1,14 @@
 # Navigation chamber build sheet
 
-These are **proposed** chambers for the next navigation dataset. Build the geometry in Puzzle Maker, then add the recording triggers in Hammer++ using [the local chamber setup procedure](../LOCAL_DATASET_CHAMBER_SETUP.md). `dataset_test5` through `dataset_test12` were unused when this sheet was written. Reserve `evaluation2` for model testing; do not add its demonstrations to the training cache if it is meant to measure generalization.
+This sheet preserves the intended geometry and learning purpose of the
+navigation curriculum maps. Build or revise geometry in Puzzle Maker/Hammer++,
+then add and verify recording triggers with the
+[chamber authoring procedure](CHAMBER_AUTHORING.md). The current dataset already
+contains `dataset_test5` through `dataset_test12`; treat these plans as reference
+layouts rather than an unbuilt proposal. Keep `evaluation2` outside the training
+cache whenever it is reserved for generalization testing.
 
-![Color-coded overview of all nine proposed chamber grids](navigation_chamber_layouts.svg)
+![Color-coded overview of all nine chamber grids](navigation_chamber_layouts.svg)
 
 ## How to read the plans
 
@@ -18,11 +24,11 @@ Each character is one square on a **relative construction grid**. Pick a single 
 | `S` | Player spawn/entrance floor square. Facing direction and level are stated per map. The actual entrance door can be on an adjacent wall. |
 | `E` | Exit/goal trigger floor square. Its floor level is stated per map. The actual exit door can be on an adjacent wall. |
 
-North is the top of each drawing. Keep passages at least three grid squares wide as drawn. Make height transitions walkable at normal speed without a jump, and leave headroom above each flight. The exit must be a real finish point with `SignalGoalReached()`, not just a visible door. Put `SignalChamberReady()` where every reload reliably reaches it before recording should start. Use the [setup procedure](../LOCAL_DATASET_CHAMBER_SETUP.md) to check both events.
+North is the top of each drawing. Keep passages at least three grid squares wide as drawn. Make height transitions walkable at normal speed without a jump, and leave headroom above each flight. The exit must be a real finish point with `SignalGoalReached()`, not just a visible door. Put `SignalChamberReady()` where every reload reliably reaches it before recording should start. Use the [authoring procedure](CHAMBER_AUTHORING.md) to check both events.
 
 For the hidden-exit maps, walk the starting position in game and confirm the exit is outside the camera view **and** blocked by an opaque wall. Adjust wall height or entrance angle if the 2D drawing alone does not hide it. Keep the chambers bright enough that corners, stairs, and the floor edge are legible in the recorded 320×180 frames.
 
-## Suggested set
+## Layout set
 
 | Map | Start | Route from spawn | Height | Exit visible at start? | Main variation |
 |---|---|---|---|---|---|
