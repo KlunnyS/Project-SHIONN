@@ -170,3 +170,15 @@ Project-SHIONN/
 The main constraint is that Portal 2 is a real-time game rather than a
 high-throughput simulator. Autonomous results must therefore be judged with
 repeated live trials and reviewed videos, not offline action accuracy alone.
+
+## License and third-party notice
+
+Original SHIONN source code and documentation are licensed under the
+[GNU General Public License version 3 or later](LICENSE). You may redistribute
+and modify them under GPL version 3 or, at your option, any later version.
+
+Third-party dependencies retain their own licenses. *Portal 2*, Source, and
+related trademarks and game assets belong to Valve Corporation and their
+respective rights holders. This independent project is not affiliated with or
+endorsed by Valve, and the SHIONN license does not grant rights to third-party
+game assets or gameplay media.
