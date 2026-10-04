@@ -17,6 +17,7 @@ venv/
 .env.*
 !.env.example
 .agent
+AGENTS.md
 
 # Recorded demonstrations and generated training data
 episodes*
