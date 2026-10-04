@@ -23,6 +23,9 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Changed
 
+- Document the balanced 1,300-successful-episode dataset and the new isolated
+  v5 candidate run, retaining `dataset_test11` and `dataset_test12` as full
+  holdouts.
 - Activate focused XWayland input with unbound `MOUSE4` instead of Portal 2's
   zoom-bound `MOUSE3`, preventing live runs from starting with a train/inference
   field-of-view mismatch. A live `dataset_test12` smoke attempt confirmed

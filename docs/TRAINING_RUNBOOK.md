@@ -7,27 +7,30 @@ see the [CLI reference](CLI_REFERENCE.md).
 
 ## Current training status
 
-Status recorded on 2026-10-04: no training is active. A tuned test run was
-started at 12:27 CEST due to a misunderstanding and stopped cleanly about five
-minutes later when the request was clarified as live model testing. It had not
-reached its first 10,000-step checkpoint, so its run directory is empty and the
-completed baseline checkpoints were untouched.
+Status recorded on 2026-10-04 at 18:10 CEST: a new from-scratch balanced-data
+candidate is being started. It uses the 1,300 successful-episode cache, with
+`dataset_test11` and `dataset_test12` held out in full. The 450 new successful
+episodes include planned wall-correction, turn, stair, and chamber-specific
+variation; they are part of the base dataset rather than the separate
+policy-induced recovery cache.
 
 | Item | Value |
 |---|---|
-| Run directory | `models/imitation/checkpoints/runs/v5_holdout_11_12_tuned_v1` |
+| Run directory | `models/imitation/checkpoints/runs/v5_balanced_recovery_v1` |
 | Architecture | Residual v5 with binned mouse heads |
 | Training holdouts | `dataset_test11`, `dataset_test12` |
+| Cached data | 1,300 successful episodes; 1,100 training and 200 held out |
 | Training / validation batch | `8` / `32` |
 | Initial learning rate | `2e-4` |
 | Plateau schedule | First miss reduces LR by `0.25`; second consecutive miss stops |
 | Workers / checkpoint interval | `0` / `10,000` optimizer steps |
-| Service outcome | `shionn-train-v5-tuned-v1`: intentionally stopped, no checkpoint |
+| Service | `shionn-train-v5-balanced-recovery-v1` |
 | Baseline to beat | validation loss `2.6779654485835236` from the completed run's epoch 2 |
 
-The configuration remains available for a future from-scratch comparison, but
-do not treat this empty trial as a candidate. Keep the completed run's
-`best.pt` as the current v5 checkpoint.
+The prior `v5_holdout_11_12_tuned_v1` trial was intentionally stopped without a
+checkpoint after about five minutes. Keep the completed baseline's `best.pt` as
+the deployed policy until this candidate has completed expert and live
+comparison.
 
 ## Completed v5 baseline run
 
