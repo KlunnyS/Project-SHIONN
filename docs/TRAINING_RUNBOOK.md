@@ -73,6 +73,14 @@ unbound `MOUSE4` instead. Verify an unzoomed opening in new videos before using
 their results, and rerun the repeated benchmark before making promotion or
 retraining decisions.
 
+A live smoke attempt on 2026-10-04 verified the fix on `dataset_test12`. The
+opening remained unzoomed, XWayland input activated, all 148 logged ticks
+applied their actions, compositor fullscreen remained active with zero focus
+losses, and the run reached the goal. The recording and diagnostics are
+`model_attempts/attempt_20261004_135245_185703.mp4` and `.jsonl`. This validates
+the input-activation fix only; a repeated clean benchmark is still required to
+measure policy reliability.
+
 The first 2026-09-28 sequence was invalidated after video inspection. Portal 2
 was not fullscreen: whole-output capture included the desktop bar and window
 border, while the portal-gun viewmodel visible throughout the demonstrations

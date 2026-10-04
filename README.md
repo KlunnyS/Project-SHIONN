@@ -22,8 +22,9 @@ Status last recorded on **2026-09-28**:
   validation.
 - The completed v5 baseline stopped after epoch 6 and retained epoch 2 as its
   best checkpoint (`2.677965` validation loss).
-- A corrected live check completed held-out `dataset_test12` once; repeated
-  clean trials are still required before the model can be treated as reliable.
+- An unzoomed 2026-10-04 live smoke check completed held-out `dataset_test12`
+  with input ready and zero focus losses; repeated clean trials are still
+  required before the model can be treated as reliable.
 - Reinforcement learning, reward shaping, recurrence, and portal-mechanics
   curricula remain future work.
 

@@ -23,7 +23,8 @@ All notable changes to Project SHIONN are documented in this file.
 
 - Activate focused XWayland input with unbound `MOUSE4` instead of Portal 2's
   zoom-bound `MOUSE3`, preventing live runs from starting with a train/inference
-  field-of-view mismatch.
+  field-of-view mismatch. A live `dataset_test12` smoke attempt confirmed
+  unzoomed input activation and reached the goal with zero focus losses.
 - Record the completed v5 periodic-checkpoint cleanup and invalidate the
   zoom-affected 2026-09-30 live sequence as an authoritative benchmark.
 - Consolidate project documentation around one source of truth per subject:
