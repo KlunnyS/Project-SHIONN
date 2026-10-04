@@ -169,7 +169,7 @@ Example: `.venv/bin/python run_imitation.py --checkpoint models/imitation/checkp
 | `--log-file PATH` | none | Write diagnostics to this JSONL file; implies logging. |
 | `--verbose` | off | Print a compact status line periodically. |
 | `--status-every SECONDS` | `1` | Interval for status output and focus checks. |
-| `--keep-focused` | off | On Hyprland, focus Portal 2, enter compositor fullscreen, enable/equip the portal-gun viewmodel, activate input, and restore focus/input after a loss. |
+| `--keep-focused` | off | On Hyprland, focus Portal 2, enter compositor fullscreen, enable/equip the portal-gun viewmodel, activate input through unbound `MOUSE4`, and restore focus/input after a loss. Keep `MOUSE4` unbound in Portal 2. |
 | `--hyprland-instance VALUE` | `auto` | Hyprland instance signature; `auto` discovers candidates, including for SSH sessions. |
 
 Positive `--max-seconds` makes the runner ignore chamber-only `episode_failed|timeout` as a stop signal; its own time limit remains authoritative. `--max-seconds 0` lets that event end the run. Escape and Ctrl+C stop the policy; held controls are released during cleanup.

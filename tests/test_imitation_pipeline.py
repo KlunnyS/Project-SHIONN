@@ -307,7 +307,7 @@ class ImitationPipelineTest(unittest.TestCase):
 
         focus_window.assert_not_called()
         run_command.assert_not_called()
-        controller.click_virtual_mouse.assert_called_once_with("middle")
+        controller.click_virtual_mouse.assert_called_once_with("side")
         controller.send_command.assert_called_once_with("unpause")
 
     @patch("run_imitation.time.sleep")
@@ -332,21 +332,31 @@ class ImitationPipelineTest(unittest.TestCase):
 
         focus_window.assert_called_once_with("auto")
         self.assertIn("movecursor", run_command.call_args.args[0])
-        controller.click_virtual_mouse.assert_called_once_with("middle")
+        controller.click_virtual_mouse.assert_called_once_with("side")
 
     @patch("wrapper.time.sleep")
-    def test_middle_activation_click_emits_only_middle_button(self, _sleep):
+    def test_side_activation_click_emits_only_side_button(self, _sleep):
         import evdev
 
         controller = Portal2Controller(log_file=None)
         controller.ui = Mock()
 
-        self.assertTrue(controller.click_virtual_mouse("middle"))
+        self.assertTrue(controller.click_virtual_mouse("side"))
 
         self.assertEqual(controller.ui.write.call_args_list, [
-            call(evdev.ecodes.EV_KEY, evdev.ecodes.BTN_MIDDLE, 1),
-            call(evdev.ecodes.EV_KEY, evdev.ecodes.BTN_MIDDLE, 0),
+            call(evdev.ecodes.EV_KEY, evdev.ecodes.BTN_SIDE, 1),
+            call(evdev.ecodes.EV_KEY, evdev.ecodes.BTN_SIDE, 0),
         ])
+
+    def test_virtual_mouse_advertises_side_activation_button(self):
+        import evdev
+
+        controller = Portal2Controller(log_file=None)
+        with patch("evdev.UInput") as create_device:
+            self.assertTrue(controller.init_virtual_mouse())
+
+        capabilities = create_device.call_args.args[0]
+        self.assertIn(evdev.ecodes.BTN_SIDE, capabilities[evdev.ecodes.EV_KEY])
 
     def test_attempt_log_writes_line_delimited_json(self):
         with tempfile.TemporaryDirectory() as temporary_directory:

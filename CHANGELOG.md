@@ -21,6 +21,11 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Changed
 
+- Activate focused XWayland input with unbound `MOUSE4` instead of Portal 2's
+  zoom-bound `MOUSE3`, preventing live runs from starting with a train/inference
+  field-of-view mismatch.
+- Record the completed v5 periodic-checkpoint cleanup and invalidate the
+  zoom-affected 2026-09-30 live sequence as an authoritative benchmark.
 - Consolidate project documentation around one source of truth per subject:
   shorten the README, merge the script cheat sheet into the CLI reference,
   move chamber setup into a maintained authoring guide, and fold reusable

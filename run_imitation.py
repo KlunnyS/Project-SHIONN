@@ -302,7 +302,7 @@ def prepare_portal_visual_state(
 def activate_portal_input(
     controller: Portal2Controller, instance: str = "auto"
 ) -> dict | None:
-    """Focus Portal, acquire XWayland input without firing, and unpause."""
+    """Focus Portal, acquire XWayland input without a game action, and unpause."""
     status = query_hyprland_active_window(instance)
     already_focused = bool((status or {}).get("portal_focused"))
     if not already_focused:
@@ -331,7 +331,10 @@ def activate_portal_input(
             )
         except (OSError, subprocess.SubprocessError):
             return None
-    if not controller.click_virtual_mouse("middle"):
+    # MOUSE3 is Portal 2's default +zoom binding. MOUSE4 is unbound on the
+    # supported installation, so its side-button event acquires XWayland input
+    # without changing the policy's visual state or the user's game bindings.
+    if not controller.click_virtual_mouse("side"):
         return None
     controller.send_command("unpause")
     time.sleep(0.1)

@@ -7,7 +7,7 @@ see the [CLI reference](CLI_REFERENCE.md).
 
 ## Current training status
 
-Status recorded on 2026-09-28: no training is active. A tuned test run was
+Status recorded on 2026-10-04: no training is active. A tuned test run was
 started at 12:27 CEST due to a misunderstanding and stopped cleanly about five
 minutes later when the request was clarified as live model testing. It had not
 reached its first 10,000-step checkpoint, so its run directory is empty and the
@@ -53,13 +53,25 @@ Training loss continued to improve through epoch 6, but validation loss did
 not beat epoch 2 and worsened in the final epochs. Use `best.pt`, not
 `last.pt`, for evaluation; the divergence indicates overfitting after epoch 2.
 
-The run directory contains 322 periodic `step_*.pt` files: 303 legacy files
-from the original 1,000-step interval and 19 files saved at the resumed
-10,000-step interval. The complete run directory occupies about 48 GiB. These
-artifacts are not tracked by Git. `last.pt` contains the final optimizer state,
-while `best.pt` contains the best validation candidate.
+Checkpoint cleanup completed on 2026-10-04. The run retains `best.pt/json`,
+`last.pt/json`, `metrics.jsonl`, and the newest periodic recovery pair
+`step_000490000.pt/json`; all three retained checkpoints passed a load check.
+Removing 321 older periodic pairs recovered about 47.37 GiB and reduced the
+run directory to about 453 MiB. These artifacts are not tracked by Git.
+`last.pt` contains the final optimizer state, while `best.pt` contains the best
+validation candidate.
 
 ## Live benchmark and visual-state correction
+
+Review on 2026-10-04 found another visual-state mismatch in the 2026-09-30
+sequence: input activation clicked `MOUSE3`, which this Portal 2 installation
+binds to `+zoom`. The model has no zoom action, and zoom changes both its visual
+input and the apparent effect of mouse motion. Treat
+`model_attempts/sequences/sequence_20260930_112316_263060/` as diagnostic only,
+not an authoritative model score. The runner now activates XWayland input with
+unbound `MOUSE4` instead. Verify an unzoomed opening in new videos before using
+their results, and rerun the repeated benchmark before making promotion or
+retraining decisions.
 
 The first 2026-09-28 sequence was invalidated after video inspection. Portal 2
 was not fullscreen: whole-output capture included the desktop bar and window
