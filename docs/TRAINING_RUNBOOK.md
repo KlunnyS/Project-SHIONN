@@ -7,12 +7,13 @@ see the [CLI reference](CLI_REFERENCE.md).
 
 ## Current training status
 
-Status recorded on 2026-10-04 at 18:10 CEST: a new from-scratch balanced-data
-candidate is being started. It uses the 1,300 successful-episode cache, with
-`dataset_test11` and `dataset_test12` held out in full. The 450 new successful
-episodes include planned wall-correction, turn, stair, and chamber-specific
-variation; they are part of the base dataset rather than the separate
-policy-induced recovery cache.
+Status recorded on 2026-10-04 at 21:16 CEST: the from-scratch balanced-data
+candidate completed successfully after epoch 4, when early stopping followed
+two consecutive validation misses. It uses the 1,300 successful-episode cache,
+with `dataset_test11` and `dataset_test12` held out in full. The 450 new
+successful episodes include planned wall-correction, turn, stair, and
+chamber-specific variation; they are part of the base dataset rather than the
+separate policy-induced recovery cache.
 
 | Item | Value |
 |---|---|
@@ -24,13 +25,17 @@ policy-induced recovery cache.
 | Initial learning rate | `2e-4` |
 | Plateau schedule | First miss reduces LR by `0.25`; second consecutive miss stops |
 | Workers / checkpoint interval | `0` / `10,000` optimizer steps |
-| Service | `shionn-train-v5-balanced-recovery-v1` |
-| Baseline to beat | validation loss `2.6779654485835236` from the completed run's epoch 2 |
+| Service outcome | `shionn-train-v5-balanced-recovery-v1`: success |
+| Latest checkpoint | `last.pt`: epoch 4 / global step 117,608 |
+| Best checkpoint | `best.pt`: epoch 2 / validation loss `2.649578924484107` |
+| Training duration | 3h 06m 35.8s wall time; 46m 37.4s average epoch |
 
-The prior `v5_holdout_11_12_tuned_v1` trial was intentionally stopped without a
-checkpoint after about five minutes. Keep the completed baseline's `best.pt` as
-the deployed policy until this candidate has completed expert and live
-comparison.
+The numerical best validation loss is lower than the completed baseline's
+`2.6779654485835236`, but the held-out chambers now include 100 episodes each
+rather than 50. Do not compare the losses as a promotion decision: compare
+both checkpoints on the same frozen expert-frame evaluation and repeated live
+chamber sequence. Keep the completed baseline's `best.pt` as the deployed
+policy until those comparisons are complete.
 
 ## Completed v5 baseline run
 
