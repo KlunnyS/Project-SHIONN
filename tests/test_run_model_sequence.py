@@ -61,6 +61,7 @@ class ModelSequenceTest(unittest.TestCase):
                 "--checkpoint", f"candidate={checkpoint}", "--map", "dataset_test1",
                 "--no-video", "--keep-focused", "--output", "DP-1",
                 "--move-w-threshold", "0.2",
+                "--mouse-max-abs", "28",
             ])
             job = build_jobs(args.models, args.maps, 1, args.order)[0]
             run_dir = Path(temporary_directory) / "attempt"
@@ -73,6 +74,7 @@ class ModelSequenceTest(unittest.TestCase):
             self.assertIn("--log-actions", command)
             self.assertIn("--keep-focused", command)
             self.assertEqual(command[command.index("--move-w-threshold") + 1], "0.2")
+            self.assertEqual(command[command.index("--mouse-max-abs") + 1], "28")
             self.assertNotIn("--record-video", command)
 
     def test_escape_in_one_attempt_stops_the_rest_of_the_sequence(self):

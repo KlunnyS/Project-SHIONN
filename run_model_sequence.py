@@ -94,6 +94,8 @@ def runner_command(job: Job, run_dir: Path, args: argparse.Namespace) -> list[st
         command.extend(("--jump-threshold", str(args.jump_threshold)))
     if args.move_w_threshold is not None:
         command.extend(("--move-w-threshold", str(args.move_w_threshold)))
+    if args.mouse_max_abs is not None:
+        command.extend(("--mouse-max-abs", str(args.mouse_max_abs)))
     if args.no_launch:
         command.append("--no-launch")
     if args.keep_focused:
@@ -145,6 +147,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Override the binary jump decision threshold for every live attempt")
     parser.add_argument("--move-w-threshold", type=float,
                         help="Override the forward decision threshold for every live attempt")
+    parser.add_argument("--mouse-max-abs", type=int,
+                        help="Clamp applied mouse dx/dy for every live attempt")
     parser.add_argument("--port", type=int, default=8020)
     parser.add_argument("--fps", type=float, default=24.0)
     parser.add_argument("--width", type=int, default=1920)
@@ -171,6 +175,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--jump-threshold must be between 0 and 1")
     if args.move_w_threshold is not None and not 0 < args.move_w_threshold < 1:
         parser.error("--move-w-threshold must be between 0 and 1")
+    if args.mouse_max_abs is not None and args.mouse_max_abs <= 0:
+        parser.error("--mouse-max-abs must be greater than zero")
     if not all(args.maps) or len(set(args.maps)) != len(args.maps):
         parser.error("--map values must be nonempty and unique")
     try:

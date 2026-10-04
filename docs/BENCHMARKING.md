@@ -97,6 +97,35 @@ distribution may indicate low confidence. Neither result proves a cause by
 itself; interpret it alongside the video, expert-frame metrics, visual motion,
 and focus diagnostics.
 
+The runner also writes explicit `diagnostic` records when one of these applied-
+action patterns lasts at least one second:
+
+- `policy_freeze`: no movement, interaction, firing, jumping, or mouse action;
+- `wall_stuck`: movement is commanded while sparse-frame visual delta remains
+  at or below `0.05`; or
+- `turn_loop`: movement is combined with horizontal mouse output of at least
+  `45` in the same direction.
+
+Each record has a `start` or `end` phase, and the final summary counts detected
+starts. These are triage signals, not proof of a cause; confirm them against
+the matching video.
+
+To isolate whether extreme mouse bins cause circular failures, compare the
+unchanged baseline against the same sequence with a cap:
+
+```bash
+.venv/bin/python run_model_sequence.py \
+  --checkpoint v5_best=models/imitation/checkpoints/runs/v5_holdout_11_12/best.pt \
+  --map dataset_test1 --map dataset_test10 --map dataset_test11 \
+  --map dataset_test12 --map evaluation2 \
+  --repeats 3 --keep-focused --mouse-max-abs 28
+```
+
+The cap is opt-in and does not modify the checkpoint. Every tick logs the raw
+model output as `raw_action`, the capped action sent to the controller as
+`action`, and whether they differ as `mouse_limited`. Keep all other settings
+and chamber order fixed when comparing it with the uncapped baseline.
+
 ## 5. Calibrate jump and forward decisions
 
 Sweep jump thresholds only on held-out expert predictions:

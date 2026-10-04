@@ -152,6 +152,7 @@ Example: `.venv/bin/python run_imitation.py --checkpoint models/imitation/checkp
 | `--device auto\|cuda\|cpu` | `auto` | Device for policy inference. |
 | `--jump-threshold FLOAT` | binary argmax | Use a validation-selected threshold between 0 and 1 for the jump action. |
 | `--move-w-threshold FLOAT` | binary argmax | Override the forward action threshold between 0 and 1 for calibration tests. |
+| `--mouse-max-abs N` | none | Experimental positive cap applied independently to mouse dx/dy. Raw and applied actions are both retained in JSONL. |
 | `--port N` | `8020` | Portal 2 netconsole port. |
 | `--fps FLOAT` | `24` | Prediction tick rate; screen capture/video FPS use a rounded positive integer. |
 | `--width N` | `1920` | Capture/video frame width. |
@@ -194,6 +195,7 @@ The runner makes a full checkpoint × chamber matrix. By default, each repeat vi
 | `--device auto\|cuda\|cpu` | `auto` | Policy inference device. |
 | `--jump-threshold FLOAT` | binary argmax | Pass a validation-selected jump threshold to every live attempt. |
 | `--move-w-threshold FLOAT` | binary argmax | Pass a forward action threshold to every live attempt. |
+| `--mouse-max-abs N` | none | Pass the experimental mouse-delta cap to every live attempt. |
 | `--port N` | `8020` | Portal 2 netconsole port. |
 | `--fps FLOAT` | `24` | Prediction/capture rate. |
 | `--width N`, `--height N` | `1920`, `1080` | Screen/video size. |
@@ -207,7 +209,7 @@ The runner makes a full checkpoint × chamber matrix. By default, each repeat vi
 | `--continue-on-error` | off | Try later jobs after a runner process fails; the sequence still exits nonzero. |
 | `--plan-only` | off | Show the job order without creating files or launching the game. |
 
-Every job gets a separate `attempt_*.jsonl` and, unless `--no-video` is used, MP4. `sequence.jsonl` in the timestamped folder records each job's checkpoint, map, return code, stop reason, and paths. A completed sequence also writes `benchmark_summary.json` with per-model, per-map success rates. `goal_reached` and `episode_failed` require chamber event signals; `time_limit` means no terminal event was received before the local deadline. Escape or Ctrl+C cancels the remaining jobs. The sequence stops on a process error unless `--continue-on-error` is set.
+Every job gets a separate `attempt_*.jsonl` and, unless `--no-video` is used, MP4. `sequence.jsonl` in the timestamped folder records each job's checkpoint, map, return code, stop reason, and paths. A completed sequence also writes `benchmark_summary.json` with per-model, per-map success rates. `goal_reached` and `episode_failed` require chamber event signals; `time_limit` means no terminal event was received before the local deadline. Escape or Ctrl+C cancels the remaining jobs. The sequence stops on a process error unless `--continue-on-error` is set. Attempt logs use `action` for the applied action and `raw_action` for the unchanged policy output; `mouse_limited` records whether the cap changed that tick.
 
 ## Benchmark reports
 

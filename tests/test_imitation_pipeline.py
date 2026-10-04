@@ -21,7 +21,7 @@ from models.imitation.preprocess import PREPROCESSING_CONFIG
 from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_episodes
 from models.imitation.train_bc import EarlyStopping, augment_batch, binary_class_weights_for_mode, consecutive_unimproved_epochs, format_duration, make_binary_class_weights, make_training_loader, run_epoch, select_maps, split_training_manifests, training_sampling_weights
 from recorder import FFmpegVideoWriter
-from run_imitation import AttemptLog, EscapeKeyMonitor, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, frame_change, fullscreen_portal_window, hyprland_instance_candidates, make_attempt_recording_path, parse_args, prepare_portal_visual_state
+from run_imitation import AttemptLog, EscapeKeyMonitor, RuntimeDiagnosticTracker, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, frame_change, fullscreen_portal_window, hyprland_instance_candidates, limit_mouse_action, make_attempt_recording_path, parse_args, prepare_portal_visual_state
 from wrapper import Portal2Controller
 
 
@@ -378,6 +378,44 @@ class ImitationPipelineTest(unittest.TestCase):
         change, _ = frame_change(sample, second)
         self.assertEqual(change, 16.0)
         self.assertEqual(action_label({"move_w": 1, "jump": 1}), "move_w+jump")
+
+    def test_mouse_limit_preserves_raw_action_and_caps_both_axes(self):
+        raw = {"move_w": 1, "mouse_dx": 147, "mouse_dy": -74}
+
+        applied = limit_mouse_action(raw, 28)
+
+        self.assertEqual(applied, {"move_w": 1, "mouse_dx": 28, "mouse_dy": -28})
+        self.assertEqual(raw, {"move_w": 1, "mouse_dx": 147, "mouse_dy": -74})
+        self.assertEqual(limit_mouse_action(raw, None), raw)
+
+    def test_runtime_diagnostics_emit_sustained_starts_and_ends(self):
+        freeze = RuntimeDiagnosticTracker(minimum_seconds=1.0)
+        self.assertEqual(freeze.update(0.0, {}, 0.0), [])
+        events = freeze.update(1.0, {}, 0.0)
+        self.assertEqual([(event["event"], event["phase"]) for event in events], [
+            ("policy_freeze", "start"),
+        ])
+        events = freeze.update(1.1, {"move_w": 1}, 1.0)
+        self.assertEqual([(event["event"], event["phase"]) for event in events], [
+            ("policy_freeze", "end"),
+        ])
+
+        wall = RuntimeDiagnosticTracker(minimum_seconds=1.0)
+        self.assertEqual(wall.update(0.0, {"move_w": 1}, 0.01), [])
+        events = wall.update(1.0, {"move_w": 1}, 0.01)
+        self.assertIn(("wall_stuck", "start"), [
+            (event["event"], event["phase"]) for event in events
+        ])
+
+        turn = RuntimeDiagnosticTracker(minimum_seconds=1.0)
+        action = {"move_w": 1, "mouse_dx": -45}
+        self.assertEqual(turn.update(0.0, action, 1.0), [])
+        events = turn.update(1.0, action, 1.0)
+        self.assertEqual([(event["event"], event["phase"]) for event in events], [
+            ("turn_loop", "start"),
+        ])
+        self.assertEqual(events[0]["direction"], "left")
+        self.assertEqual(turn.counts["turn_loop"], 1)
 
     def test_verbose_dry_run_never_applies_an_action(self):
         controller = Mock()

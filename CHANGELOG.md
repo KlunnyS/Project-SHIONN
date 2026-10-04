@@ -18,6 +18,8 @@ All notable changes to Project SHIONN are documented in this file.
 - Add tests for whole-chamber split isolation and mirrored action labels.
 - Add regression coverage for sample-weighted partial batches, persisted
   scheduler/early-stopping state, and legacy patience recovery from metrics.
+- Add opt-in live mouse-delta limiting with separate raw/applied JSONL actions,
+  plus sustained `policy_freeze`, `wall_stuck`, and `turn_loop` event records.
 
 ### Changed
 
@@ -25,6 +27,8 @@ All notable changes to Project SHIONN are documented in this file.
   zoom-bound `MOUSE3`, preventing live runs from starting with a train/inference
   field-of-view mismatch. A live `dataset_test12` smoke attempt confirmed
   unzoomed input activation and reached the goal with zero focus losses.
+- Pass the mouse cap through sequence runs and record the clean 2026-10-04
+  five-chamber diagnostic result and next controlled comparison.
 - Record the completed v5 periodic-checkpoint cleanup and invalidate the
   zoom-affected 2026-09-30 live sequence as an authoritative benchmark.
 - Consolidate project documentation around one source of truth per subject:

@@ -81,6 +81,19 @@ losses, and the run reached the goal. The recording and diagnostics are
 the input-activation fix only; a repeated clean benchmark is still required to
 measure policy reliability.
 
+A clean five-chamber sequence later on 2026-10-04 confirmed the remaining
+policy failures without the zoom mismatch. `dataset_test12` reached the goal in
+7.03 seconds; `dataset_test1`, `dataset_test10`, `dataset_test11`, and
+`evaluation2` reached the 60-second limit. All five attempts had zero focus
+losses. Video and action-log review found sustained idle output, large
+same-direction mouse/movement loops, and commanded wall approaches with little
+visual progress. The sequence is
+`model_attempts/sequences/sequence_20261004_135851_169801/`. The runner now
+records explicit `policy_freeze`, `wall_stuck`, and `turn_loop` events and
+supports an opt-in `--mouse-max-abs` cap. The next controlled live comparison
+should repeat the same chamber order with `--mouse-max-abs 28`; the uncapped
+default remains the baseline.
+
 The first 2026-09-28 sequence was invalidated after video inspection. Portal 2
 was not fullscreen: whole-output capture included the desktop bar and window
 border, while the portal-gun viewmodel visible throughout the demonstrations
@@ -107,10 +120,8 @@ agent immediately drove against a wall, where the viewmodel moved out of frame.
 The corrected sequence is under
 `model_attempts/sequences/sequence_20260928_125751_837912/`.
 
-A small performance HUD remained visible at the top-left. This is not the
-desktop bar or an open Steam overlay, but it should be hidden before the
-authoritative repeated benchmark. An enabled but closed Steam overlay does not
-change the captured image. The 1/1 held-out success on `dataset_test12` shows
+The previously suspected performance overlay was the Steam HUD and is not a
+policy-run blocker. The 1/1 held-out success on `dataset_test12` shows
 that the checkpoint can complete an unseen chamber, but one attempt per map is
 not enough to estimate reliability. Keep the existing deployed policy as the
 baseline until repeated clean trials are available.

@@ -23,6 +23,9 @@ from wrapper import Portal2Controller, is_game_running, launch_game
 TERMINAL_EVENTS = ("EVT|goal_reached", "EVT|episode_failed")
 PORTAL_WINDOW_CLASS = "steam_app_620"
 EPISODE_FAILURE_PATTERN = re.compile(r"EVT\|episode_failed\|([^\r\n]*)")
+DIAGNOSTIC_MIN_SECONDS = 1.0
+WALL_STUCK_VISUAL_DELTA = 0.05
+TURN_LOOP_MOUSE_MIN_ABS = 45
 
 
 def classify_terminal_events(
@@ -135,6 +138,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Override the binary jump decision threshold for live runs")
     parser.add_argument("--move-w-threshold", type=float,
                         help="Override the forward decision threshold for a live calibration test")
+    parser.add_argument(
+        "--mouse-max-abs", type=int,
+        help="Clamp applied mouse dx/dy to +/- this value while preserving raw predictions in JSONL",
+    )
     parser.add_argument("--port", type=int, default=8020)
     parser.add_argument("--fps", type=float, default=24.0)
     parser.add_argument("--width", type=int, default=1920)
@@ -356,6 +363,137 @@ def action_label(action: dict[str, int]) -> str:
     return "+".join(active) if active else "idle"
 
 
+def limit_mouse_action(
+    action: dict[str, int], max_abs: int | None
+) -> dict[str, int]:
+    """Return an action whose applied mouse deltas respect an optional cap."""
+    limited = dict(action)
+    if max_abs is None:
+        return limited
+    for name in ("mouse_dx", "mouse_dy"):
+        value = int(limited.get(name, 0))
+        limited[name] = max(-max_abs, min(max_abs, value))
+    return limited
+
+
+def movement_commanded(action: dict[str, int]) -> bool:
+    return any(action.get(name) for name in ("move_w", "move_a", "move_s", "move_d"))
+
+
+def action_is_idle(action: dict[str, int]) -> bool:
+    return not any(action.get(name) for name in (
+        "move_w", "move_a", "move_s", "move_d", "jump", "use",
+        "fire_left", "fire_right", "mouse_dx", "mouse_dy",
+    ))
+
+
+class RuntimeDiagnosticTracker:
+    """Emit start/end records for sustained rollout failure signatures."""
+
+    def __init__(
+        self,
+        *,
+        minimum_seconds: float = DIAGNOSTIC_MIN_SECONDS,
+        wall_visual_delta: float = WALL_STUCK_VISUAL_DELTA,
+        turn_mouse_min_abs: int = TURN_LOOP_MOUSE_MIN_ABS,
+    ) -> None:
+        self.minimum_seconds = minimum_seconds
+        self.wall_visual_delta = wall_visual_delta
+        self.turn_mouse_min_abs = turn_mouse_min_abs
+        self.counts = {
+            "policy_freeze": 0,
+            "wall_stuck": 0,
+            "turn_loop": 0,
+        }
+        self._states = {
+            name: {"started_at": None, "active": False, "details": {}}
+            for name in self.counts
+        }
+        self._turn_direction = 0
+
+    def reset(self) -> None:
+        """Discard pending streaks after an episode, policy, or focus reset."""
+        for state in self._states.values():
+            state.update(started_at=None, active=False, details={})
+        self._turn_direction = 0
+
+    def _advance(
+        self,
+        name: str,
+        condition: bool,
+        elapsed_seconds: float,
+        **details,
+    ) -> list[dict]:
+        state = self._states[name]
+        events = []
+        if condition:
+            if state["started_at"] is None:
+                state["started_at"] = elapsed_seconds
+                state["details"] = details
+            duration = elapsed_seconds - state["started_at"]
+            if not state["active"] and duration >= self.minimum_seconds:
+                state["active"] = True
+                self.counts[name] += 1
+                events.append({
+                    "event": name,
+                    "phase": "start",
+                    "started_at_seconds": state["started_at"],
+                    "duration_seconds": duration,
+                    **state["details"],
+                })
+        else:
+            if state["active"]:
+                events.append({
+                    "event": name,
+                    "phase": "end",
+                    "started_at_seconds": state["started_at"],
+                    "duration_seconds": elapsed_seconds - state["started_at"],
+                    **state["details"],
+                })
+            state.update(started_at=None, active=False, details={})
+        return events
+
+    def update(
+        self,
+        elapsed_seconds: float,
+        action: dict[str, int],
+        visual_delta: float | None,
+    ) -> list[dict]:
+        """Update all signatures from the applied action and current frame delta."""
+        events = self._advance(
+            "policy_freeze", action_is_idle(action), elapsed_seconds
+        )
+        moving = movement_commanded(action)
+        events.extend(self._advance(
+            "wall_stuck",
+            moving
+            and visual_delta is not None
+            and visual_delta <= self.wall_visual_delta,
+            elapsed_seconds,
+            visual_delta_max=self.wall_visual_delta,
+        ))
+
+        mouse_dx = int(action.get("mouse_dx", 0))
+        turn_direction = (
+            1 if moving and mouse_dx >= self.turn_mouse_min_abs
+            else -1 if moving and mouse_dx <= -self.turn_mouse_min_abs
+            else 0
+        )
+        if turn_direction != self._turn_direction:
+            events.extend(self._advance(
+                "turn_loop", False, elapsed_seconds
+            ))
+            self._turn_direction = turn_direction
+        events.extend(self._advance(
+            "turn_loop",
+            turn_direction != 0,
+            elapsed_seconds,
+            direction="right" if turn_direction > 0 else "left",
+            mouse_min_abs=self.turn_mouse_min_abs,
+        ))
+        return events
+
+
 def apply_predicted_action(
     controller: Portal2Controller,
     action: dict[str, int],
@@ -395,6 +533,8 @@ def main() -> None:
         raise ValueError("--max-seconds must be zero or greater")
     if args.status_every <= 0:
         raise ValueError("--status-every must be greater than zero")
+    if args.mouse_max_abs is not None and args.mouse_max_abs <= 0:
+        raise ValueError("--mouse-max-abs must be greater than zero")
     if not args.checkpoint.is_file():
         raise FileNotFoundError(f"Checkpoint not found: {args.checkpoint}")
 
@@ -432,6 +572,7 @@ def main() -> None:
     input_ready = None
     visual_state = None
     stop_reason = "time_limit"
+    diagnostic_tracker = RuntimeDiagnosticTracker()
 
     try:
         escape_monitor.start()
@@ -504,7 +645,13 @@ def main() -> None:
                 visual_state=visual_state,
                 jump_threshold=args.jump_threshold,
                 move_w_threshold=args.move_w_threshold,
+                mouse_max_abs=args.mouse_max_abs,
                 mouse_bins=policy.mouse_bins.config if policy.mouse_bins is not None else None,
+                runtime_diagnostics={
+                    "minimum_seconds": diagnostic_tracker.minimum_seconds,
+                    "wall_stuck_visual_delta_max": diagnostic_tracker.wall_visual_delta,
+                    "turn_loop_mouse_min_abs": diagnostic_tracker.turn_mouse_min_abs,
+                },
             )
             print(f"Writing attempt diagnostics to: {log_path}")
 
@@ -537,6 +684,7 @@ def main() -> None:
                 break
             frame = camera.get_latest_frame()
             action = None
+            raw_action = None
             action_applied = False
             diagnostics = None
             change = None
@@ -547,7 +695,8 @@ def main() -> None:
                     visual_change_samples += 1
                 if video_writer is not None:
                     video_writer.write(frame)
-                action, diagnostics = policy.predict_with_diagnostics(frame)
+                raw_action, diagnostics = policy.predict_with_diagnostics(frame)
+                action = limit_mouse_action(raw_action, args.mouse_max_abs)
                 action_applied = apply_predicted_action(
                     controller,
                     action,
@@ -566,6 +715,7 @@ def main() -> None:
             )
             if "EVT|chamber_ready" in console_output:
                 policy.reset()
+                diagnostic_tracker.reset()
                 controller.release_policy_actions()
             if ignored_chamber_timeout:
                 print(
@@ -574,6 +724,7 @@ def main() -> None:
                 )
             if terminal_received:
                 policy.reset()
+                diagnostic_tracker.reset()
                 controller.release_policy_actions()
                 if "EVT|goal_reached" in console_output:
                     terminal_outcome = "goal_reached"
@@ -599,6 +750,7 @@ def main() -> None:
                     focus_loss_count += 1
                     controller.release_policy_actions()
                     policy.reset()
+                    diagnostic_tracker.reset()
                     focus_status = (
                         focus_portal_window(args.hyprland_instance)
                         if args.dry_run
@@ -624,12 +776,29 @@ def main() -> None:
                     )
                 next_status = now + args.status_every
 
+            if action is not None:
+                for event in diagnostic_tracker.update(
+                    now - started, action, change
+                ):
+                    if attempt_log is not None:
+                        attempt_log.write(
+                            "diagnostic", tick=tick_count,
+                            elapsed_seconds=now - started, **event,
+                        )
+                    if args.verbose and event["phase"] == "start":
+                        print(
+                            f"diagnostic t={now - started:6.1f}s "
+                            f"event={event['event']}"
+                        )
+
             if attempt_log is not None and action is not None:
                 attempt_log.write(
                     "tick",
                     tick=tick_count,
                     elapsed_seconds=now - started,
                     action=action,
+                    raw_action=raw_action,
+                    mouse_limited=raw_action != action,
                     policy=diagnostics,
                     action_applied=action_applied,
                     visual_delta=change,
@@ -674,6 +843,7 @@ def main() -> None:
                     if visual_change_samples else None
                 ),
                 stop_reason=stop_reason,
+                diagnostic_counts=diagnostic_tracker.counts,
             )
             attempt_log.close()
             print(f"Attempt diagnostics saved to: {log_path}")
