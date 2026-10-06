@@ -126,6 +126,14 @@ model output as `raw_action`, the capped action sent to the controller as
 `action`, and whether they differ as `mouse_limited`. Keep all other settings
 and chamber order fixed when comparing it with the uncapped baseline.
 
+On 2026-10-06, an experimental `74 × tanh(raw/74)` response was compared with
+the uncapped balanced candidate over three repeats of `dataset_test1`,
+`dataset_test11`, and `dataset_test12`. It reduced steering too aggressively in
+closed-loop use: zero-mouse raw predictions rose from 84.0% to 98.3%, freeze
+events rose from 7 to 25, `dataset_test11` fell from 1/3 to 0/3 successes, and
+`dataset_test12` fell from 3/3 to 2/3. The experiment was rejected and its CLI
+option was not retained. Use uncapped behavior for future recovery-data work.
+
 ## 5. Calibrate jump and forward decisions
 
 Sweep jump thresholds only on held-out expert predictions:

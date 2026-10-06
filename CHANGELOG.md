@@ -23,6 +23,9 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Changed
 
+- Reject the experimental soft mouse-response limiter after a controlled live
+  comparison reduced steering, increased freeze events, and lowered success on
+  held-out chambers; retain uncapped mouse output as the supported default.
 - Complete the isolated balanced-data v5 candidate after four epochs and
   early stopping, retaining `dataset_test11` and `dataset_test12` as full
   holdouts; promotion remains pending same-evaluation expert and live
