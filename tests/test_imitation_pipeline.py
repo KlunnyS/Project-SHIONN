@@ -15,17 +15,48 @@ import torch
 
 from models.imitation.checkpoint import load_checkpoint, save_checkpoint
 from models.imitation.dataset import BehaviorCloningDataset, EpisodeManifest, discover_cached_episodes, split_episode_manifests
+from models.imitation.frozen_split import load_frozen_split
 from models.imitation.inference import PolicyInference
 from models.imitation.network import ARCHITECTURE_VERSION, ImitationPolicy
 from models.imitation.preprocess import PREPROCESSING_CONFIG
 from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_episodes
-from models.imitation.train_bc import EarlyStopping, augment_batch, binary_class_weights_for_mode, consecutive_unimproved_epochs, format_duration, make_binary_class_weights, make_training_loader, run_epoch, select_maps, split_training_manifests, training_sampling_weights
+from models.imitation.train_bc import EarlyStopping, augment_batch, binary_class_weights_for_mode, consecutive_unimproved_epochs, format_duration, make_binary_class_weights, make_training_loader, partition_frozen_training, run_epoch, select_maps, split_training_manifests, training_sampling_weights
 from recorder import FFmpegVideoWriter
 from run_imitation import AttemptLog, EscapeKeyMonitor, RuntimeDiagnosticTracker, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, frame_change, fullscreen_portal_window, hyprland_instance_candidates, limit_mouse_action, make_attempt_recording_path, parse_args, prepare_portal_visual_state
 from wrapper import Portal2Controller
 
 
 class ImitationPipelineTest(unittest.TestCase):
+    def test_frozen_split_enforces_registered_episodes_and_roles(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "split.json"
+            path.write_text(json.dumps({
+                "version": 1,
+                "split_id": "test-v1",
+                "map_roles": {"train_map": "train", "val_map": "validation", "eval_map": "evaluation"},
+                "episodes": [
+                    {"id": "train_1", "map": "train_map", "role": "train", "recorded_at": "2026-10-01", "cache_group": "base"},
+                    {"id": "val_1", "map": "val_map", "role": "validation", "recorded_at": "2026-10-02", "cache_group": "base"},
+                    {"id": "extra_1", "map": "train_map", "role": "train", "recorded_at": "2026-10-03", "cache_group": "recovery"},
+                ],
+            }), encoding="utf-8")
+            split = load_frozen_split(path)
+            base = [
+                EpisodeManifest("train_1", Path("f"), Path("a"), 1, "train_map"),
+                EpisodeManifest("val_1", Path("f"), Path("a"), 1, "val_map"),
+            ]
+            split.verify_cache(base, "base")
+            train, validation = partition_frozen_training(base, split)
+            self.assertEqual([item.name for item in train], ["train_1"])
+            self.assertEqual([item.name for item in validation], ["val_1"])
+            split.verify_cache([EpisodeManifest("extra_1", Path("f"), Path("a"), 1, "train_map")], "recovery")
+            with self.assertRaisesRegex(ValueError, "unregistered"):
+                split.verify_cache(base + [EpisodeManifest("eval_1", Path("f"), Path("a"), 1, "eval_map")], "base")
+            with self.assertRaisesRegex(ValueError, "map mismatch"):
+                split.verify_cache([base[0], EpisodeManifest("val_1", Path("f"), Path("a"), 1, "train_map")], "base")
+            with self.assertRaisesRegex(ValueError, "missing"):
+                split.verify_cache(base[:1], "base")
+
     def test_whole_chamber_holdout_never_leaks_into_training(self):
         manifests = [
             EpisodeManifest(f"{map_name}_{index}", Path("f"), Path("a"), 1, map_name)

@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from .checkpoint import load_checkpoint, save_checkpoint
 from .dataset import BINARY_ACTION_COLUMNS, BehaviorCloningDataset, discover_cached_episodes, split_episode_manifests
+from .frozen_split import DEFAULT_SPLIT_PATH, FrozenSplit, load_frozen_split
 from .mouse_bins import MouseBins
 from .network import ARCHITECTURE_VERSION, BINNED_ARCHITECTURE_VERSION, BinnedImitationPolicy, ImitationPolicy
 from .preprocess import PREPROCESSING_CONFIG
@@ -315,6 +316,7 @@ def checkpoint_config(
             "label_smoothing": args.label_smoothing,
             "validation_fraction": args.validation_fraction,
             "holdout_maps": sorted(args.holdout_maps),
+            "split_manifest": str(args.split_manifest) if not args.unfrozen_split else None,
             "seed": args.seed,
             "sampling": args.sampling,
             "binary_class_weighting": args.binary_class_weighting,
@@ -376,6 +378,17 @@ def split_training_manifests(
     validation = [item for item in manifests if item.map_name in held_out]
     if not train:
         raise ValueError("At least one non-holdout chamber is required for training")
+    return train, validation
+
+
+def partition_frozen_training(
+    manifests: list, split: FrozenSplit,
+) -> tuple[list, list]:
+    """Use declared episode roles, excluding evaluation episodes entirely."""
+    train = [item for item in manifests if split.role(item, "base") == "train"]
+    validation = [item for item in manifests if split.role(item, "base") == "validation"]
+    if not train or not validation:
+        raise ValueError("Frozen split needs selected training and validation episodes")
     return train, validation
 
 
@@ -463,6 +476,10 @@ def make_training_loader(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train SHIONN's behavior-cloning policy from cached frames.")
     parser.add_argument("--cache-dir", type=Path, default=Path("data/datasets/cached_frames"))
+    parser.add_argument("--split-manifest", type=Path, default=DEFAULT_SPLIT_PATH,
+                        help="Versioned episode split; required by default for training")
+    parser.add_argument("--unfrozen-split", action="store_true",
+                        help="Explicitly bypass the frozen manifest for experimental datasets")
     parser.add_argument("--train-extra-cache-dir", dest="train_extra_cache_dirs",
                         type=Path, action="append", default=[],
                         help="Add cached correction episodes to training only; repeat as needed")
@@ -530,19 +547,44 @@ def main() -> None:
     args = parser.parse_args()
     run_started_at = time.perf_counter()
     torch.manual_seed(args.seed)
-    manifests = select_maps(discover_cached_episodes(args.cache_dir), args.maps)
-    train_manifests, validation_manifests = split_training_manifests(
-        manifests, args.validation_fraction, args.seed,
-        stratify=args.sampling == "chamber-balanced",
-        holdout_maps=args.holdout_maps,
-    )
-    known_episodes = {item.name for item in manifests}
+    all_manifests = discover_cached_episodes(args.cache_dir)
+    frozen_split = None if args.unfrozen_split else load_frozen_split(args.split_manifest)
+    evaluation_maps = {"evaluation1", "evaluation2"}
+    if frozen_split is None and any(item.map_name in evaluation_maps for item in all_manifests):
+        raise ValueError("Evaluation chambers cannot enter training, even with --unfrozen-split")
+    if frozen_split is not None:
+        frozen_split.verify_cache(all_manifests, "base")
+        expected_holdouts = {name for name, role in frozen_split.map_roles.items()
+                             if role == "validation"}
+        if args.holdout_maps and set(args.holdout_maps) != expected_holdouts:
+            raise ValueError("--holdout-map conflicts with frozen split validation chambers")
+        args.holdout_maps = sorted(expected_holdouts)
+    manifests = select_maps(all_manifests, args.maps)
+    if frozen_split is not None:
+        train_manifests, validation_manifests = partition_frozen_training(manifests, frozen_split)
+    else:
+        train_manifests, validation_manifests = split_training_manifests(
+            manifests, args.validation_fraction, args.seed,
+            stratify=args.sampling == "chamber-balanced",
+            holdout_maps=args.holdout_maps,
+        )
+    known_episodes = {item.name for item in all_manifests}
     correction_episode_names: set[str] = set()
     for extra_dir in args.train_extra_cache_dirs:
         additions = discover_cached_episodes(extra_dir)
+        if any(item.map_name in evaluation_maps for item in additions):
+            raise ValueError(f"Evaluation chambers cannot enter training from {extra_dir}")
+        if frozen_split is not None:
+            group = "recovery" if extra_dir.resolve() == Path("data/datasets/recovery_cached_frames").resolve() else extra_dir.name
+            frozen_split.verify_cache(additions, group)
         if args.maps:
             additions = [item for item in additions if item.map_name in args.maps]
-        additions = [item for item in additions if item.map_name not in args.holdout_maps]
+        if frozen_split is not None:
+            blocked = [item.name for item in additions if frozen_split.role(item, group) != "train"]
+            if blocked:
+                raise ValueError("Extra cache contains non-training episodes: " + ", ".join(blocked[:3]))
+        else:
+            additions = [item for item in additions if item.map_name not in args.holdout_maps]
         if not additions:
             raise ValueError(f"No selected cached correction episodes in {extra_dir}")
         duplicate = known_episodes & {item.name for item in additions}
@@ -700,6 +742,9 @@ def main() -> None:
     )
     config["training"]["training_episodes"] = [item.name for item in train_manifests]
     config["training"]["validation_episodes"] = [item.name for item in validation_manifests]
+    if frozen_split is not None:
+        config["training"]["split_id"] = frozen_split.split_id
+        config["training"]["split_sha256"] = frozen_split.digest
     best_validation = float("inf")
     global_step = 0
     start_epoch = 1
@@ -715,6 +760,13 @@ def main() -> None:
         if restored["config"].get("training", {}).get("sampling", "uniform") != args.sampling:
             raise ValueError("Resume checkpoint sampling strategy differs from this run")
         restored_training = restored["config"].get("training", {})
+        previous_split = restored_training.get("split_id")
+        current_split = config["training"].get("split_id")
+        if previous_split is not None and previous_split != current_split:
+            raise ValueError("Resume checkpoint frozen split differs from this run")
+        previous_digest = restored_training.get("split_sha256")
+        if previous_digest is not None and previous_digest != config["training"].get("split_sha256"):
+            raise ValueError("Resume checkpoint frozen split manifest changed")
         resume_settings = {
             "batch_size": args.batch_size,
             "learning_rate": args.learning_rate,

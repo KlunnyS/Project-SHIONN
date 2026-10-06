@@ -82,17 +82,19 @@ New caches store the map name. Training can also read it from the source recordi
 
 ## `models.imitation.train_bc`
 
-Example: `.venv/bin/python -m models.imitation.train_bc --holdout-map dataset_test12 --checkpoint-dir models/imitation/checkpoints/runs/new_v5 --checkpoint-every 0`
+Example: `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints/runs/new_v5 --checkpoint-every 0`
 
 | Flag | Default | Meaning |
 |---|---:|---|
 | `--cache-dir PATH` | `data/datasets/cached_frames` | Cached frame/action dataset. |
 | `--train-extra-cache-dir PATH` | none | Repeat to add cached correction episodes to training only, after the base episode split. |
+| `--split-manifest PATH` | `data/splits/frozen_v1.json` | Enforce the versioned episode split, including validation and evaluation exclusions. |
+| `--unfrozen-split` | off | Explicitly bypass the frozen manifest for experimental training only. |
 | `--correction-sampling-fraction FLOAT` | `0` | Expected fraction of optimizer draws from the extra caches, such as `0.10`; requires extra cached episodes. |
 | `--start-window-frames N` | `8` | Usable frames after each episode's first action eligible for opening sampling boost. |
 | `--start-sampling-boost FLOAT` | `1` | Multiply opening-frame sampling weight; `5` gives openings more training exposure. |
 | `--map NAME` | all cached maps | Repeat to train on only the named chambers. An unknown or duplicate name is an error. |
-| `--holdout-map NAME` | none | Repeat to reserve complete chambers for validation. This replaces the within-chamber random validation split and directly tests transfer to unseen layouts. |
+| `--holdout-map NAME` | frozen test11/test12 | Optional under the frozen split; if supplied, values must exactly match test11/test12. Under `--unfrozen-split`, repeat to reserve complete chambers for validation. |
 | `--epochs N` | `20` | Total number of epochs in the run; on resume this remains the total target. |
 | `--batch-size N` | `8` | Training batch size. |
 | `--validation-batch-size N` | `32` | Larger inference-only validation batch. Metrics are sample-weighted, so changing it does not change the contribution of the final partial batch. |
@@ -107,7 +109,7 @@ Example: `.venv/bin/python -m models.imitation.train_bc --holdout-map dataset_te
 | `--brightness-augmentation FLOAT` | `0.05` | Per-stack random brightness offset. All temporal frames receive the same transform. |
 | `--contrast-augmentation FLOAT` | `0.10` | Per-stack random contrast variation around 1.0. |
 | `--horizontal-flip-probability FLOAT` | `0` | Optional mirror augmentation. The trainer swaps A/D and negates mouse dx; it remains off by default because the Portal gun/HUD is asymmetric. |
-| `--validation-fraction FLOAT` | `0.2` | Fraction of complete episodes used for validation. |
+| `--validation-fraction FLOAT` | `0.2` | Fraction of complete episodes used for validation only under `--unfrozen-split`; the frozen split uses declared roles. |
 | `--seed N` | `0` | Shuffle seed for episode split and epoch order. |
 | `--sampling chamber-balanced\|uniform` | `chamber-balanced` | Draw equal expected numbers of usable frames from each training map per epoch, or use legacy uniform frame sampling. The epoch still contains one draw per usable training frame. |
 | `--binary-class-weighting balanced\|none` | `none` | Reweight binary action losses, or leave every class at weight 1 so recorded action frequencies determine the loss. Unweighted is the calibrated default. |

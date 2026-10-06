@@ -30,6 +30,8 @@ Status last recorded on **2026-09-28**:
 
 The dated operational record, including exact checkpoint paths and safe
 commands, lives in the [training runbook](docs/TRAINING_RUNBOOK.md).
+The episode-level training/validation/evaluation assignment is documented in
+the [frozen data split](docs/DATA_SPLIT.md).
 
 ## Pipeline
 

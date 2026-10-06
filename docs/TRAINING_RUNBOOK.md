@@ -136,6 +136,10 @@ baseline until repeated clean trials are available.
 
 ## Preflight checks
 
+For new training runs, the [frozen split](DATA_SPLIT.md) is enforced by default.
+The historical commands below document runs started before that manifest was
+introduced; the same test11/test12 holdouts are now selected automatically.
+
 Run commands from the repository root. Confirm the extra drive and CUDA before
 starting a service:
 

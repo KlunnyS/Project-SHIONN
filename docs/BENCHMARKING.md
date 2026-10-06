@@ -2,6 +2,8 @@
 
 Run these commands from the repository root after training a candidate. Replace the checkpoint path with the actual `best.pt`. The updated trainer saves its validation episode names inside the checkpoint, so the offline scorer uses the same held-out recordings that were excluded from training.
 
+The [frozen split](DATA_SPLIT.md) defines test1–10 as training, test11/12 as validation, and evaluation1/2 as evaluation-only. The latter two have had prior live runs, which should be disclosed with results; neither is part of the training cache. Check the checkpoint's split ID and manifest hash when comparing candidates trained after the split was introduced.
+
 ## 1. Compare actions on held-out expert frames
 
 ```bash
