@@ -1,17 +1,23 @@
+"""Tests for binned mouse labels, policy outputs, and scoring."""
+
+# Python standard library: temporary fixtures and test cases.
 import tempfile
 import unittest
 import json
 from pathlib import Path
 
+# Installed dependencies: numeric labels and PyTorch policies.
 import numpy as np
 import torch
 
+# Project package modules under models/imitation.
 from models.imitation.checkpoint import save_checkpoint
 from models.imitation.inference import PolicyInference
 from models.imitation.mouse_bins import MouseBins
 from models.imitation.network import BINNED_ARCHITECTURE_VERSION, BinnedImitationPolicy
 from models.imitation.preprocess import PREPROCESSING_CONFIG
 from models.imitation.train_bc import behavior_cloning_loss, with_jump_positive_weight
+# Project benchmark helpers at the repository root.
 from benchmark_expert import score_checkpoint
 from analyze_mouse_validation import analyze_validation
 

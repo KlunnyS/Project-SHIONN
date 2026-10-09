@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+# Python standard library: checkpoint metadata and filesystem operations.
 import json
 import os
 from pathlib import Path
 from typing import Any
 
+# Installed dependency: PyTorch serializes model and optimizer state.
 import torch
 
 CHECKPOINT_FORMAT_VERSION = 1

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+# Python standard library: CLI, metadata serialization, and episode dates.
 import argparse
 import json
 import re
 from pathlib import Path
 
+# Project module under models/imitation: discover recorded cache entries.
 from models.imitation.dataset import discover_cached_episodes
 
 

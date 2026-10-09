@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Project-SHIONN Dependency Installer
+# Project-SHIONN Dependency Installer (Python packages, optional system setup)
 # ==============================================================================
 
 set -euo pipefail
@@ -18,6 +18,29 @@ cd "$SCRIPT_DIR"
 
 INSTALL_SYSTEM=false
 SETUP_PERMS=false
+current_user="$(id -un)"
+
+confirm() {
+    # A prompted system change proceeds only after an explicit yes.
+    local response
+    read -r -p "$1 [y/N] " response
+    [[ "$response" =~ ^([yY]|[yY][eE][sS])$ ]]
+}
+
+install_wf_recorder() {
+    # Keep package-manager selection in one place for prompted and flag-driven installs.
+    if [ -f /etc/arch-release ]; then
+        sudo pacman -S --needed --noconfirm wf-recorder
+    elif [ -f /etc/debian_version ]; then
+        sudo apt-get update
+        sudo apt-get install -y wf-recorder
+    elif [ -f /etc/fedora-release ]; then
+        sudo dnf install -y wf-recorder
+    else
+        echo -e "${RED}Unsupported package manager; install wf-recorder manually.${NC}" >&2
+        return 1
+    fi
+}
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -76,21 +99,18 @@ else
     echo -e "${GREEN}Existing virtual environment found at $VENV_DIR.${NC}"
 fi
 
-# Activate or target venv pip
-PIP_BIN="$VENV_DIR/bin/pip"
 PYTHON_BIN="$VENV_DIR/bin/python"
 
 echo "Upgrading pip..."
 "$PYTHON_BIN" -m pip install --upgrade pip --quiet
 
 echo "Installing requirements from requirements.txt..."
-if [ -f "$SCRIPT_DIR/requirements.txt" ]; then
-    "$PIP_BIN" install -r "$SCRIPT_DIR/requirements.txt"
-    echo -e "${GREEN}Python packages successfully installed into .venv!${NC}"
-else
-    echo -e "${YELLOW}requirements.txt not found. Installing base packages directly...${NC}"
-    "$PIP_BIN" install evdev numpy opencv-python
+if [ ! -f "$SCRIPT_DIR/requirements.txt" ]; then
+    echo -e "${RED}requirements.txt is missing; refusing an incomplete installation.${NC}" >&2
+    exit 1
 fi
+"$PYTHON_BIN" -m pip install -r "$SCRIPT_DIR/requirements.txt"
+echo -e "${GREEN}Python packages successfully installed into .venv!${NC}"
 
 # 3. System Packages (wf-recorder)
 echo -e "\n${BOLD}[Step 3/4] Checking system packages (wf-recorder)...${NC}"
@@ -99,28 +119,13 @@ if command -v wf-recorder >/dev/null 2>&1; then
 else
     if [ "$INSTALL_SYSTEM" = true ]; then
         echo "Installing wf-recorder via system package manager..."
-        if [ -f /etc/arch-release ]; then
-            sudo pacman -S --needed --noconfirm wf-recorder
-        elif [ -f /etc/debian_version ]; then
-            sudo apt-get update && sudo apt-get install -y wf-recorder
-        elif [ -f /etc/fedora-release ]; then
-            sudo dnf install -y wf-recorder
-        else
-            echo -e "${YELLOW}Unsupported package manager. Please install wf-recorder manually.${NC}"
-        fi
+        install_wf_recorder
     else
         echo -e "${YELLOW}wf-recorder is not installed.${NC}"
         echo "It is required for screen recording on Wayland."
         if [ -t 0 ]; then
-            read -r -p "Would you like to install wf-recorder now? [y/N] " response
-            if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-                if [ -f /etc/arch-release ]; then
-                    sudo pacman -S --needed wf-recorder
-                elif [ -f /etc/debian_version ]; then
-                    sudo apt-get update && sudo apt-get install -y wf-recorder
-                elif [ -f /etc/fedora-release ]; then
-                    sudo dnf install -y wf-recorder
-                fi
+            if confirm "Would you like to install wf-recorder now?"; then
+                install_wf_recorder
             else
                 echo "Skipping wf-recorder installation. You can install it later or run with --system."
             fi
@@ -133,7 +138,7 @@ fi
 # 4. Permissions Setup (/dev/uinput and /dev/input)
 echo -e "\n${BOLD}[Step 4/4] Hardware permissions & udev rules...${NC}"
 NEEDS_PERMS=false
-if ! groups "$USER" 2>/dev/null | grep -q '\binput\b'; then
+if ! id -nG | tr ' ' '\n' | grep -Fxq input; then
     NEEDS_PERMS=true
 fi
 if [ ! -w /dev/uinput 2>/dev/null ]; then
@@ -141,8 +146,9 @@ if [ ! -w /dev/uinput 2>/dev/null ]; then
 fi
 
 apply_permissions() {
+    # Persistent udev/group changes need sudo; never run the recorder itself as root.
     echo "Configuring /etc/udev/rules.d/99-uinput.rules and group membership..."
-    sudo usermod -aG input "$USER"
+    sudo usermod -aG input "$current_user"
     echo 'KERNEL=="uinput", MODE="0660", GROUP="input", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/99-uinput.rules >/dev/null
     sudo udevadm control --reload-rules
     sudo udevadm trigger
@@ -157,8 +163,7 @@ if [ "$SETUP_PERMS" = true ]; then
 elif [ "$NEEDS_PERMS" = true ]; then
     echo -e "${YELLOW}Notice: Current user lacks permission to access /dev/input devices without sudo.${NC}"
     if [ -t 0 ]; then
-        read -r -p "Would you like to configure udev rules and add '$USER' to the 'input' group? [y/N] " response
-        if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        if confirm "Would you like to configure udev rules and add '$current_user' to the 'input' group?"; then
             apply_permissions
         else
             echo "Skipping permission configuration. Do not run the recorder with sudo; wf-recorder needs your desktop Wayland session."

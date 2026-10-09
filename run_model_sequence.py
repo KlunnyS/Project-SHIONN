@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+# Python standard library: build and run the checkpoint-by-chamber job plan.
 import argparse
 import json
 import re
@@ -13,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Project benchmark module at the repository root.
 from benchmark_sequence import main as write_benchmark_summary
 
 

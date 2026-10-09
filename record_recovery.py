@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+# Python standard library: CLI paths and recording timing.
 import argparse
 import time
 from pathlib import Path
 
+# Project modules at the repository root: reuse recorder events and game control.
 from record_dataset import EpisodeEventStream, connect_controller, wait_for_camera, wait_for_terminal_event
 from recorder import EpisodeRecorder
 from wrapper import Portal2Controller, is_game_running

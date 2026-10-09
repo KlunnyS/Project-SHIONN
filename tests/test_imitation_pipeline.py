@@ -1,3 +1,6 @@
+"""End-to-end unit tests for recording, training, checkpointing, and running."""
+
+# Python standard library: fixtures, subprocess checks, mocks, and test cases.
 import csv
 import json
 import subprocess
@@ -9,10 +12,12 @@ from types import SimpleNamespace
 from unittest.mock import Mock, call
 from unittest.mock import patch
 
+# Installed dependencies: image/video fixtures, arrays, and PyTorch models.
 import cv2
 import numpy as np
 import torch
 
+# Project package modules under models/imitation.
 from models.imitation.checkpoint import load_checkpoint, save_checkpoint
 from models.imitation.dataset import BehaviorCloningDataset, EpisodeManifest, discover_cached_episodes, split_episode_manifests
 from models.imitation.frozen_split import load_frozen_split
@@ -21,6 +26,7 @@ from models.imitation.network import ARCHITECTURE_VERSION, ImitationPolicy
 from models.imitation.preprocess import PREPROCESSING_CONFIG
 from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_episodes
 from models.imitation.train_bc import EarlyStopping, augment_batch, binary_class_weights_for_mode, consecutive_unimproved_epochs, format_duration, make_binary_class_weights, make_training_loader, partition_frozen_training, run_epoch, select_maps, split_training_manifests, training_sampling_weights
+# Project entry points and capture/controller modules at the repository root.
 from recorder import FFmpegVideoWriter
 from run_imitation import AttemptLog, EscapeKeyMonitor, RuntimeDiagnosticTracker, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, frame_change, fullscreen_portal_window, hyprland_instance_candidates, limit_mouse_action, make_attempt_recording_path, parse_args, prepare_portal_visual_state
 from wrapper import Portal2Controller

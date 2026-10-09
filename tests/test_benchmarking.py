@@ -1,3 +1,6 @@
+"""Regression tests for expert-frame and live-sequence benchmark reports."""
+
+# Python standard library: fixtures, temporary files, and mocks.
 import csv
 import json
 import tempfile
@@ -5,9 +8,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+# Installed dependencies used by fake inference policies.
 import numpy as np
 import torch
 
+# Project benchmark and dataset modules under test.
 from benchmark_expert import score_checkpoint, select_manifests
 from benchmark_sequence import summarize_sequence
 from models.imitation.dataset import ACTION_COLUMNS, EpisodeManifest

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+# Python standard library: CLI, CSV/JSON reports, and summary statistics.
 import argparse
 import csv
 import json
 from pathlib import Path
 from statistics import mean
 
+# Project analysis helpers from repository-root modules.
 from analyze_mouse_rollout import axis_distribution
 from benchmark_jump import score_jump_rows
 

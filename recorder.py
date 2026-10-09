@@ -1,3 +1,9 @@
+"""Capture aligned Portal 2 screen frames and physical-input episodes.
+
+Also provides the Wayland camera and input-device selection used by live runs.
+"""
+
+# Python standard library: paths and interpreter setup for direct script use.
 import os
 import sys
 import glob
@@ -8,15 +14,20 @@ _venv_sites = glob.glob(os.path.join(_repo_dir, ".venv", "lib", "python*", "site
 if _venv_sites and _venv_sites[0] not in sys.path:
     sys.path.insert(0, _venv_sites[0])
 
+# Python standard library: episode files, processes, timing, and threads.
 import csv
 import time
 import json
 import threading
 import subprocess
-import numpy as np
 import re
-import evdev
 from datetime import datetime
+
+# Installed dependencies: NumPy frames and Linux evdev input devices.
+import numpy as np
+import evdev
+
+# Project module at the repository root: Portal 2 console/game control.
 from wrapper import Portal2Controller, is_game_running
 
 # --- Device Discovery ---

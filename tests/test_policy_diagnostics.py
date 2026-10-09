@@ -1,8 +1,12 @@
+"""Tests for live-policy mouse diagnostics and jump scoring."""
+
+# Python standard library: JSON fixtures, temporary files, and test cases.
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
+# Project analysis and benchmark modules at the repository root.
 from analyze_mouse_rollout import analyze_attempt, axis_distribution
 from benchmark_jump import score_jump_rows
 

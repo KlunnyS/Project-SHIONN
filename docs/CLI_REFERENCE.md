@@ -16,7 +16,7 @@ Python entry point; the defaults below reflect the current code. See the
 | Report dataset outcomes and chambers | `.venv/bin/python dataset_stats.py` |
 | Cache successful demonstrations | `.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes/goal_reached` |
 | Train a new candidate | `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints/runs/candidate` |
-| Run a configured model | `./run_model.sh` |
+| Run a configured model | `./run_model.sh --checkpoint PATH` |
 | Run automated tests | `.venv/bin/python -m unittest discover -s tests -p 'test_*.py'` |
 
 The recorder and live runner require a working Wayland desktop, Portal 2, and
@@ -150,7 +150,7 @@ Example: `.venv/bin/python run_imitation.py --checkpoint models/imitation/checkp
 
 | Flag | Default | Meaning |
 |---|---:|---|
-| `--checkpoint PATH` | `models/imitation/checkpoints/best.pt` | Checkpoint to load. Bash/SSH launchers choose `checkpoints_v3/best.pt`; Fish chooses `checkpoints_450_v3/best.pt`. |
+| `--checkpoint PATH` | `models/imitation/checkpoints/best.pt` | Checkpoint to load. The Bash, Fish, and SSH launchers require this flag explicitly. |
 | `--device auto\|cuda\|cpu` | `auto` | Device for policy inference. |
 | `--jump-threshold FLOAT` | binary argmax | Use a validation-selected threshold between 0 and 1 for the jump action. |
 | `--move-w-threshold FLOAT` | binary argmax | Override the forward action threshold between 0 and 1 for calibration tests. |
@@ -235,10 +235,10 @@ See [the benchmark workflow](BENCHMARKING.md) for complete commands and how to k
 |---|---|
 | `./install_dependencies.sh` | Installs/updates `.venv` and Python requirements. `--system` installs `wf-recorder` if missing, `--permissions` configures input/uinput access, `--all` does both, and `-h`/`--help` prints usage. Without the flags, it may prompt interactively for missing system setup. |
 | `./check_dependencies.sh` | No flags. Reports environment and hardware setup. |
-| `./hammerpp-home.sh` | No flags. Opens Hammer++ from the configured Steam path. |
-| `./run_model.sh [options]` | Bash wrapper for `run_imitation.py`: `checkpoints_v3/best.pt`, `--device auto`, `--output DP-1`, `--map dataset_test1`, `--max-seconds 60`, `--record-video`, and `--verbose`. Appended runner flags override values. |
-| `./run_model.fish [options]` | Fish wrapper with the same capture/map defaults; its checkpoint is `models/imitation/checkpoints_450_v3/best.pt`. |
-| `./run_model_ssh.sh [options]` | Bash wrapper with the same defaults plus `--no-launch` and `--keep-focused`. |
+| `./hammerpp-home.sh` | No flags. Opens Hammer++ from the workstation Steam path; set `SHIONN_HAMMER_DIR` to a different Portal 2 `bin` directory if needed. |
+| `./run_model.sh --checkpoint PATH [options]` | Shared Bash launcher for `run_imitation.py`: starts `dataset_test1` with video and status output. Other runner defaults apply, including automatic Wayland output detection. Checks that the selected checkpoint exists before touching the game. |
+| `./run_model.fish --checkpoint PATH [options]` | Fish entry point that forwards to the shared Bash launcher. |
+| `./run_model_ssh.sh --checkpoint PATH [options]` | SSH entry point that forwards to the shared launcher with `--no-launch` and `--keep-focused`. |
 | `.venv/bin/python recorder.py` | No flags. Low-level recorder that listens for game events without loading/resetting the chamber. |
 | `.venv/bin/python wrapper.py` | No flags. Manual preview-map and jump smoke test. |
 
@@ -253,17 +253,6 @@ the intended Wayland/game session; they are not automated tests.
 | `.venv/bin/python scripts/diagnostics/input_mouselook.py` | Waits three seconds, then sends a short relative mouse movement. |
 | `.venv/bin/python scripts/diagnostics/capture_bytes.py` | Reads five seconds of raw `wf-recorder` bytes from `DP-1` at 1280×720/20 FPS. |
 | `.venv/bin/python scripts/diagnostics/capture_motion.py` | Captures two Wayland frames and reports visual change. |
-
-### Legacy helpers
-
-These one-off helpers are retained under `scripts/legacy/` for reproducibility,
-not as recommended workflows:
-
-| Command | Purpose |
-|---|---|
-| `.venv/bin/python -m scripts.legacy.run_sequence` | Runs a hard-coded movement/use sequence in `puzzlemaker/preview`. |
-| `.venv/bin/python -m scripts.legacy.example_usage` | Replays `sequences/TEST_0_mimic_sequence/actions.csv` at 60 FPS. |
-| `./scripts/legacy/hammerpp_notas.sh` | Uses an alternate, machine-specific Hammer++ path that may need editing. |
 
 Automated tests run with
 `.venv/bin/python -m unittest discover -s tests -p 'test_*.py'`.

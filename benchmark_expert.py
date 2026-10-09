@@ -7,6 +7,7 @@ for that question.
 
 from __future__ import annotations
 
+# Python standard library: CLI, reports, and grouped results.
 import argparse
 import csv
 import json
@@ -14,10 +15,12 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
+# Installed dependencies: numerical arrays and PyTorch inference/data loading.
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
+# Project modules under models/imitation: cached episodes and policy inference.
 from models.imitation.dataset import (
     ACTION_COLUMNS, BINARY_ACTION_COLUMNS, BehaviorCloningDataset,
     EpisodeManifest, discover_cached_episodes,

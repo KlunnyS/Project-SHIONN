@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+# Python standard library: CLI, processes, threads, timing, and attempt logs.
 import argparse
 import json
 import os
@@ -13,9 +14,11 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Installed dependencies: input devices and numerical frame arrays.
 import evdev
 import numpy as np
 
+# Project modules at the repository root: capture and Portal 2 control.
 from recorder import FFmpegVideoWriter, WaylandCamera, get_default_output
 from wrapper import Portal2Controller, is_game_running, launch_game
 
@@ -525,6 +528,7 @@ def connect_controller(port: int, attempts: int = 10, delay: float = 2.0) -> Por
 
 def main() -> None:
     args = parse_args()
+    # Project inference module is loaded here, after CLI parsing, for runner startup.
     from models.imitation.inference import PolicyInference
 
     if args.fps <= 0:

@@ -1,3 +1,6 @@
+"""Probe whether wf-recorder produces raw Wayland frame bytes."""
+
+# Python standard library: launch the capture process and count its output.
 import subprocess
 import time
 import sys

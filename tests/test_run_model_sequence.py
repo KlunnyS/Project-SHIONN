@@ -1,3 +1,6 @@
+"""Tests for checkpoint-by-chamber job planning and sequence results."""
+
+# Python standard library: fake subprocess runs, fixtures, and test cases.
 import json
 import tempfile
 import unittest
@@ -5,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+# Project live-sequence runner at the repository root.
 from run_model_sequence import Model, build_jobs, main, parse_args, runner_command
 
 

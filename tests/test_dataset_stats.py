@@ -1,8 +1,12 @@
+"""Tests for episode counts and dataset status reporting."""
+
+# Python standard library: metadata fixtures, temporary directories, and tests.
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
+# Project dataset report module at the repository root.
 from dataset_stats import collect_dataset_stats, format_report
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+# Installed dependencies: NumPy fits bins; PyTorch applies them during training.
 import numpy as np
 import torch
 

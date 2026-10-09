@@ -10,13 +10,14 @@ provided to the model.
 
 ## Current status
 
-Status last recorded on **2026-09-28**:
+Status last updated on **2026-10-09**:
 
 - The recording, preprocessing, training, checkpoint, and live-inference
   pipeline works end to end.
-- The base dataset contains 850 successful demonstrations across 12 navigation
-  chambers: 221,883 aligned rows, or about 2.57 hours at 24 Hz. Generated data
-  is stored outside Git.
+- The frozen base cache contains 1,300 successful demonstrations across 12
+  navigation chambers: 1,100 training episodes and 200 complete-chamber
+  validation episodes. One recovery episode is cached separately. Generated
+  frames and recordings are stored outside Git.
 - The current candidate family is the 13.2M-parameter residual
   `shionn_imitation_v5` policy with binned mouse actions and complete-chamber
   validation.
@@ -150,7 +151,6 @@ Project-SHIONN/
 ├── models/imitation/             dataset, network, training, and inference
 ├── portal_assets/scripts/        game-side VScript events
 ├── scripts/diagnostics/          manual hardware probes
-├── scripts/legacy/               retained one-off helpers
 ├── tests/                        isolated Python tests
 ├── record_dataset.py             demonstration recorder
 ├── run_imitation.py              live policy runner

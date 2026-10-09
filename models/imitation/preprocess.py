@@ -6,6 +6,7 @@ They are memory-mappable, so training never decodes video or resizes frames.
 
 from __future__ import annotations
 
+# Python standard library: CLI, source labels, metadata, and atomic file writes.
 import argparse
 import csv
 import json
@@ -13,6 +14,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+# Installed dependencies: OpenCV decodes/resizes frames; NumPy stores arrays.
 import cv2
 import numpy as np
 

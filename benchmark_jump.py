@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+# Python standard library: CLI, CSV input, and JSON output.
 import argparse
 import csv
 import json

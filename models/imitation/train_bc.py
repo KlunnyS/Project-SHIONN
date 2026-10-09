@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+# Python standard library: training CLI, run metadata, and timing.
 import argparse
 import json
 import math
 import time
 from pathlib import Path
 
+# Installed dependencies: NumPy statistics and PyTorch optimization/loaders.
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
+# Sibling modules in models.imitation (leading dot = this package).
 from .checkpoint import load_checkpoint, save_checkpoint
 from .dataset import BINARY_ACTION_COLUMNS, BehaviorCloningDataset, discover_cached_episodes, split_episode_manifests
 from .frozen_split import DEFAULT_SPLIT_PATH, FrozenSplit, load_frozen_split

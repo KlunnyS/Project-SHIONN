@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+# Python standard library: episode manifests and deterministic splitting.
 import json
 import random
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
+# Installed dependency: NumPy memory-maps cached frames and actions.
 import numpy as np
 
 ACTION_COLUMNS = (

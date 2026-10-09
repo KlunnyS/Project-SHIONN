@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+# Python standard library: CLI, JSONL input, and aggregate statistics.
 import argparse
 import json
 from collections import Counter, defaultdict

@@ -1,3 +1,6 @@
+"""Tests for physical-input selection and demonstration recording flow."""
+
+# Python standard library: recording fixtures, mocks, and test cases.
 import json
 import tempfile
 import unittest
@@ -5,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+# Project recording modules at the repository root.
 from record_dataset import (
     EpisodeEvent, EpisodeEventStream, RecordingProgress, event_outcome,
     parse_args, record_episodes, validate_args,

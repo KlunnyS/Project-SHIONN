@@ -1,9 +1,14 @@
+"""Probe Wayland frame capture and detect visible movement between frames."""
+
+# Python standard library: background capture, process control, and output parsing.
 import threading
 import subprocess
-import numpy as np
 import time
-import cv2
 import re
+
+# Installed dependencies: NumPy frame arrays and OpenCV image comparison.
+import numpy as np
+import cv2
 
 def get_default_output():
     """Detect the first available display output from wf-recorder."""

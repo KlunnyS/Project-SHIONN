@@ -23,6 +23,13 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Changed
 
+- Consolidate local, Fish, and SSH model launchers through one Bash entry point;
+  require an explicit checkpoint and let the runner detect the Wayland output.
+- Simplify dependency setup/check scripts without changing their permission or
+  installation flags, and allow Hammer++'s directory to be configured.
+- Update the README and Program Guide for the 1,300-episode frozen split.
+- Add purpose descriptions and import-source comments across the Python modules,
+  tests, and manual diagnostics without changing their behavior.
 - Reject the experimental soft mouse-response limiter after a controlled live
   comparison reduced steering, increased freeze events, and lowered success on
   held-out chambers; retain uncapped mouse output as the supported default.
@@ -68,6 +75,12 @@ All notable changes to Project SHIONN are documented in this file.
 - Reduce default early-stopping patience from five unimproved epochs to two.
 - Update the documented dataset status to 850 demonstrations across 12
   chambers and describe the v5 training and evaluation workflow.
+
+### Removed
+
+- Remove the unused one-off helpers `scripts/legacy/run_sequence.py`,
+  `scripts/legacy/example_usage.py`, and `scripts/legacy/hammerpp_notas.sh`.
+  The supported recorder, runner, replay primitive, and Hammer++ launcher remain.
 
 ### Compatibility
 

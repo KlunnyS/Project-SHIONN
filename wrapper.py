@@ -1,3 +1,9 @@
+"""Control Portal 2 through netconsole and virtual keyboard/mouse input.
+
+The controller is shared by recording, live inference, and manual smoke tests.
+"""
+
+# Python standard library: processes, sockets, timing, and interpreter setup.
 import subprocess
 import socket
 import time
@@ -208,6 +214,7 @@ class Portal2Controller:
     def init_virtual_mouse(self):
         """Initializes a virtual mouse device using evdev for hardware-level simulation."""
         try:
+            # Installed evdev is loaded only when virtual mouse input is needed.
             from evdev import UInput, ecodes as e
             capabilities = {
                 e.EV_KEY: [e.BTN_LEFT, e.BTN_RIGHT, e.BTN_MIDDLE, e.BTN_SIDE],

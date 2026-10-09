@@ -7,6 +7,7 @@ never contain an audio stream.
 
 from __future__ import annotations
 
+# Python standard library: CLI, event timing, and recording metadata.
 import argparse
 import os
 import re
@@ -15,6 +16,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
+# Project modules at the repository root: capture and Portal 2 control.
 from recorder import EpisodeRecorder
 from wrapper import Portal2Controller, is_game_running, launch_game
 

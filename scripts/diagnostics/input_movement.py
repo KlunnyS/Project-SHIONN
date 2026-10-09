@@ -1,3 +1,6 @@
+"""Send a brief virtual W-key press to test Portal 2 input permissions."""
+
+# Python standard library: timing and locating the repository's virtualenv.
 import time
 import sys
 import os
@@ -8,6 +11,7 @@ _venv_sites = glob.glob(os.path.join(_repo_dir, ".venv", "lib", "python*", "site
 if _venv_sites and _venv_sites[0] not in sys.path:
     sys.path.insert(0, _venv_sites[0])
 
+# Installed dependency: evdev sends Linux uinput keyboard events.
 from evdev import UInput, ecodes as e
 
 def move():

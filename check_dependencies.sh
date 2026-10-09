@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Project-SHIONN Dependency Checker
+# Project-SHIONN Dependency Checker (read-only environment report)
 # ==============================================================================
 
 set -u
@@ -59,10 +59,14 @@ if [ -d "$VENV_DIR" ] && [ -x "$VENV_DIR/bin/python" ]; then
     PYTHON_BIN="$VENV_DIR/bin/python"
     status_ok "Local virtual environment found at .venv"
 elif [ -n "${VIRTUAL_ENV:-}" ]; then
-    PYTHON_BIN="$(which python)"
-    status_ok "Active virtual environment detected ($VIRTUAL_ENV)"
+    PYTHON_BIN="$(command -v python || true)"
+    if [ -n "$PYTHON_BIN" ]; then
+        status_ok "Active virtual environment detected ($VIRTUAL_ENV)"
+    else
+        status_fail "Active virtual environment has no Python interpreter"
+    fi
 else
-    status_warn "No .venv found. Using system Python ($(which python3 2>/dev/null || echo 'none'))"
+    status_warn "No .venv found. Using system Python ($(command -v python3 || echo 'none'))"
     PYTHON_BIN="$(command -v python3 || echo '')"
 fi
 
@@ -70,10 +74,9 @@ fi
 print_header "2. Python Packages (requirements.txt)"
 
 check_python_module() {
+    # Probe the same interpreter that recording/training commands will use.
     local mod_name="$1"
     local import_name="$2"
-    local extra_info="${3:-}"
-
     if [ -z "$PYTHON_BIN" ]; then
         status_fail "$mod_name: No valid Python interpreter found"
         return
@@ -169,10 +172,11 @@ else
 fi
 
 # Check user group membership
-if groups "$USER" 2>/dev/null | grep -q '\binput\b'; then
-    status_ok "User '$USER' is a member of the 'input' group"
+current_user="$(id -un)"
+if id -nG | tr ' ' '\n' | grep -Fxq input; then
+    status_ok "User '$current_user' is a member of the 'input' group"
 else
-    status_warn "User '$USER' is NOT currently in the 'input' group"
+    status_warn "User '$current_user' is NOT currently in the 'input' group"
 fi
 
 # Show every event device and apply the recorder's own selection rules. This

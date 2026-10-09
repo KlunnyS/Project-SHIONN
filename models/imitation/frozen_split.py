@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+# Python standard library: read, validate, and fingerprint the split manifest.
 import hashlib
 import json
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
+# Sibling module: cached episode description from models.imitation.dataset.
 from .dataset import EpisodeManifest
 
 DEFAULT_SPLIT_PATH = Path("data/splits/frozen_v1.json")

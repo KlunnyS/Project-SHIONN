@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+# Python standard library: frame history, paths, and type annotations.
 from collections import deque
 from pathlib import Path
 from typing import Any
 
+# Installed dependencies: frame arrays and PyTorch inference.
 import numpy as np
 import torch
 
+# Sibling modules in models.imitation (leading dot = this package).
 from .checkpoint import load_checkpoint
 from .dataset import BINARY_ACTION_COLUMNS
 from .mouse_bins import MouseBins

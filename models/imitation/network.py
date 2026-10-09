@@ -7,9 +7,11 @@ v1-v4 checkpoints continue to use their original implementations.
 
 from __future__ import annotations
 
+# Installed dependency: PyTorch layers and tensor types.
 import torch
 from torch import Tensor, nn
 
+# Sibling module: action names defined by models.imitation.dataset.
 from .dataset import BINARY_ACTION_COLUMNS
 
 V3_ARCHITECTURE_VERSION = "shionn_imitation_v3"
