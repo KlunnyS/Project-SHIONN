@@ -57,7 +57,7 @@ def main(argv: list[str] | None = None) -> None:
         wait_for_camera(recorder)
         print(
             f"Portal 2 will stay on {args.map}; recording starts in {args.focus_delay:g}s. "
-            "Focus the game, then demonstrate recovery. Ctrl+C stops recording."
+            "Focus the game, then demonstrate recovery. Esc pauses/resumes; K stops and saves. Ctrl+C also stops."
         )
         time.sleep(args.focus_delay)
         controller.read_console(print_to_terminal=False)
@@ -71,7 +71,7 @@ def main(argv: list[str] | None = None) -> None:
             },
         )
         outcome = wait_for_terminal_event(
-            controller, EpisodeEventStream(), args.max_seconds
+            controller, EpisodeEventStream(), args.max_seconds, recorder=recorder
         )
         recorder.stop_recording(outcome)
     except KeyboardInterrupt:

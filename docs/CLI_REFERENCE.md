@@ -47,7 +47,7 @@ This records one success on each map before starting the next round. A failed at
 | `--focus-delay SECONDS` | `5` | Time to focus Portal 2 before the first map load. |
 | `--restart-delay SECONDS` | `1` | Pause after a completed attempt before loading the chamber again. |
 | `--ready-timeout SECONDS` | `60` | Maximum wait for `EVT|chamber_ready` after a map load. |
-| `--episodes N`, `--episode N` | `0` | Stop after N **successful** `goal_reached` episodes per map. Failures are saved and retried on that map. `0` cycles until Ctrl+C. After every map meets a finite target, return Portal 2 to the menu. |
+| `--episodes N`, `--episode N` | `0` | Stop after N **successful** `goal_reached` episodes per map. Failures are saved and retried on that map. `0` cycles until K or Ctrl+C. After every map meets a finite target, return Portal 2 to the menu. |
 | `--fps N` | `24` | Recording tick and video frame rate. |
 | `--width N` | `1920` | Captured/video frame width. |
 | `--height N` | `1080` | Captured/video frame height. |
@@ -57,7 +57,7 @@ This records one success on each map before starting the next round. A failed at
 | `--mouse-device PATH_OR_NAME` | auto-detected pointer | Exact `/dev/input/event*` path or case-insensitive fragment of a device name. |
 | `--no-launch` | off | Require Portal 2 to be running instead of launching it through Steam. |
 
-The recorder validates positive duration, ready timeout, FPS, width, and height; delays and episode target must be nonnegative, and map names must be unique. Run it as the desktop user, not with `sudo`.
+During an active recording, press **Esc** to pause or resume. Pausing writes no video frames or action rows and does not consume the `--duration` limit. Press **K** to end the session; a partial attempt is saved under `interrupted` and the chamber is not restarted. Ctrl+C remains an emergency stop. These controls also apply to `record_recovery.py` and the low-level `recorder.py`, not to model inference (where Esc still stops the policy). The recorder validates positive duration, ready timeout, FPS, width, and height; delays and episode target must be nonnegative, and map names must be unique. Run it as the desktop user, not with `sudo`.
 
 ## `dataset_stats.py`
 
@@ -227,7 +227,7 @@ See [the benchmark workflow](BENCHMARKING.md) for complete commands and how to k
 
 `.venv/bin/python analyze_mouse_validation.py PATH/TO/action_comparison.csv --wall-ranges PATH/TO/wall_ranges.csv` measures those mouse-bin statistics and jump false positives on annotated expert validation frames. The annotation CSV needs `episode,start_frame,end_frame` columns with inclusive frame ranges. `--jump-threshold` selects a calibrated threshold for the error comparison.
 
-`.venv/bin/python record_recovery.py --map NAME --source-attempt PATH/TO/attempt.jsonl` records a human recovery from the current Portal 2 position without reloading the chamber. It saves under `episodes/recovery/goal_reached` on success. `--max-seconds`, `--focus-delay`, `--episodes-root`, `--port`, `--fps`, `--output`, and `--mouse-device` adjust capture settings.
+`.venv/bin/python record_recovery.py --map NAME --source-attempt PATH/TO/attempt.jsonl` records a human recovery from the current Portal 2 position without reloading the chamber. It saves under `episodes/recovery/goal_reached` on success. Esc pauses/resumes; K ends the session and saves a partial attempt under `interrupted`. `--max-seconds`, `--focus-delay`, `--episodes-root`, `--port`, `--fps`, `--output`, and `--mouse-device` adjust capture settings.
 
 ## Shell, Fish, and direct diagnostics
 

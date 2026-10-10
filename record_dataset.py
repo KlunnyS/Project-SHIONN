@@ -76,7 +76,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--episodes", "--episode",
         type=int,
         default=0,
-        help="Successful episodes per map; failures retry the same map. 0 cycles until Ctrl+C.",
+        help="Successful episodes per map; failures retry the same map. 0 cycles until K or Ctrl+C.",
     )
     parser.add_argument("--fps", type=int, default=24)
     parser.add_argument("--width", type=int, default=1920)
@@ -204,20 +204,37 @@ def wait_for_terminal_event(
     controller: Portal2Controller,
     event_stream: EpisodeEventStream,
     duration: float,
+    recorder: EpisodeRecorder | None = None,
 ) -> str:
-    deadline = time.monotonic() + duration
+    remaining_duration = duration
+    previous_tick = time.monotonic()
     while True:
+        now = time.monotonic()
+        if recorder is None or not recorder.paused:
+            remaining_duration -= now - previous_tick
+        previous_tick = now
+
+        if recorder is not None:
+            for control in recorder.tracker.pop_control_events():
+                if control == "stop":
+                    print("K pressed; ending recording session.")
+                    return "interrupted"
+                if control == "pause":
+                    recorder.toggle_pause()
+
         for event in read_events(controller, event_stream):
             outcome = event_outcome(event)
             if outcome:
                 print(f"Terminal event received: {event.name}|{event.value}")
                 return outcome
 
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
+        if recorder is not None and recorder.paused:
+            time.sleep(0.05)
+            continue
+        if remaining_duration <= 0:
             print(f"Local {duration:g}-second recording limit reached.")
             return "timeout"
-        time.sleep(min(0.05, remaining))
+        time.sleep(min(0.05, remaining_duration))
 
 
 @dataclass
@@ -252,9 +269,12 @@ def record_episodes(
             controller,
             event_stream,
             args.duration,
+            recorder=recorder,
         )
         recorder.stop_recording(outcome)
         progress.attempts += 1
+        if outcome == "interrupted":
+            return
         if outcome == "goal_reached":
             progress.successes += 1
             progress.successes_by_map[map_name] += 1
@@ -330,6 +350,7 @@ def main() -> None:
             f"Capture ready: {args.width}x{args.height} at {args.fps} FPS, audio disabled."
         )
         print(f"Capture output: {recorder.camera.output_name or 'wf-recorder default'}")
+        print("During recording: Esc pauses/resumes; K ends and saves the partial episode. Ctrl+C also stops.")
         print(
             f"Alt-tab to Portal 2 now. The first map load starts in {args.focus_delay:g} seconds."
         )

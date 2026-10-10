@@ -3,7 +3,9 @@
 # Python standard library: recording fixtures, mocks, and test cases.
 import json
 import tempfile
+import threading
 import unittest
+from collections import deque
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -12,8 +14,9 @@ from unittest.mock import Mock, patch
 from record_dataset import (
     EpisodeEvent, EpisodeEventStream, RecordingProgress, event_outcome,
     parse_args, record_episodes, validate_args,
+    wait_for_terminal_event,
 )
-from recorder import EpisodeRecorder, _pointer_score, find_input_devices
+from recorder import EpisodeRecorder, InputTracker, _pointer_score, find_input_devices
 from record_recovery import main as record_recovery
 
 
@@ -34,6 +37,25 @@ class FakePointerDevice:
 
 
 class EpisodeEventStreamTest(unittest.TestCase):
+    def test_escape_and_k_controls_ignore_key_repeat_and_duplicate_presses(self):
+        import evdev
+
+        tracker = InputTracker([], [])
+        keyboard = SimpleNamespace(path="/dev/input/event-test")
+        escape = SimpleNamespace(code=evdev.ecodes.KEY_ESC, value=1)
+        release = SimpleNamespace(code=evdev.ecodes.KEY_ESC, value=0)
+        with patch("recorder.time.monotonic", return_value=1.0) as clock:
+            tracker._track_control_key(keyboard, escape)
+            tracker._track_control_key(keyboard, SimpleNamespace(code=escape.code, value=2))
+            tracker._track_control_key(keyboard, release)
+            tracker._track_control_key(keyboard, escape)  # Duplicate interface timing.
+            self.assertEqual(tracker.pop_control_events(), ["pause"])
+            clock.return_value = 1.3
+            tracker._track_control_key(keyboard, release)
+            tracker._track_control_key(keyboard, escape)
+            tracker._track_control_key(keyboard, SimpleNamespace(code=evdev.ecodes.KEY_K, value=1))
+        self.assertEqual(tracker.pop_control_events(), ["pause", "stop"])
+
     def test_pointer_selection_prefers_physical_mouse_over_dongle(self):
         import evdev
 
@@ -85,6 +107,111 @@ class EpisodeEventStreamTest(unittest.TestCase):
 
 
 class EpisodeRecorderOutcomeTest(unittest.TestCase):
+    def test_low_level_recorder_k_stops_session(self):
+        recorder = EpisodeRecorder.__new__(EpisodeRecorder)
+        recorder.recording = False
+        recorder.tracker = Mock()
+        recorder.tracker.pop_control_events.return_value = ["stop"]
+        recorder.camera = Mock()
+        recorder.controller = Mock()
+        recorder.controller.connect.return_value = True
+
+        recorder.run()
+
+        recorder.tracker.stop.assert_called_once()
+        recorder.camera.stop.assert_called_once()
+        recorder.controller.disconnect.assert_called_once()
+
+    def test_pause_skips_frame_and_action_writes(self):
+        recorder = EpisodeRecorder.__new__(EpisodeRecorder)
+        recorder.recording = True
+        recorder.paused = True
+        recorder.fps = 24
+        recorder.sync_lock = threading.Lock()
+        recorder.frame_idx = 0
+        recorder.tracker = Mock()
+        recorder.video_writer = Mock()
+        recorder.csv_writer = Mock()
+
+        with patch("recorder.time.sleep", side_effect=lambda _: setattr(recorder, "recording", False)):
+            recorder._sync_loop()
+
+        recorder.tracker.get_snapshot_and_reset.assert_called_once()
+        recorder.video_writer.write.assert_not_called()
+        recorder.csv_writer.writerow.assert_not_called()
+        self.assertEqual(recorder.frame_idx, 0)
+
+    def test_pending_escape_stops_frames_before_main_loop_toggles_pause(self):
+        recorder = EpisodeRecorder.__new__(EpisodeRecorder)
+        recorder.recording = True
+        recorder.paused = False
+        recorder.fps = 24
+        recorder.frame_idx = 0
+        recorder.sync_lock = threading.Lock()
+        recorder.tracker = Mock()
+        recorder.tracker.pause_is_pending.return_value = True
+        recorder.video_writer = Mock()
+        recorder.csv_writer = Mock()
+
+        with patch("recorder.time.sleep", side_effect=lambda _: setattr(recorder, "recording", False)):
+            recorder._sync_loop()
+
+        recorder.video_writer.write.assert_not_called()
+        recorder.csv_writer.writerow.assert_not_called()
+        self.assertEqual(recorder.frame_idx, 0)
+
+    def test_resume_keeps_frame_indices_contiguous(self):
+        recorder = EpisodeRecorder.__new__(EpisodeRecorder)
+        recorder.recording = True
+        recorder.paused = False
+        recorder.fps = 24
+        recorder.frame_idx = 0
+        recorder.sync_lock = threading.Lock()
+        recorder.tracker = Mock()
+        recorder.tracker.get_snapshot_and_reset.return_value = {
+            name: 0 for name in (
+                "move_w", "move_a", "move_s", "move_d", "jump", "crouch",
+                "use", "fire_left", "fire_right", "mouse_dx", "mouse_dy",
+            )
+        }
+        recorder.tracker.pause_is_pending.return_value = False
+        recorder.camera = Mock()
+        recorder.camera.get_latest_frame.return_value = object()
+        recorder.video_writer = Mock()
+        recorder.csv_writer = Mock()
+        recorder.csv_file = Mock()
+        sleeps = [0]
+
+        def change_state(_):
+            sleeps[0] += 1
+            if sleeps[0] == 1:
+                recorder.paused = True
+            elif sleeps[0] == 2:
+                recorder.paused = False
+            else:
+                recorder.recording = False
+
+        with patch("recorder.time.sleep", side_effect=change_state):
+            recorder._sync_loop()
+
+        self.assertEqual(recorder.frame_idx, 2)
+        self.assertEqual(recorder.video_writer.write.call_count, 2)
+        self.assertEqual(
+            [call.args[0][1] for call in recorder.csv_writer.writerow.call_args_list],
+            [0, 1],
+        )
+
+    def test_escape_toggles_pause_and_discards_pending_actions(self):
+        recorder = EpisodeRecorder.__new__(EpisodeRecorder)
+        recorder.recording = True
+        recorder.paused = False
+        recorder.sync_lock = threading.Lock()
+        recorder.tracker = Mock()
+
+        self.assertTrue(recorder.toggle_pause())
+        self.assertFalse(recorder.toggle_pause())
+        self.assertEqual(recorder.tracker.get_snapshot_and_reset.call_count, 2)
+
     @patch("recorder.get_default_output", return_value="DP-1")
     @patch("recorder.WaylandCamera")
     @patch("recorder.InputTracker")
@@ -156,6 +283,63 @@ class EpisodeRecorderOutcomeTest(unittest.TestCase):
 
 
 class RecordingQuotaTest(unittest.TestCase):
+    @patch("record_dataset.read_events", return_value=[])
+    def test_paused_time_does_not_consume_recording_duration(self, read_events):
+        recorder = Mock()
+        recorder.paused = False
+        events = deque([["pause"], ["pause"]])
+        recorder.tracker.pop_control_events.side_effect = (
+            lambda: events.popleft() if events else []
+        )
+        recorder.toggle_pause.side_effect = lambda: setattr(
+            recorder, "paused", not recorder.paused
+        )
+        clock = [0.0]
+
+        def advance(seconds):
+            clock[0] += 5.0 if recorder.paused else seconds
+
+        with patch("record_dataset.time.monotonic", side_effect=lambda: clock[0]), \
+             patch("record_dataset.time.sleep", side_effect=advance):
+            outcome = wait_for_terminal_event(Mock(), EpisodeEventStream(), 0.2, recorder)
+
+        self.assertEqual(outcome, "timeout")
+        self.assertGreaterEqual(clock[0], 5.2)
+        self.assertEqual(recorder.toggle_pause.call_count, 2)
+
+    @patch("record_dataset.read_events")
+    def test_k_stops_without_waiting_for_chamber_event(self, read_events):
+        recorder = Mock()
+        recorder.paused = True
+        recorder.tracker.pop_control_events.return_value = ["stop"]
+
+        self.assertEqual(
+            wait_for_terminal_event(Mock(), EpisodeEventStream(), 30.0, recorder),
+            "interrupted",
+        )
+        read_events.assert_not_called()
+
+    @patch("record_dataset.time.sleep")
+    @patch("record_dataset.wait_for_terminal_event", return_value="interrupted")
+    @patch("record_dataset.load_map_and_wait_for_ready")
+    def test_k_saves_partial_episode_and_does_not_restart(
+        self, load_map, wait_for_terminal, sleep
+    ):
+        args = SimpleNamespace(
+            episodes=0, map_names=["dataset_test2"], ready_timeout=60.0,
+            duration=30.0, restart_delay=1.0,
+        )
+        recorder = Mock()
+        controller = Mock()
+        progress = RecordingProgress()
+
+        record_episodes(recorder, controller, EpisodeEventStream(), args, progress)
+
+        load_map.assert_called_once()
+        recorder.stop_recording.assert_called_once_with("interrupted")
+        self.assertEqual(progress.attempts, 1)
+        controller.send_command.assert_not_called()
+
     def test_repeated_map_flags_share_one_per_map_target(self):
         args = parse_args([
             "--map", "dataset_test5", "--map", "dataset_test6", "--episodes", "3",
@@ -233,6 +417,23 @@ class RecordingQuotaTest(unittest.TestCase):
 
 
 class RecoveryRecordingTest(unittest.TestCase):
+    @patch("record_recovery.time.sleep")
+    @patch("record_recovery.wait_for_terminal_event", return_value="interrupted")
+    @patch("record_recovery.wait_for_camera")
+    @patch("record_recovery.connect_controller")
+    @patch("record_recovery.EpisodeRecorder")
+    @patch("record_recovery.is_game_running", return_value=True)
+    def test_k_preserves_partial_recovery_episode(
+        self, game_running, recorder_class, connect, camera_ready, terminal, sleep
+    ):
+        recorder = recorder_class.return_value
+        recorder.recording = False
+
+        record_recovery(["--map", "dataset_test9", "--focus-delay", "0"])
+
+        recorder.stop_recording.assert_called_once_with("interrupted")
+        self.assertEqual(terminal.call_args.kwargs["recorder"], recorder)
+
     @patch("record_recovery.time.sleep")
     @patch("record_recovery.wait_for_terminal_event", return_value="goal_reached")
     @patch("record_recovery.wait_for_camera")

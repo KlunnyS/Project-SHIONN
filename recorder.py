@@ -21,6 +21,7 @@ import json
 import threading
 import subprocess
 import re
+from collections import deque
 from datetime import datetime
 
 # Installed dependencies: NumPy frames and Linux evdev input devices.
@@ -153,6 +154,11 @@ class InputTracker:
         self.mouse_lock = threading.Lock()
         self.mouse_event_counts = {device.path: 0 for device in self.mice}
         self.mouse_errors = []
+        # Control keys never become training labels; the main recorder loop consumes them.
+        self.control_lock = threading.Lock()
+        self.control_events = deque()
+        self.control_keys_down = set()
+        self.last_control_press = {}
         
         self.running = True
         self.threads = []
@@ -180,6 +186,8 @@ class InputTracker:
             for event in kbd.read_loop():
                 if not self.running: break
                 if event.type == evdev.ecodes.EV_KEY:
+                    if event.code in (evdev.ecodes.KEY_ESC, evdev.ecodes.KEY_K):
+                        self._track_control_key(kbd, event)
                     if event.code in key_map:
                         if event.value in (1, 2):
                             self.keys_held[key_map[event.code]] = True
@@ -188,6 +196,36 @@ class InputTracker:
                             self.keys_held[key_map[event.code]] = False
         except Exception as e:
             print(f"Keyboard loop error ({kbd.name}): {e}")
+
+    def _track_control_key(self, kbd, event):
+        """Queue one action per physical press, ignoring repeats and duplicate interfaces."""
+        key = (getattr(kbd, "path", id(kbd)), event.code)
+        with self.control_lock:
+            if event.value == 0:
+                self.control_keys_down.discard(key)
+                return
+            if event.value != 1 or key in self.control_keys_down:
+                return
+            self.control_keys_down.add(key)
+            now = time.monotonic()
+            if now - self.last_control_press.get(event.code, float("-inf")) < 0.2:
+                return
+            self.last_control_press[event.code] = now
+            self.control_events.append(
+                "pause" if event.code == evdev.ecodes.KEY_ESC else "stop"
+            )
+
+    def pop_control_events(self):
+        """Atomically take pending Escape/K events for the recorder's main loop."""
+        with self.control_lock:
+            events = list(self.control_events)
+            self.control_events.clear()
+        return events
+
+    def pause_is_pending(self):
+        """Let the frame thread stop as soon as Escape is seen by evdev."""
+        with self.control_lock:
+            return "pause" in self.control_events
                         
     def _mouse_loop(self, mouse):
         last_abs_x = None
@@ -438,6 +476,7 @@ class EpisodeRecorder:
         self.controller = controller if controller else Portal2Controller(8020, log_file=None)
         
         self.recording = False
+        self.paused = False
         self.ep_dir = None
         self.csv_file = None
         self.csv_writer = None
@@ -475,11 +514,25 @@ class EpisodeRecorder:
         self.video_writer = FFmpegVideoWriter(vid_path, self.width, self.height, self.fps, self.video_crf)
         
         self.frame_idx = 0
+        self.paused = False
+        self.sync_lock = threading.Lock()
         self.recording = True
         
         # Start the sync loop thread
         self.sync_thread = threading.Thread(target=self._sync_loop, daemon=True)
         self.sync_thread.start()
+
+    def toggle_pause(self):
+        """Pause or resume the current episode without splitting its MP4/CSV."""
+        if not self.recording:
+            return False
+        # Wait for any in-flight frame/CSV tick before changing pause state.
+        with self.sync_lock:
+            self.paused = not self.paused
+            self.tracker.get_snapshot_and_reset()
+        print("Recording paused. Press Esc to resume; K to stop." if self.paused
+              else "Recording resumed.")
+        return self.paused
         
     def stop_recording(self, outcome="unknown"):
         if not self.recording:
@@ -487,6 +540,7 @@ class EpisodeRecorder:
             
         print(f"\n--- STOPPING RECORDING (Outcome: {outcome}) ---")
         self.recording = False
+        self.paused = False
         self.sync_thread.join(timeout=2.0)
         
         if self.video_writer:
@@ -507,35 +561,37 @@ class EpisodeRecorder:
 
     def _sync_loop(self):
         tick_duration = 1.0 / self.fps
-        next_tick = time.time()
+        next_tick = time.monotonic()
         
         while self.recording:
-            # 1. Get Action Snapshot
-            actions = self.tracker.get_snapshot_and_reset()
-            
-            # 2. Get Frame
-            frame = self.camera.get_latest_frame()
-            if frame is not None:
-                self.video_writer.write(frame)
-            else:
-                # If no frame yet, write a black frame to keep sync
-                self.video_writer.write(np.zeros((self.height, self.width, 3), dtype=np.uint8))
-                
-            # 3. Write CSV Row
-            self.csv_writer.writerow([
-                time.time(), self.frame_idx,
-                actions['move_w'], actions['move_a'], actions['move_s'], actions['move_d'],
-                actions['jump'], actions['crouch'], actions['use'],
-                actions['fire_left'], actions['fire_right'],
-                actions['mouse_dx'], actions['mouse_dy']
-            ])
-            self.csv_file.flush()
-            
-            self.frame_idx += 1
-            
-            # Sleep until next tick
-            next_tick += tick_duration
-            sleep_time = next_tick - time.time()
+            with self.sync_lock:
+                if not self.recording:
+                    break
+                paused = self.paused or self.tracker.pause_is_pending()
+                if paused:
+                    # Drop menu input and reset the tick clock; no catch-up frames.
+                    self.tracker.get_snapshot_and_reset()
+                    next_tick = time.monotonic()
+                else:
+                    actions = self.tracker.get_snapshot_and_reset()
+                    frame = self.camera.get_latest_frame()
+                    if frame is not None:
+                        self.video_writer.write(frame)
+                    else:
+                        self.video_writer.write(np.zeros((self.height, self.width, 3), dtype=np.uint8))
+                    self.csv_writer.writerow([
+                        time.time(), self.frame_idx,
+                        actions['move_w'], actions['move_a'], actions['move_s'], actions['move_d'],
+                        actions['jump'], actions['crouch'], actions['use'],
+                        actions['fire_left'], actions['fire_right'],
+                        actions['mouse_dx'], actions['mouse_dy']
+                    ])
+                    self.csv_file.flush()
+                    self.frame_idx += 1
+                    next_tick += tick_duration
+
+            sleep_time = (min(0.05, tick_duration) if paused
+                          else next_tick - time.monotonic())
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
@@ -552,6 +608,12 @@ class EpisodeRecorder:
         
         try:
             while True:
+                for control in self.tracker.pop_control_events():
+                    if control == "stop":
+                        print("K pressed; ending recording session.")
+                        return
+                    if control == "pause":
+                        self.toggle_pause()
                 out = self.controller.read_console()
                 if out:
                     # Parse out for events

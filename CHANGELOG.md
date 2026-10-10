@@ -6,6 +6,9 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Added
 
+- Add physical Escape pause/resume and K stop controls to normal, recovery, and
+  low-level recording. Paused intervals emit no frames/actions or duration time;
+  manual stops preserve partial episodes under `interrupted`.
 - Add a training operations runbook covering the current v5 resume point,
   systemd resource containment, monitoring, file-descriptor requirements,
   checkpoint retention, and documentation maintenance.
