@@ -17,7 +17,10 @@ from record_dataset import (
     wait_for_terminal_event,
 )
 from recorder import EpisodeRecorder, InputTracker, _pointer_score, find_input_devices
-from record_recovery import main as record_recovery
+from record_recovery import (
+    main as record_recovery, pointer_inside_portal, wait_for_manual_start,
+    wait_for_physical_mouse,
+)
 
 
 class FakePointerDevice:
@@ -55,6 +58,34 @@ class EpisodeEventStreamTest(unittest.TestCase):
             tracker._track_control_key(keyboard, escape)
             tracker._track_control_key(keyboard, SimpleNamespace(code=evdev.ecodes.KEY_K, value=1))
         self.assertEqual(tracker.pop_control_events(), ["pause", "stop"])
+
+    def test_r_restart_control_is_only_enabled_for_recovery_sessions(self):
+        import evdev
+
+        press = SimpleNamespace(code=evdev.ecodes.KEY_R, value=1)
+        press.type = evdev.ecodes.EV_KEY
+        keyboard = SimpleNamespace(path="/dev/input/event-test", name="Keyboard",
+                                   read_loop=lambda: iter([press]))
+        ordinary = InputTracker([], [])
+        recovery = InputTracker([], [], restart_enabled=True)
+        ordinary._kbd_loop(keyboard)
+        recovery._kbd_loop(keyboard)
+        self.assertEqual(ordinary.pop_control_events(), [])
+        self.assertEqual(recovery.pop_control_events(), ["restart"])
+
+    def test_p_start_control_is_only_enabled_for_manual_recovery(self):
+        import evdev
+
+        press = SimpleNamespace(type=evdev.ecodes.EV_KEY,
+                                code=evdev.ecodes.KEY_P, value=1)
+        keyboard = SimpleNamespace(path="/dev/input/event-test", name="Keyboard",
+                                   read_loop=lambda: iter([press]))
+        ordinary = InputTracker([], [])
+        manual = InputTracker([], [], start_enabled=True)
+        ordinary._kbd_loop(keyboard)
+        manual._kbd_loop(keyboard)
+        self.assertEqual(ordinary.pop_control_events(), [])
+        self.assertEqual(manual.pop_control_events(), ["start"])
 
     def test_pointer_selection_prefers_physical_mouse_over_dongle(self):
         import evdev
@@ -226,6 +257,18 @@ class EpisodeRecorderOutcomeTest(unittest.TestCase):
             self.assertEqual(Path(recorder.episodes_root), root)
             self.assertEqual(Path(recorder.in_progress_root), root / ".in_progress")
             self.assertTrue((root / ".in_progress").is_dir())
+
+    @patch("recorder.get_default_output", return_value="DP-1")
+    @patch("recorder.WaylandCamera")
+    @patch("recorder.InputTracker")
+    @patch("recorder.find_input_devices", return_value=([Mock()], [Mock()]))
+    def test_test_recorder_does_not_create_episode_directory(
+        self, find_devices, tracker, camera, default_output,
+    ):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory) / "unused_episodes"
+            EpisodeRecorder(episodes_root=root, controller=Mock(), prepare_output=False)
+            self.assertFalse(root.exists())
 
     @patch("recorder.threading.Thread")
     @patch("recorder.FFmpegVideoWriter")
@@ -434,6 +477,119 @@ class RecoveryRecordingTest(unittest.TestCase):
         recorder.stop_recording.assert_called_once_with("interrupted")
         self.assertEqual(terminal.call_args.kwargs["recorder"], recorder)
 
+    @patch("record_dataset.time.sleep")
+    @patch("record_dataset.read_events")
+    def test_zero_recovery_duration_waits_for_game_outcome(self, read_events, sleep):
+        read_events.side_effect = [[], [EpisodeEvent("goal_reached", "1")]]
+        self.assertEqual(
+            wait_for_terminal_event(Mock(), EpisodeEventStream(), 0),
+            "goal_reached",
+        )
+        self.assertEqual(read_events.call_count, 2)
+
+    @patch("record_dataset.read_events",
+           return_value=[EpisodeEvent("chamber_ready", "2")])
+    def test_recovery_rejects_unexpected_map_reload(self, read_events):
+        self.assertEqual(
+            wait_for_terminal_event(
+                Mock(), EpisodeEventStream(), 0, reject_new_chamber=True
+            ),
+            "map_reloaded",
+        )
+
+    def test_recovery_r_requests_restart_without_completion(self):
+        recorder = Mock()
+        recorder.paused = False
+        recorder.tracker.pop_control_events.return_value = ["restart"]
+        self.assertEqual(
+            wait_for_terminal_event(Mock(), EpisodeEventStream(), 0, recorder=recorder),
+            "restart_requested",
+        )
+
+    def test_mouse_check_accepts_motion_even_if_view_returns_to_start(self):
+        now = [0.0]
+        tracker = Mock()
+        tracker.pop_control_events.return_value = []
+        angles = iter([(0.0, 91.0, 0.0), (0.0, 90.0, 0.0), (0.0, 90.0, 0.0)])
+
+        def advance(seconds):
+            now[0] += seconds
+
+        with patch("record_recovery.time.monotonic", side_effect=lambda: now[0]), \
+             patch("record_recovery.time.sleep", side_effect=advance), \
+             patch("record_recovery.read_player_angles", side_effect=lambda *_args, **_kwargs: next(angles)):
+            self.assertIsNone(wait_for_physical_mouse(
+                Mock(), tracker, 0.3, "auto", (0.0, 90.0, 0.0)
+            ))
+
+    def test_mouse_check_retries_capture_once_after_no_motion(self):
+        now = [0.0]
+        tracker = Mock()
+        tracker.pop_control_events.return_value = []
+        samples = iter([
+            (0.0, 90.0, 0.0), (0.0, 90.0, 0.0),
+            (0.0, 90.0, 0.0), (0.0, 90.0, 0.0),
+            (0.0, 91.0, 0.0), (0.0, 91.0, 0.0),
+        ])
+        with patch("record_recovery.time.monotonic", side_effect=lambda: now[0]), \
+             patch("record_recovery.time.sleep", side_effect=lambda seconds: now.__setitem__(0, now[0] + seconds)), \
+             patch("record_recovery.read_player_angles",
+                   side_effect=lambda *_args, **_kwargs: next(samples)), \
+             patch("record_recovery.activate_portal_input",
+                   return_value={"portal_focused": True}) as activate:
+            self.assertIsNone(wait_for_physical_mouse(
+                Mock(), tracker, 0.2, "auto", (0.0, 90.0, 0.0)
+            ))
+        activate.assert_called_once()
+
+    def test_mouse_check_k_stops_before_recording(self):
+        tracker = Mock()
+        tracker.pop_control_events.return_value = ["stop"]
+        self.assertEqual(wait_for_physical_mouse(
+            Mock(), tracker, 5.0, "auto", (0.0, 90.0, 0.0)
+        ), "interrupted")
+
+    def test_portal_pointer_check_detects_escape_to_second_monitor(self):
+        window = {
+            "hyprland_instance": "test-instance", "at": [100, 200],
+            "size": [800, 600],
+        }
+        with patch("record_recovery.query_hyprland_active_window",
+                   return_value={"portal_focused": True}), \
+             patch("record_recovery.query_hyprland_cursor",
+                   side_effect=[(500, 500), (950, 500)]):
+            self.assertTrue(pointer_inside_portal(window))
+            self.assertFalse(pointer_inside_portal(window))
+
+    def test_mouse_check_restarts_if_pointer_escapes_during_edge_sweep(self):
+        window = {"hyprland_instance": "test", "at": [0, 0], "size": [800, 600]}
+        now = [0.0]
+        tracker = Mock()
+        tracker.pop_control_events.return_value = []
+        with patch("record_recovery.time.monotonic", side_effect=lambda: now[0]), \
+             patch("record_recovery.time.sleep",
+                   side_effect=lambda seconds: now.__setitem__(0, now[0] + seconds)), \
+             patch("record_recovery.pointer_inside_portal", side_effect=[True, False]), \
+             patch("record_recovery.read_player_angles", return_value=(0.0, 90.0, 0.0)):
+            self.assertEqual(wait_for_physical_mouse(
+                Mock(), tracker, 2.0, "auto", (0.0, 90.0, 0.0), window,
+            ), "restart_requested")
+
+    def test_manual_focus_waits_for_p_after_delay(self):
+        now = [0.0]
+        tracker = Mock()
+        tracker.pop_control_events.side_effect = [["start"], [], ["start"]]
+        with patch("record_recovery.time.monotonic", side_effect=lambda: now[0]), \
+             patch("record_recovery.time.sleep",
+                   side_effect=lambda seconds: now.__setitem__(0, now[0] + seconds)):
+            self.assertEqual(wait_for_manual_start(tracker, 0.2), "start")
+        self.assertEqual(tracker.pop_control_events.call_count, 3)
+
+    def test_manual_focus_r_retries_before_recording(self):
+        tracker = Mock()
+        tracker.pop_control_events.return_value = ["restart"]
+        self.assertEqual(wait_for_manual_start(tracker, 5.0), "restart_requested")
+
     @patch("record_recovery.time.sleep")
     @patch("record_recovery.wait_for_terminal_event", return_value="goal_reached")
     @patch("record_recovery.wait_for_camera")
@@ -448,12 +604,25 @@ class RecoveryRecordingTest(unittest.TestCase):
             attempt.touch()
             recorder = recorder_class.return_value
             recorder.recording = False
+            recorder.ep_dir = Path(directory) / "recovery" / "goal_reached" / "episode_test"
 
-            record_recovery([
-                "--map", "dataset_test9", "--source-attempt", str(attempt),
-                "--episodes-root", str(Path(directory) / "recovery"),
-                "--focus-delay", "0",
-            ])
+            with patch("record_recovery.disable_chamber_timeout") as disable_timeout, \
+                 patch("record_recovery.read_player_angles",
+                       side_effect=[(0.0, 90.0, 0.0)] * 3), \
+                 patch("record_recovery.wait_for_physical_mouse", return_value=None), \
+                 patch("record_recovery.pointer_inside_portal", return_value=True), \
+                 patch("record_recovery.activate_portal_input",
+                       return_value={"portal_focused": True}) as activate_input:
+                record_recovery([
+                    "--map", "dataset_test9", "--source-attempt", str(attempt),
+                    "--episodes-root", str(Path(directory) / "recovery"),
+                    "--result-file", str(Path(directory) / "result.json"),
+                    "--focus-delay", "2", "--max-seconds", "0",
+                    "--keep-focused", "--disable-chamber-timeout",
+                ])
+            self.assertEqual(disable_timeout.call_count, 2)
+            disable_timeout.assert_any_call(recorder.controller, require_active=True)
+            activate_input.assert_called_once_with(recorder.controller, "auto")
 
             recorder.start_recording.assert_called_once_with(
                 map_name="dataset_test9",
@@ -462,8 +631,235 @@ class RecoveryRecordingTest(unittest.TestCase):
                 },
             )
             recorder.stop_recording.assert_called_once_with("goal_reached")
+            result = json.loads((Path(directory) / "result.json").read_text())
+            self.assertEqual(result["outcome"], "goal_reached")
+            self.assertEqual(result["episode"], str(recorder.ep_dir.resolve()))
             recorder.controller.load_map.assert_not_called()
             recorder.controller.send_command.assert_not_called()
+
+    @patch("record_recovery.time.sleep")
+    @patch("record_recovery.wait_for_camera")
+    @patch("record_recovery.connect_controller")
+    @patch("record_recovery.EpisodeRecorder")
+    @patch("record_recovery.is_game_running", return_value=True)
+    def test_recovery_rejects_uncaptured_physical_mouse(
+        self, game_running, recorder_class, connect, camera_ready, sleep,
+    ):
+        recorder = recorder_class.return_value
+        recorder.recording = False
+        with patch("record_recovery.read_player_angles", side_effect=[
+            (0.0, 90.0, 0.0), (0.0, 90.0, 0.0),
+        ]), patch("record_recovery.activate_portal_input",
+                  return_value={"portal_focused": True}), \
+             patch("record_recovery.wait_for_physical_mouse",
+                   side_effect=RuntimeError("Physical mouse did not turn")):
+            with self.assertRaisesRegex(RuntimeError, "Physical mouse did not turn"):
+                record_recovery([
+                    "--map", "dataset_test5", "--keep-focused",
+                    "--focus-delay", "5", "--max-seconds", "0",
+                ])
+        recorder.start_recording.assert_not_called()
+
+    @patch("record_recovery.wait_for_physical_mouse", return_value=None)
+    @patch("record_recovery.wait_for_terminal_event", return_value="restart_requested")
+    @patch("record_recovery.wait_for_camera")
+    @patch("record_recovery.connect_controller")
+    @patch("record_recovery.EpisodeRecorder")
+    @patch("record_recovery.is_game_running", return_value=True)
+    def test_r_during_correction_discards_clip_and_restores_game_binding(
+        self, game_running, recorder_class, connect, camera_ready, terminal, mouse_check,
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = recorder_class.return_value
+            recorder.recording = False
+            recorder.ep_dir = Path(directory) / "discarded" / "episode_test"
+            result_file = Path(directory) / "result.json"
+            with patch("record_recovery.read_player_angles",
+                       side_effect=[(0.0, 90.0, 0.0)] * 3), \
+                 patch("record_recovery.read_portal_binding",
+                       return_value="swap_ss_input"), \
+                 patch("record_recovery.restore_portal_binding") as restore, \
+                 patch("record_recovery.pointer_inside_portal", return_value=True), \
+                 patch("record_recovery.activate_portal_input",
+                       return_value={"portal_focused": True}):
+                record_recovery([
+                    "--map", "dataset_test5", "--keep-focused",
+                    "--session-controls", "--focus-delay", "2",
+                    "--result-file", str(result_file),
+                ])
+            recorder.stop_recording.assert_called_once_with("discarded")
+            restore.assert_called_once_with(
+                recorder.controller, "r", "swap_ss_input"
+            )
+            self.assertEqual(json.loads(result_file.read_text())["outcome"],
+                             "restart_requested")
+
+    @patch("record_recovery.wait_for_camera")
+    @patch("record_recovery.connect_controller")
+    @patch("record_recovery.EpisodeRecorder")
+    @patch("record_recovery.is_game_running", return_value=True)
+    def test_finished_chamber_skips_recovery_without_recording(
+        self, game_running, recorder_class, connect, camera_ready,
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = recorder_class.return_value
+            recorder.recording = False
+            result_file = Path(directory) / "result.json"
+            with patch("record_recovery.disable_chamber_timeout", side_effect=RuntimeError(
+                "Chamber is already finished or not active for recovery"
+            )):
+                record_recovery([
+                    "--map", "dataset_test1", "--disable-chamber-timeout",
+                    "--result-file", str(result_file),
+                ])
+            self.assertEqual(json.loads(result_file.read_text())["outcome"],
+                             "model_chamber_finished")
+            recorder.start_recording.assert_not_called()
+
+    @patch("record_recovery.wait_for_physical_mouse", return_value=None)
+    @patch("record_recovery.wait_for_camera")
+    @patch("record_recovery.connect_controller")
+    @patch("record_recovery.EpisodeRecorder")
+    @patch("record_recovery.is_game_running", return_value=True)
+    def test_early_mouse_motion_retries_without_error_or_clip(
+        self, game_running, recorder_class, connect, camera_ready, mouse_check,
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = recorder_class.return_value
+            recorder.recording = False
+            result_file = Path(directory) / "result.json"
+            with patch("record_recovery.read_player_angles", side_effect=[
+                (0.0, 90.0, 0.0), (-21.1, 90.0, 0.0),
+            ]), patch("record_recovery.activate_portal_input",
+                      return_value={"portal_focused": True}):
+                record_recovery([
+                    "--map", "dataset_test1", "--keep-focused",
+                    "--focus-delay", "2", "--result-file", str(result_file),
+                ])
+            self.assertEqual(json.loads(result_file.read_text())["outcome"],
+                             "restart_requested")
+            recorder.start_recording.assert_not_called()
+            mouse_check.assert_not_called()
+
+    @patch("record_recovery.wait_for_physical_mouse", return_value=None)
+    @patch("record_recovery.wait_for_camera")
+    @patch("record_recovery.connect_controller")
+    @patch("record_recovery.EpisodeRecorder")
+    @patch("record_recovery.is_game_running", return_value=True)
+    def test_finished_during_focus_wait_skips_recovery(
+        self, game_running, recorder_class, connect, camera_ready, mouse_check,
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = recorder_class.return_value
+            recorder.recording = False
+            result_file = Path(directory) / "result.json"
+            with patch("record_recovery.disable_chamber_timeout", side_effect=[
+                None, RuntimeError("Chamber is already finished or not active for recovery"),
+            ]), patch("record_recovery.read_player_angles", side_effect=[
+                (0.0, 90.0, 0.0), (0.0, 90.0, 0.0), (0.0, 90.0, 0.0),
+            ]), patch("record_recovery.pointer_inside_portal", return_value=True), \
+                 patch("record_recovery.activate_portal_input",
+                      return_value={"portal_focused": True}):
+                record_recovery([
+                    "--map", "dataset_test1", "--disable-chamber-timeout",
+                    "--keep-focused", "--focus-delay", "2",
+                    "--result-file", str(result_file),
+                ])
+            self.assertEqual(json.loads(result_file.read_text())["outcome"],
+                             "model_chamber_finished")
+            recorder.start_recording.assert_not_called()
+
+    @patch("record_recovery.wait_for_physical_mouse", return_value=None)
+    @patch("record_recovery.wait_for_camera")
+    @patch("record_recovery.connect_controller")
+    @patch("record_recovery.EpisodeRecorder")
+    @patch("record_recovery.is_game_running", return_value=True)
+    def test_large_mouse_movement_during_wait_retries_without_clip(
+        self, game_running, recorder_class, connect, camera_ready, mouse_check,
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = recorder_class.return_value
+            recorder.recording = False
+            result_file = Path(directory) / "result.json"
+            with patch("record_recovery.read_player_angles", side_effect=[
+                (0.0, 90.0, 0.0), (0.0, 90.0, 0.0), (0.0, 112.0, 0.0),
+            ]), patch("record_recovery.pointer_inside_portal", return_value=True), \
+                 patch("record_recovery.activate_portal_input",
+                      return_value={"portal_focused": True}):
+                record_recovery([
+                    "--map", "dataset_test1", "--keep-focused",
+                    "--focus-delay", "2", "--result-file", str(result_file),
+                ])
+            self.assertEqual(json.loads(result_file.read_text())["outcome"],
+                             "restart_requested")
+            recorder.start_recording.assert_not_called()
+
+    @patch("record_recovery.wait_for_manual_start", return_value="start")
+    @patch("record_recovery.wait_for_terminal_event", return_value="goal_reached")
+    @patch("record_recovery.wait_for_camera")
+    @patch("record_recovery.connect_controller")
+    @patch("record_recovery.EpisodeRecorder")
+    @patch("record_recovery.is_game_running", return_value=True)
+    def test_manual_focus_allows_reframing_then_records_on_p(
+        self, game_running, recorder_class, connect, camera_ready, terminal, manual_start,
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = recorder_class.return_value
+            recorder.recording = False
+            recorder.ep_dir = Path(directory) / "episode"
+            result_file = Path(directory) / "result.json"
+            with patch("record_recovery.disable_chamber_timeout"), \
+                 patch("record_recovery.read_portal_binding", return_value=""), \
+                 patch("record_recovery.restore_portal_binding"), \
+                 patch("record_recovery.read_player_angles", side_effect=[
+                     (0.0, 90.0, 0.0), (-21.1, 90.0, 0.0),
+                 ]), patch("record_recovery.activate_portal_input",
+                           return_value={"portal_focused": True}), \
+                 patch("record_recovery.pointer_inside_portal") as pointer_check, \
+                 patch("record_recovery.wait_for_physical_mouse") as mouse_check:
+                record_recovery([
+                    "--map", "dataset_test1", "--keep-focused",
+                    "--disable-chamber-timeout", "--session-controls",
+                    "--manual-focus", "--focus-delay", "2",
+                    "--result-file", str(result_file),
+                ])
+            manual_start.assert_called_once_with(recorder.tracker, 2.0)
+            mouse_check.assert_not_called()
+            pointer_check.assert_not_called()
+            recorder.start_recording.assert_called_once()
+            self.assertEqual(json.loads(result_file.read_text())["outcome"], "goal_reached")
+
+    @patch("record_recovery.wait_for_manual_start", return_value="start")
+    @patch("record_recovery.wait_for_terminal_event", return_value="goal_reached")
+    @patch("record_recovery.wait_for_camera")
+    @patch("record_recovery.connect_controller")
+    @patch("record_recovery.EpisodeRecorder")
+    @patch("record_recovery.is_game_running", return_value=True)
+    def test_test_mode_monitors_completion_without_saving_episode(
+        self, game_running, recorder_class, connect, camera_ready, terminal, manual_start,
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = recorder_class.return_value
+            recorder.recording = False
+            result_file = Path(directory) / "result.json"
+            with patch("record_recovery.disable_chamber_timeout"), \
+                 patch("record_recovery.read_portal_binding", return_value=""), \
+                 patch("record_recovery.restore_portal_binding"), \
+                 patch("record_recovery.read_player_angles", side_effect=[
+                     (0.0, 90.0, 0.0), (0.0, 90.0, 0.0),
+                 ]), patch("record_recovery.activate_portal_input",
+                           return_value={"portal_focused": True}):
+                record_recovery([
+                    "--map", "dataset_test1", "--keep-focused",
+                    "--disable-chamber-timeout", "--session-controls",
+                    "--manual-focus", "--test-mode", "--focus-delay", "2",
+                    "--result-file", str(result_file),
+                ])
+            recorder.start_recording.assert_not_called()
+            recorder.stop_recording.assert_not_called()
+            self.assertEqual(json.loads(result_file.read_text()), {
+                "outcome": "goal_reached", "episode": None,
+            })
 
 
 if __name__ == "__main__":

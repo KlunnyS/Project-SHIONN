@@ -28,7 +28,7 @@ from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_
 from models.imitation.train_bc import EarlyStopping, augment_batch, binary_class_weights_for_mode, consecutive_unimproved_epochs, format_duration, make_binary_class_weights, make_training_loader, partition_frozen_training, run_epoch, select_maps, split_training_manifests, training_sampling_weights
 # Project entry points and capture/controller modules at the repository root.
 from recorder import FFmpegVideoWriter
-from run_imitation import AttemptLog, EscapeKeyMonitor, RuntimeDiagnosticTracker, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, frame_change, fullscreen_portal_window, hyprland_instance_candidates, limit_mouse_action, make_attempt_recording_path, parse_args, prepare_portal_visual_state
+from run_imitation import AttemptLog, EscapeKeyMonitor, RuntimeDiagnosticTracker, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, click_to_capture_portal_input, disable_chamber_timeout, frame_change, fullscreen_portal_window, hyprland_instance_candidates, limit_mouse_action, load_recovery_map, make_attempt_recording_path, parse_args, prepare_portal_visual_state, prepare_recovery_model_start, read_player_angles
 from wrapper import Portal2Controller
 
 
@@ -251,6 +251,153 @@ class ImitationPipelineTest(unittest.TestCase):
 
         keyboard.close.assert_called()
 
+    @patch("run_imitation.evdev.InputDevice")
+    @patch("run_imitation.evdev.list_devices")
+    def test_p_key_requests_recovery_without_emergency_stop(self, list_devices, input_device):
+        import evdev
+
+        keyboard = Mock()
+        keyboard.name = "Physical Keyboard"
+        keyboard.path = "/dev/input/event-test"
+        keyboard.capabilities.return_value = {
+            evdev.ecodes.EV_KEY: [
+                evdev.ecodes.KEY_ESC, evdev.ecodes.KEY_P,
+                evdev.ecodes.KEY_W, evdev.ecodes.KEY_A,
+            ]
+        }
+        keyboard.read_loop.return_value = iter([
+            SimpleNamespace(type=evdev.ecodes.EV_KEY, code=evdev.ecodes.KEY_P, value=1)
+        ])
+        list_devices.return_value = [keyboard.path]
+        input_device.return_value = keyboard
+        monitor = EscapeKeyMonitor(evdev.ecodes.KEY_P)
+
+        monitor.start()
+        try:
+            for _ in range(100):
+                if monitor.handoff_requested:
+                    break
+                import time
+                time.sleep(0.001)
+            self.assertTrue(monitor.handoff_requested)
+            self.assertFalse(monitor.stop_requested)
+        finally:
+            monitor.stop()
+
+    @patch("run_imitation.evdev.InputDevice")
+    @patch("run_imitation.evdev.list_devices")
+    def test_r_and_k_request_restart_or_session_stop(self, list_devices, input_device):
+        import evdev
+        import time
+
+        for key, property_name in (
+            (evdev.ecodes.KEY_R, "restart_requested"),
+            (evdev.ecodes.KEY_K, "session_stop_requested"),
+        ):
+            with self.subTest(key=key):
+                keyboard = Mock()
+                keyboard.name = "Physical Keyboard"
+                keyboard.path = "/dev/input/event-test"
+                keyboard.capabilities.return_value = {
+                    evdev.ecodes.EV_KEY: [
+                        evdev.ecodes.KEY_ESC, evdev.ecodes.KEY_W,
+                        evdev.ecodes.KEY_A, key,
+                    ]
+                }
+                keyboard.read_loop.return_value = iter([
+                    SimpleNamespace(type=evdev.ecodes.EV_KEY, code=key, value=1)
+                ])
+                list_devices.return_value = [keyboard.path]
+                input_device.return_value = keyboard
+                monitor = EscapeKeyMonitor(
+                    evdev.ecodes.KEY_P, evdev.ecodes.KEY_R, evdev.ecodes.KEY_K
+                )
+                monitor.start()
+                try:
+                    for _ in range(100):
+                        if getattr(monitor, property_name):
+                            break
+                        time.sleep(0.001)
+                    self.assertTrue(getattr(monitor, property_name))
+                    self.assertFalse(monitor.stop_requested)
+                finally:
+                    monitor.stop()
+
+    @patch("run_imitation.time.sleep")
+    def test_chamber_timeout_suppression_requires_acknowledgement(self, sleep):
+        controller = Mock()
+        controller.read_console.side_effect = ["EVT|timeout_dis", "abled|1\n"]
+        disable_chamber_timeout(controller)
+        controller.send_command.assert_called_once_with(
+            'script Entities.FindByName(null,"shionn_event_script").GetScriptScope().DisableTimeout()'
+        )
+
+        controller.send_command.reset_mock()
+        controller.read_console.side_effect = ["EVT|timeout_disabled|1\n"]
+        disable_chamber_timeout(controller, require_active=True)
+        controller.send_command.assert_called_once_with(
+            'script Entities.FindByName(null,"shionn_event_script").GetScriptScope().DisableTimeoutForRecovery()'
+        )
+
+        controller.read_console.side_effect = ["EVT|timeout_disable_failed|1\n"]
+        with self.assertRaisesRegex(RuntimeError, "already finished or not active"):
+            disable_chamber_timeout(controller, require_active=True)
+
+        controller.read_console.side_effect = lambda **_kwargs: ""
+        with self.assertRaisesRegex(RuntimeError, "not acknowledged"):
+            disable_chamber_timeout(controller, wait_seconds=0.001)
+
+    @patch("run_imitation.time.sleep")
+    def test_recovery_map_waits_for_new_chamber_ready_not_old_getpos(self, _sleep):
+        controller = Mock()
+        controller.read_console.side_effect = [
+            "setpos 1 2 3;setang 0 90 0\n", "Host_NewGame\n",
+            "EVT|chamber_re", "ady|2.23333\n",
+        ]
+
+        load_recovery_map(controller, "dataset_test2")
+
+        controller.send_command.assert_called_once_with("map dataset_test2")
+        self.assertEqual(controller.read_console.call_count, 4)
+        controller.event_buffer.clear.assert_called_once()
+
+    @patch("run_imitation.time.sleep")
+    def test_camera_angle_reader_accepts_split_getpos_response(self, _sleep):
+        controller = Mock()
+        controller.read_console.side_effect = [
+            "stale output", "setpos 1 2 3;setang -3.5 9", "0.25 0.0\r\n",
+        ]
+
+        self.assertEqual(read_player_angles(controller), (-3.5, 90.25, 0.0))
+        controller.send_command.assert_called_once_with("getpos")
+
+    @patch("run_imitation.activate_portal_input")
+    @patch("run_imitation.prepare_portal_visual_state")
+    @patch("run_imitation.read_player_angles")
+    @patch("run_imitation.disable_chamber_timeout")
+    @patch("run_imitation.load_recovery_map")
+    def test_recovery_start_reloads_after_camera_snap(
+        self, load_map, disable_timeout, angles, visual, activate,
+    ):
+        controller = Mock()
+        window = {"portal_focused": True}
+        visual.return_value = activate.return_value = window
+        angles.side_effect = [(0.0, 90.0, 0.0), (70.0, 90.0, 0.0),
+                              (0.0, 90.0, 0.0), (1.0, 90.0, 0.0)]
+
+        self.assertEqual(
+            prepare_recovery_model_start(controller, "dataset_test2", "auto", True),
+            window,
+        )
+        self.assertEqual(load_map.call_count, 2)
+        self.assertEqual(disable_timeout.call_count, 2)
+        self.assertEqual(activate.call_count, 2)
+
+        angles.reset_mock(side_effect=True)
+        angles.side_effect = [(0.0, 90.0, 0.0), (70.0, 90.0, 0.0)] * 2
+        with self.assertRaisesRegex(RuntimeError, "no model actions were sent"):
+            prepare_recovery_model_start(controller, "dataset_test2", "auto", True)
+
     def test_attempt_recordings_use_a_separate_timestamped_directory(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             recording_dir = Path(temporary_directory) / "model_attempts"
@@ -326,9 +473,11 @@ class ImitationPipelineTest(unittest.TestCase):
     @patch("run_imitation.time.sleep")
     @patch("run_imitation.subprocess.run")
     @patch("run_imitation.focus_portal_window")
+    @patch("run_imitation.click_to_capture_portal_input", return_value=True)
+    @patch("run_imitation.query_hyprland_cursor", return_value=(500, 500))
     @patch("run_imitation.query_hyprland_active_window")
     def test_activation_does_not_warp_an_already_focused_game_or_fire_portal(
-        self, active_window, focus_window, run_command, _sleep
+        self, active_window, cursor, click, focus_window, run_command, _sleep
     ):
         window = {
             "portal_focused": True,
@@ -338,21 +487,21 @@ class ImitationPipelineTest(unittest.TestCase):
         }
         active_window.return_value = window
         controller = Mock()
-        controller.click_virtual_mouse.return_value = True
-
         self.assertEqual(activate_portal_input(controller), window)
 
         focus_window.assert_not_called()
         run_command.assert_not_called()
-        controller.click_virtual_mouse.assert_called_once_with("side")
+        click.assert_called_once_with(controller)
         controller.send_command.assert_called_once_with("unpause")
 
     @patch("run_imitation.time.sleep")
     @patch("run_imitation.subprocess.run")
     @patch("run_imitation.focus_portal_window")
+    @patch("run_imitation.click_to_capture_portal_input", return_value=True)
+    @patch("run_imitation.query_hyprland_cursor", return_value=(50, 50))
     @patch("run_imitation.query_hyprland_active_window")
     def test_activation_refocuses_before_clicking_without_firing(
-        self, active_window, focus_window, run_command, _sleep
+        self, active_window, cursor, click, focus_window, run_command, _sleep
     ):
         window = {
             "portal_focused": True,
@@ -363,13 +512,42 @@ class ImitationPipelineTest(unittest.TestCase):
         active_window.side_effect = [{"portal_focused": False}, window]
         focus_window.return_value = window
         controller = Mock()
-        controller.click_virtual_mouse.return_value = True
-
         self.assertEqual(activate_portal_input(controller), window)
 
         focus_window.assert_called_once_with("auto")
         self.assertIn("movecursor", run_command.call_args.args[0])
-        controller.click_virtual_mouse.assert_called_once_with("side")
+        click.assert_called_once_with(controller)
+
+    @patch("run_imitation.time.sleep")
+    @patch("run_imitation.shutil.which", return_value="/usr/bin/xte")
+    @patch("run_imitation.subprocess.run")
+    def test_capture_uses_xtest_left_click_and_restores_attack_binding(
+        self, run_command, _which, _sleep,
+    ):
+        controller = Mock()
+        controller.read_console.side_effect = ["", '"mouse1" = "+attack"\n']
+
+        self.assertTrue(click_to_capture_portal_input(controller))
+
+        self.assertEqual(controller.send_command.call_args_list, [
+            call("bind mouse1"), call("unbind mouse1"),
+            call('bind mouse1 "+attack"'),
+        ])
+        self.assertEqual(run_command.call_args.args[0], ["xte", "mouseclick 1"])
+        controller.click_virtual_mouse.assert_not_called()
+
+    @patch("run_imitation.time.sleep")
+    @patch("run_imitation.shutil.which", return_value="/usr/bin/xte")
+    @patch("run_imitation.subprocess.run", side_effect=subprocess.CalledProcessError(1, "xte"))
+    def test_failed_capture_still_restores_left_binding(
+        self, _run_command, _which, _sleep,
+    ):
+        controller = Mock()
+        controller.read_console.side_effect = ["", '"mouse1" = "+attack"\n']
+
+        self.assertFalse(click_to_capture_portal_input(controller))
+        self.assertEqual(controller.send_command.call_args_list[-1],
+                         call('bind mouse1 "+attack"'))
 
     @patch("wrapper.time.sleep")
     def test_side_activation_click_emits_only_side_button(self, _sleep):

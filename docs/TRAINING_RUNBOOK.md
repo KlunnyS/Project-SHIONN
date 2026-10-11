@@ -76,8 +76,9 @@ sequence: input activation clicked `MOUSE3`, which this Portal 2 installation
 binds to `+zoom`. The model has no zoom action, and zoom changes both its visual
 input and the apparent effect of mouse motion. Treat
 `model_attempts/sequences/sequence_20260930_112316_263060/` as diagnostic only,
-not an authoritative model score. The runner now activates XWayland input with
-unbound `MOUSE4` instead. Verify an unzoomed opening in new videos before using
+not an authoritative model score. The runner was changed at the time to activate
+XWayland input with unbound `MOUSE4`; it now uses a temporarily unbound `MOUSE1`
+left click. Verify an unzoomed opening in new videos before using
 their results, and rerun the repeated benchmark before making promotion or
 retraining decisions.
 

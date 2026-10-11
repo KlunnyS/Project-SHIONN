@@ -136,9 +136,11 @@ def find_input_devices(mouse_selector=None):
 
 # --- Input Tracker ---
 class InputTracker:
-    def __init__(self, kbd_devs, mouse_devs):
+    def __init__(self, kbd_devs, mouse_devs, restart_enabled=False, start_enabled=False):
         self.kbds = kbd_devs
         self.mice = mouse_devs
+        self.restart_enabled = restart_enabled
+        self.start_enabled = start_enabled
         
         self.keys_held = {
             'W': False, 'A': False, 'S': False, 'D': False,
@@ -186,7 +188,9 @@ class InputTracker:
             for event in kbd.read_loop():
                 if not self.running: break
                 if event.type == evdev.ecodes.EV_KEY:
-                    if event.code in (evdev.ecodes.KEY_ESC, evdev.ecodes.KEY_K):
+                    if event.code in (evdev.ecodes.KEY_ESC, evdev.ecodes.KEY_K) or (
+                        self.restart_enabled and event.code == evdev.ecodes.KEY_R
+                    ) or (self.start_enabled and event.code == evdev.ecodes.KEY_P):
                         self._track_control_key(kbd, event)
                     if event.code in key_map:
                         if event.value in (1, 2):
@@ -211,9 +215,12 @@ class InputTracker:
             if now - self.last_control_press.get(event.code, float("-inf")) < 0.2:
                 return
             self.last_control_press[event.code] = now
-            self.control_events.append(
-                "pause" if event.code == evdev.ecodes.KEY_ESC else "stop"
+            action = (
+                "pause" if event.code == evdev.ecodes.KEY_ESC
+                else "restart" if event.code == evdev.ecodes.KEY_R
+                else "start" if event.code == evdev.ecodes.KEY_P else "stop"
             )
+            self.control_events.append(action)
 
     def pop_control_events(self):
         """Atomically take pending Escape/K events for the recorder's main loop."""
@@ -456,6 +463,9 @@ class EpisodeRecorder:
         output_name=None,
         mouse_device=None,
         episodes_root="episodes",
+        restart_enabled=False,
+        start_enabled=False,
+        prepare_output=True,
     ):
         self.fps = fps
         self.kbds, self.mice = find_input_devices(mouse_selector=mouse_device)
@@ -465,7 +475,10 @@ class EpisodeRecorder:
                 "permissions for your desktop user; do not run the recorder with sudo."
             )
             
-        self.tracker = InputTracker(self.kbds, self.mice)
+        self.tracker = InputTracker(
+            self.kbds, self.mice, restart_enabled=restart_enabled,
+            start_enabled=start_enabled,
+        )
         
         out_name = output_name if output_name is not None else get_default_output()
         self.width = width
@@ -486,7 +499,8 @@ class EpisodeRecorder:
         
         self.episodes_root = os.fspath(episodes_root)
         self.in_progress_root = os.path.join(self.episodes_root, ".in_progress")
-        os.makedirs(self.in_progress_root, exist_ok=True)
+        if prepare_output:
+            os.makedirs(self.in_progress_root, exist_ok=True)
         
     def start_recording(self, map_name=None, metadata_extra=None):
         print("\n--- STARTING RECORDING ---")

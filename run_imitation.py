@@ -29,6 +29,10 @@ EPISODE_FAILURE_PATTERN = re.compile(r"EVT\|episode_failed\|([^\r\n]*)")
 DIAGNOSTIC_MIN_SECONDS = 1.0
 WALL_STUCK_VISUAL_DELTA = 0.05
 TURN_LOOP_MOUSE_MIN_ABS = 45
+PLAYER_ANGLES_PATTERN = re.compile(
+    r"setang\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)"
+)
+STARTUP_PITCH_TOLERANCE = 8.0
 
 
 def classify_terminal_events(
@@ -54,17 +58,36 @@ def classify_terminal_events(
 
 
 class EscapeKeyMonitor:
-    """Watch readable physical keyboards for a global Escape key press."""
+    """Watch physical keyboards for emergency stop and session controls."""
 
-    def __init__(self) -> None:
+    def __init__(self, handoff_key: int | None = None, restart_key: int | None = None,
+                 session_stop_key: int | None = None) -> None:
         self._stop_requested = threading.Event()
+        self._handoff_requested = threading.Event()
+        self._restart_requested = threading.Event()
+        self._session_stop_requested = threading.Event()
         self._stopping = threading.Event()
+        self.handoff_key = handoff_key
+        self.restart_key = restart_key
+        self.session_stop_key = session_stop_key
         self._devices: list[evdev.InputDevice] = []
         self._threads: list[threading.Thread] = []
 
     @property
     def stop_requested(self) -> bool:
         return self._stop_requested.is_set()
+
+    @property
+    def handoff_requested(self) -> bool:
+        return self._handoff_requested.is_set()
+
+    @property
+    def restart_requested(self) -> bool:
+        return self._restart_requested.is_set()
+
+    @property
+    def session_stop_requested(self) -> bool:
+        return self._session_stop_requested.is_set()
 
     def wait(self, timeout: float) -> bool:
         return self._stop_requested.wait(timeout)
@@ -74,13 +97,19 @@ class EscapeKeyMonitor:
             for event in device.read_loop():
                 if self._stopping.is_set():
                     return
-                if (
-                    event.type == evdev.ecodes.EV_KEY
-                    and event.code == evdev.ecodes.KEY_ESC
-                    and event.value == 1
-                ):
-                    self._stop_requested.set()
-                    return
+                if event.type == evdev.ecodes.EV_KEY and event.value == 1:
+                    if event.code == evdev.ecodes.KEY_ESC:
+                        self._stop_requested.set()
+                        return
+                    if event.code == self.session_stop_key:
+                        self._session_stop_requested.set()
+                        return
+                    if event.code == self.restart_key:
+                        self._restart_requested.set()
+                        return
+                    if event.code == self.handoff_key:
+                        self._handoff_requested.set()
+                        return
         except OSError:
             if not self._stopping.is_set():
                 print(f"Warning: Escape-key monitor lost {device.path} ({device.name})")
@@ -153,9 +182,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--map", dest="map_name", help="Optional map to load after connecting, for example puzzlemaker/preview")
     parser.add_argument("--countdown", type=float, default=3.0)
     parser.add_argument("--max-seconds", type=float, default=60.0, help="Stop automatically; use 0 to run until Ctrl+C")
+    parser.add_argument("--disable-chamber-timeout", action="store_true",
+                        help="Require the installed SHIONN VScript to acknowledge timeout suppression")
     parser.add_argument("--dry-run", action="store_true", help="Print predictions without sending actions to Portal 2")
     parser.add_argument("--no-launch", action="store_true", help="Fail instead of launching Portal 2 when it is not running")
     parser.add_argument("--continue-after-event", action="store_true", help="Keep running after goal/failure events")
+    parser.add_argument("--recovery-handoff", action="store_true",
+                        help="Enable P to stop the policy at its current position for a recovery recording")
     parser.add_argument("--record-video", action="store_true", help="Save the frames seen by the policy as an MP4")
     parser.add_argument("--recording-dir", type=Path, default=Path("model_attempts"), help="Directory for --record-video output")
     parser.add_argument("--log-actions", action="store_true", help="Save structured per-tick diagnostics without requiring video recording")
@@ -272,6 +305,19 @@ def focus_portal_window(instance: str = "auto") -> dict | None:
     return None
 
 
+def query_hyprland_cursor(instance: str) -> tuple[int, int] | None:
+    """Return compositor cursor coordinates, if available."""
+    try:
+        result = subprocess.run(
+            ["hyprctl", "-i", instance, "-j", "cursorpos"], check=True,
+            capture_output=True, text=True, timeout=2,
+        )
+        position = json.loads(result.stdout)
+        return int(position["x"]), int(position["y"])
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
+        return None
+
+
 def fullscreen_portal_window(instance: str = "auto") -> dict | None:
     """Focus Portal and put it in compositor fullscreen before capture."""
     status = focus_portal_window(instance)
@@ -309,6 +355,61 @@ def prepare_portal_visual_state(
     return status
 
 
+def read_portal_binding(controller: Portal2Controller, key: str) -> str:
+    """Read a simple Portal binding so session controls can restore it later."""
+    if not re.fullmatch(r"[A-Za-z0-9]+", key):
+        raise ValueError(f"Invalid Portal key name: {key!r}")
+    controller.read_console(print_to_terminal=False)
+    controller.send_command(f"bind {key}")
+    output = ""
+    deadline = time.monotonic() + 2.0
+    binding = None
+    while time.monotonic() < deadline:
+        output += controller.read_console(print_to_terminal=False)
+        match = re.search(rf'"{key}"\s*=\s*"([^"\r\n]*)"', output)
+        if match:
+            binding = match.group(1)
+            break
+        if f'"{key}" is not bound' in output:
+            binding = ""
+            break
+        time.sleep(0.05)
+    if binding is None:
+        raise RuntimeError(f"Could not read Portal 2's {key} binding")
+    if not re.fullmatch(r"[+\-A-Za-z0-9_ ]*", binding):
+        raise RuntimeError(f"{key} has a complex binding; cannot safely restore it")
+    return binding
+
+
+def restore_portal_binding(controller: Portal2Controller, key: str, binding: str) -> None:
+    """Restore a previously read binding, including an unbound key."""
+    controller.send_command(f'bind {key} "{binding}"' if binding else f"unbind {key}")
+
+
+def click_to_capture_portal_input(controller: Portal2Controller) -> bool:
+    """Capture the XWayland pointer without creating another uinput mouse.
+
+    A left-click is the game's normal pointer-capture path. Temporarily unbind
+    its attack action, deliver a core X11 click, then restore that binding.
+    """
+    if shutil.which("xte") is None:
+        raise RuntimeError("xte is required for Portal 2 mouse capture")
+    binding = read_portal_binding(controller, "mouse1")
+
+    controller.send_command("unbind mouse1")
+    try:
+        time.sleep(0.05)
+        subprocess.run(
+            ["xte", "mouseclick 1"], check=True, capture_output=True,
+            text=True, timeout=2,
+        )
+        return True
+    except (OSError, subprocess.SubprocessError):
+        return False
+    finally:
+        restore_portal_binding(controller, "mouse1", binding)
+
+
 def activate_portal_input(
     controller: Portal2Controller, instance: str = "auto"
 ) -> dict | None:
@@ -328,7 +429,12 @@ def activate_portal_input(
         and candidate
     ):
         return None
-    if not already_focused:
+    cursor = query_hyprland_cursor(candidate)
+    cursor_outside = cursor is not None and not (
+        position[0] <= cursor[0] < position[0] + size[0]
+        and position[1] <= cursor[1] < position[1] + size[1]
+    )
+    if not already_focused or cursor_outside:
         center_x = int(position[0] + size[0] / 2)
         center_y = int(position[1] + size[1] / 2)
         try:
@@ -341,10 +447,7 @@ def activate_portal_input(
             )
         except (OSError, subprocess.SubprocessError):
             return None
-    # MOUSE3 is Portal 2's default +zoom binding. MOUSE4 is unbound on the
-    # supported installation, so its side-button event acquires XWayland input
-    # without changing the policy's visual state or the user's game bindings.
-    if not controller.click_virtual_mouse("side"):
+    if not click_to_capture_portal_input(controller):
         return None
     controller.send_command("unpause")
     time.sleep(0.1)
@@ -526,6 +629,92 @@ def connect_controller(port: int, attempts: int = 10, delay: float = 2.0) -> Por
     raise RuntimeError(f"Could not connect to Portal 2 on netcon port {port}")
 
 
+def disable_chamber_timeout(
+    controller: Portal2Controller, wait_seconds: float = 3.0,
+    require_active: bool = False,
+) -> None:
+    """Fail closed unless the loaded chamber acknowledges timeout suppression."""
+    function = "DisableTimeoutForRecovery()" if require_active else "DisableTimeout()"
+    # ent_fire is cheat-gated in Portal 2. The server-side script command is
+    # available with sv_cheats 0 and can call the logic_script's own scope.
+    controller.send_command(
+        'script Entities.FindByName(null,"shionn_event_script").GetScriptScope().'
+        + function
+    )
+    deadline = time.monotonic() + wait_seconds
+    output = ""
+    while time.monotonic() < deadline:
+        output = (output + controller.read_console(print_to_terminal=False))[-4096:]
+        if "EVT|timeout_disabled|1" in output:
+            return
+        if "EVT|timeout_disable_failed|1" in output:
+            raise RuntimeError("Chamber is already finished or not active for recovery")
+        time.sleep(0.05)
+    raise RuntimeError(
+        "Chamber timeout suppression was not acknowledged; check the installed "
+        "shionn_events.nut and Portal 2 console output: " + repr(output[-500:])
+    )
+
+
+def load_recovery_map(controller: Portal2Controller, map_name: str, timeout: float = 30.0) -> None:
+    """Wait for this chamber's ready event, not a getpos reply from the old map."""
+    controller.read_console(print_to_terminal=False)
+    controller.event_buffer.clear()
+    controller.send_command(f"map {map_name}")
+    output = ""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        output = (output + controller.read_console(print_to_terminal=False))[-4096:]
+        if "EVT|chamber_ready|" in output:
+            print(f"Chamber '{map_name}' is ready.")
+            return
+        time.sleep(0.05)
+    raise RuntimeError(f"Chamber '{map_name}' did not become ready within {timeout:g}s")
+
+
+def read_player_angles(controller: Portal2Controller, timeout: float = 2.0) -> tuple[float, float, float]:
+    """Read the current view angle from the game's non-cheat getpos command."""
+    controller.read_console(print_to_terminal=False)
+    controller.send_command("getpos")
+    output = ""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        output += controller.read_console(print_to_terminal=False)
+        match = PLAYER_ANGLES_PATTERN.search(output)
+        if match:
+            return tuple(float(value) for value in match.groups())
+        time.sleep(0.05)
+    raise RuntimeError("Could not read Portal 2 camera angle with getpos")
+
+
+def prepare_recovery_model_start(
+    controller: Portal2Controller, map_name: str, instance: str,
+    disable_timeout: bool,
+) -> dict:
+    """Reject a mouse-capture pitch snap before any policy frame is recorded."""
+    for attempt in range(2):
+        load_recovery_map(controller, map_name)
+        if disable_timeout:
+            disable_chamber_timeout(controller)
+        expected_pitch = read_player_angles(controller)[0]
+        status = prepare_portal_visual_state(controller, instance)
+        if status is None:
+            raise RuntimeError("Could not prepare Portal 2's fullscreen visual state")
+        status = activate_portal_input(controller, instance)
+        if not (status or {}).get("portal_focused"):
+            raise RuntimeError("Could not reacquire Portal 2 input before recovery model attempt")
+        actual_pitch = read_player_angles(controller)[0]
+        pitch_change = (actual_pitch - expected_pitch + 180.0) % 360.0 - 180.0
+        if abs(pitch_change) <= STARTUP_PITCH_TOLERANCE:
+            print(f"Camera startup check passed (pitch change {pitch_change:+.1f} degrees).")
+            return status
+        print(
+            f"Camera jumped {pitch_change:+.1f} degrees during focus/input capture; "
+            + ("reloading chamber once." if attempt == 0 else "stopping before model input.")
+        )
+    raise RuntimeError("Portal 2 camera snapped during startup twice; no model actions were sent")
+
+
 def main() -> None:
     args = parse_args()
     # Project inference module is loaded here, after CLI parsing, for runner startup.
@@ -535,6 +724,10 @@ def main() -> None:
         raise ValueError("--fps must be greater than zero")
     if args.max_seconds < 0:
         raise ValueError("--max-seconds must be zero or greater")
+    if args.disable_chamber_timeout and not args.map_name:
+        raise ValueError("--disable-chamber-timeout requires --map")
+    if args.recovery_handoff and (not args.map_name or not args.keep_focused):
+        raise ValueError("--recovery-handoff requires --map and --keep-focused")
     if args.status_every <= 0:
         raise ValueError("--status-every must be greater than zero")
     if args.mouse_max_abs is not None and args.mouse_max_abs <= 0:
@@ -563,7 +756,11 @@ def main() -> None:
         fps=max(1, round(args.fps)),
         output_name=args.output or get_default_output(),
     )
-    escape_monitor = EscapeKeyMonitor()
+    escape_monitor = EscapeKeyMonitor(
+        evdev.ecodes.KEY_P if args.recovery_handoff else None,
+        evdev.ecodes.KEY_R if args.recovery_handoff else None,
+        evdev.ecodes.KEY_K if args.recovery_handoff else None,
+    )
     video_writer = None
     video_path = None
     attempt_log = None
@@ -575,14 +772,26 @@ def main() -> None:
     previous_frame_sample = None
     input_ready = None
     visual_state = None
+    saved_restart_binding = None
     stop_reason = "time_limit"
     diagnostic_tracker = RuntimeDiagnosticTracker()
 
     try:
+        if args.recovery_handoff:
+            saved_restart_binding = read_portal_binding(controller, "r")
+            controller.send_command("unbind r")
         escape_monitor.start()
-        if args.map_name:
+        if args.recovery_handoff:
+            visual_state = prepare_recovery_model_start(
+                controller, args.map_name, args.hyprland_instance,
+                args.disable_chamber_timeout,
+            )
+            input_ready = True
+        elif args.map_name:
             controller.load_map(args.map_name, wait_for_load=True)
-        if args.keep_focused:
+            if args.disable_chamber_timeout:
+                disable_chamber_timeout(controller)
+        if args.keep_focused and not args.recovery_handoff:
             visual_state = prepare_portal_visual_state(
                 controller, args.hyprland_instance
             )
@@ -595,7 +804,7 @@ def main() -> None:
         print(f"Capture output: {camera.output_name or 'wf-recorder default'}")
         print(
             f"Starting in {args.countdown:g} seconds. "
-            "Press Esc or Ctrl+C for the emergency stop."
+            "P hands off, R restarts this chamber, K stops the session; Esc/Ctrl+C is emergency stop."
         )
         if escape_monitor.wait(max(0.0, args.countdown)):
             print("\nEscape pressed. Cancelling policy run.")
@@ -650,6 +859,7 @@ def main() -> None:
                 jump_threshold=args.jump_threshold,
                 move_w_threshold=args.move_w_threshold,
                 mouse_max_abs=args.mouse_max_abs,
+                chamber_timeout_disabled=args.disable_chamber_timeout,
                 mouse_bins=policy.mouse_bins.config if policy.mouse_bins is not None else None,
                 runtime_diagnostics={
                     "minimum_seconds": diagnostic_tracker.minimum_seconds,
@@ -660,7 +870,9 @@ def main() -> None:
             print(f"Writing attempt diagnostics to: {log_path}")
 
         focus_status = query_hyprland_active_window(args.hyprland_instance)
-        if args.keep_focused and not args.dry_run:
+        if args.recovery_handoff:
+            focus_status = query_hyprland_active_window(args.hyprland_instance)
+        elif args.keep_focused and not args.dry_run:
             focus_status = activate_portal_input(controller, args.hyprland_instance)
             input_ready = bool((focus_status or {}).get("portal_focused"))
         elif args.keep_focused and not (focus_status or {}).get("portal_focused"):
@@ -680,11 +892,38 @@ def main() -> None:
         next_status = started
         tick_duration = 1.0 / args.fps
         while not args.max_seconds or time.monotonic() - started < args.max_seconds:
+            if escape_monitor.session_stop_requested:
+                print("\nK pressed. Stopping recovery session.")
+                stop_reason = "session_stop"
+                if attempt_log is not None:
+                    attempt_log.write("stop", reason=stop_reason)
+                break
+            if escape_monitor.restart_requested:
+                print("\nR pressed. Restarting this chamber from the beginning.")
+                stop_reason = "restart_requested"
+                if attempt_log is not None:
+                    attempt_log.write("stop", reason=stop_reason)
+                break
             if escape_monitor.stop_requested:
                 print("\nEscape pressed. Stopping policy run.")
                 stop_reason = "escape_key"
                 if attempt_log is not None:
                     attempt_log.write("stop", reason="escape_key")
+                break
+            if args.recovery_handoff and escape_monitor.handoff_requested:
+                pending_output = controller.read_console(print_to_terminal=False)
+                terminal_received, _ = classify_terminal_events(pending_output, args.max_seconds)
+                if terminal_received:
+                    stop_reason = (
+                        "goal_reached" if "EVT|goal_reached" in pending_output
+                        else "episode_failed"
+                    )
+                    print(f"\nChamber ended before takeover ({stop_reason}); skipping recovery.")
+                else:
+                    stop_reason = "recovery_handoff"
+                    print("\nP pressed. Releasing policy controls for human recovery. Keep the mouse still until the focus prompt.")
+                if attempt_log is not None:
+                    attempt_log.write("stop", reason=stop_reason)
                 break
             frame = camera.get_latest_frame()
             action = None
@@ -830,6 +1069,8 @@ def main() -> None:
     finally:
         controller.release_policy_actions()
         escape_monitor.stop()
+        if saved_restart_binding is not None:
+            restore_portal_binding(controller, "r", saved_restart_binding)
         if video_writer is not None:
             try:
                 video_writer.release()

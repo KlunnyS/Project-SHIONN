@@ -34,7 +34,7 @@ Add `--output NAME` if the default Wayland output is wrong. Each attempt writes 
 
 The report gives successes, valid attempts, success rate, median successful run duration, outcome counts, invalid attempts, and focus losses by model and map. A runner error or manual cancellation is marked invalid instead of counting as a navigation failure. The summary also retains each attempt's video and log path. Compare multiple checkpoints by repeating `--checkpoint LABEL=PATH` in the sequence command.
 
-Review the beginning and at least one later frame before accepting a sequence. With `--keep-focused`, Hyprland should report a nonzero fullscreen state and the runner requests the same visible portal-gun viewmodel used in the demonstrations. Reject runs containing a zoomed opening, desktop bars, window borders, an open Steam overlay, or other large visual mismatches. Keep `MOUSE4` unbound so the runner can acquire XWayland input without invoking Portal 2's default `MOUSE3` zoom action. An enabled but closed Steam overlay is harmless; hide any visible performance HUD before the authoritative repeated benchmark.
+Review the beginning and at least one later frame before accepting a sequence. With `--keep-focused`, Hyprland should report a nonzero fullscreen state and the runner requests the same visible portal-gun viewmodel used in the demonstrations. Reject runs containing a zoomed opening, desktop bars, window borders, an open Steam overlay, or other large visual mismatches. Input activation requires `xte`: the runner briefly unbinds `MOUSE1`, delivers an XWayland left click to capture input, and restores the prior binding so no portal is fired. An enabled but closed Steam overlay is harmless; hide any visible performance HUD before the authoritative repeated benchmark.
 
 ## 3. Record separate references for evaluation chambers
 
@@ -171,6 +171,59 @@ reloading the chamber, record a human recovery:
   --max-seconds 30
 ```
 
+For a supervised collection session, the handoff and chamber cycling can be
+automated instead:
+
+```bash
+.venv/bin/python run_recovery_session.py \
+  --checkpoint models/imitation/checkpoints/runs/v5_balanced_recovery_v1/best.pt \
+  --map dataset_test1 --map dataset_test5 --map dataset_test9 \
+  --target-corrections 30
+```
+
+The session loads a training chamber and runs the model. Press **P** at a useful
+failure: the model releases its controls and the recovery recorder starts at
+the *same position*, after reacquiring Portal 2 input and a five-second focus
+delay. Sweep the physical mouse toward the other monitor and back during that
+wait, then return the view near its starting angle. The runner checks the
+Hyprland cursor position and Portal focus throughout the sweep, as well as
+camera response; a detected escape or large view shift retries the same
+chamber without writing a correction. If confinement still looks wrong once
+recording starts, press **R** to reject that correction; its partial clip is
+kept under `episodes/recovery/discarded/` for review, not training. Reach the goal to save a
+successful correction and automatically start the model on the next chamber.
+If automated focus verification blocks collection, run the session with
+`--manual-focus`: after the first P handoff, check confinement and re-align the
+view at your own pace, then press P again to begin the recovery MP4 and actions
+CSV. No pre-start mouse movement is included in that recovery clip. This mode
+does not automatically reject an escaped pointer; use R if the take is invalid.
+For a feature check without filling the dataset with unusable clips, add
+`--test-mode` (optionally alongside `--manual-focus`). The policy still sees
+live frames, but no model or recovery MP4/CSV is written. Test diagnostics
+go under `model_attempts/recovery_tests/` instead of the normal session folder.
+**R** restarts the current chamber from a new model attempt, whether pressed
+during model control or human correction. **K** stops the whole session;
+during correction it saves the partial clip under `interrupted`. Esc remains
+the model runner's emergency stop, not the handoff key. P is read from the
+physical keyboard and may also reach Portal 2, so ensure it has no in-game
+binding. The runner temporarily unbinds Portal 2's R key and restores its
+original binding at the end of each phase.
+The `wall_stuck` diagnostic remains a hint to the human, not an automatic
+handoff trigger. If the model reaches the goal before takeover, the same
+chamber is reloaded for another attempt; no recovery is recorded or counted.
+Model time limits also retry the same chamber. Session logs and model videos
+are saved under `model_attempts/recovery_sessions/`; corrections remain under
+`episodes/recovery/`. The command accepts only `dataset_test1`–`dataset_test10`
+because validation/evaluation chambers must stay out of recovery training.
+The model keeps its configured `--model-seconds` limit (60 seconds by default),
+regardless of the chamber's built-in timer. The session requires the updated
+`shionn_events.nut` installed in Portal 2: it disables the chamber timeout
+with an acknowledged command before running the model and rechecks the guard
+before human recording. The correction has no local code time limit by default
+(`--recovery-seconds 0`); K and genuine goal/failure events still end it.
+An unexpected map reload invalidates the clip. If timeout suppression is not acknowledged, the session
+stops rather than collecting a potentially invalid correction.
+
 Keep successful corrections separate from the base dataset and its validation
 split:
 
@@ -190,7 +243,10 @@ split:
 Extra caches are added to training only after the original episode split, so
 they do not contaminate the preserved base validation set. Use a new checkpoint
 directory, review every correction video, and include several distinct
-recoveries before assigning a large sampling fraction.
+recoveries before assigning a large sampling fraction. After preprocessing new
+corrections, generate and review a *new* split manifest as described in
+[DATA_SPLIT.md](DATA_SPLIT.md), then pass it with `--split-manifest` when
+training. The original frozen v1 manifest must not be silently overwritten.
 
 ## Acceptance criteria
 

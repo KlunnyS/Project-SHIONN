@@ -6,6 +6,12 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Added
 
+- Add supervised recovery sessions: P hands off a live model failure to a
+  correction recording without a map reload, and successful corrections
+  advance to the next training chamber with linked attempt logs.
+- Keep the configured model time limit while suppressing chamber timeout
+  during supervised sessions; reacquire input focus and leave human
+  correction recording unlimited by default.
 - Add physical Escape pause/resume and K stop controls to normal, recovery, and
   low-level recording. Paused intervals emit no frames/actions or duration time;
   manual stops preserve partial episodes under `interrupted`.
@@ -26,6 +32,17 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Changed
 
+- Poll physical mouse movement across the recovery focus wait and retry input
+  capture once when no camera movement is detected.
+- Make R discard and restart the current supervised chamber, K stop the whole
+  session, and model time limits retry the same chamber; temporarily unbind and
+  restore Portal 2's R binding while each phase is active.
+- Replace virtual `MOUSE4` focus clicks with an XWayland XTEST left click that
+  temporarily unbinds and restores `MOUSE1`; verify the physical mouse turns
+  the camera before starting a recovery clip, and reject camera snaps.
+- Add manual-focus and no-save test modes for supervised recovery handoff.
+- Wait for the new chamber-ready event before a recovery-session model attempt
+  instead of accepting a stale position from the previous chamber.
 - Consolidate local, Fish, and SSH model launchers through one Bash entry point;
   require an explicit checkpoint and let the runner detect the Wayland output.
 - Simplify dependency setup/check scripts without changing their permission or

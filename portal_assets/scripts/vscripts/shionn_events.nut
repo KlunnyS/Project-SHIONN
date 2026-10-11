@@ -1,5 +1,6 @@
 SHIONNEpisodeActive <- false;
 SHIONNEpisodeFinished <- false;
+SHIONNTimeoutDisabled <- false;
 
 function SHIONNEmitEvent(eventName, value)
 {
@@ -44,7 +45,34 @@ function SignalEpisodeFailed(reason)
 
 function SignalTimeout()
 {
+    if (SHIONNTimeoutDisabled)
+    {
+        return;
+    }
     SignalEpisodeFailed("timeout");
+}
+
+function DisableTimeout()
+{
+    // The runner arms this before the player enters the chamber start trigger.
+    if (SHIONNEpisodeFinished)
+    {
+        SHIONNEmitEvent("timeout_disable_failed", 1);
+        return;
+    }
+    SHIONNTimeoutDisabled = true;
+    SHIONNEmitEvent("timeout_disabled", 1);
+}
+
+function DisableTimeoutForRecovery()
+{
+    // A correction must begin in an active, unfinished chamber.
+    if (!SHIONNEpisodeActive || SHIONNEpisodeFinished)
+    {
+        SHIONNEmitEvent("timeout_disable_failed", 1);
+        return;
+    }
+    DisableTimeout();
 }
 
 function SignalOutOfBounds()
@@ -61,4 +89,5 @@ function ResetEpisodeSignals()
 {
     SHIONNEpisodeActive = false;
     SHIONNEpisodeFinished = false;
+    SHIONNTimeoutDisabled = false;
 }

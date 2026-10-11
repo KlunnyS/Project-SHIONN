@@ -86,6 +86,17 @@ allow enough time for the player to spawn. The shared script suppresses
 duplicate ready and terminal events, but the goal should still be a
 `trigger_once`, never `trigger_multiple`.
 
+Supervised recovery sessions call `DisableTimeout()` through the non-cheat
+server-side `script` command after loading a map, before the player necessarily
+touches the start trigger. Do not use `ent_fire` from the console for this:
+Portal 2 requires `sv_cheats 1` for that command.
+At human handoff, `DisableTimeoutForRecovery()` verifies that the chamber is
+active and unfinished. Subsequent delayed `SignalTimeout()` calls do nothing. This
+does not affect normal recordings or benchmarks, which never send the command.
+After changing the repository script, copy it into the installed game path
+above before starting a recovery session; the runner fails if it cannot see
+the acknowledgement.
+
 The expected event order for each attempt is:
 
 ```text

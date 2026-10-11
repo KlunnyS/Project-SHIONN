@@ -205,12 +205,13 @@ def wait_for_terminal_event(
     event_stream: EpisodeEventStream,
     duration: float,
     recorder: EpisodeRecorder | None = None,
+    reject_new_chamber: bool = False,
 ) -> str:
-    remaining_duration = duration
+    remaining_duration = duration if duration > 0 else None
     previous_tick = time.monotonic()
     while True:
         now = time.monotonic()
-        if recorder is None or not recorder.paused:
+        if remaining_duration is not None and (recorder is None or not recorder.paused):
             remaining_duration -= now - previous_tick
         previous_tick = now
 
@@ -219,10 +220,16 @@ def wait_for_terminal_event(
                 if control == "stop":
                     print("K pressed; ending recording session.")
                     return "interrupted"
+                if control == "restart":
+                    print("R pressed; restarting this chamber's model attempt.")
+                    return "restart_requested"
                 if control == "pause":
                     recorder.toggle_pause()
 
         for event in read_events(controller, event_stream):
+            if reject_new_chamber and event.name == "chamber_ready":
+                print("A new chamber-ready event arrived during recovery; rejecting this clip.")
+                return "map_reloaded"
             outcome = event_outcome(event)
             if outcome:
                 print(f"Terminal event received: {event.name}|{event.value}")
@@ -231,10 +238,10 @@ def wait_for_terminal_event(
         if recorder is not None and recorder.paused:
             time.sleep(0.05)
             continue
-        if remaining_duration <= 0:
+        if remaining_duration is not None and remaining_duration <= 0:
             print(f"Local {duration:g}-second recording limit reached.")
             return "timeout"
-        time.sleep(min(0.05, remaining_duration))
+        time.sleep(min(0.05, remaining_duration) if remaining_duration is not None else 0.05)
 
 
 @dataclass
