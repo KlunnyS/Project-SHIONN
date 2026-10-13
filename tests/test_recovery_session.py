@@ -56,6 +56,18 @@ class RecoverySessionTest(unittest.TestCase):
             self.assertIn("--log-actions", model)
             self.assertIn("--test-mode", recovery)
 
+    def test_real_session_can_omit_only_model_video_for_handoff_comparison(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            checkpoint = root / "best.pt"
+            checkpoint.touch()
+            args = parse_args(["--checkpoint", str(checkpoint), "--no-model-video"])
+            self.assertNotIn("--record-video", model_command(args, "dataset_test4", root / "attempt"))
+            self.assertIn("--log-actions", model_command(args, "dataset_test4", root / "attempt"))
+            self.assertNotIn("--test-mode", recovery_command(
+                args, "dataset_test4", root / "attempt.jsonl", root / "result.json",
+            ))
+
     def test_test_mode_goal_counts_without_episode_path(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

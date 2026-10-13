@@ -18,7 +18,7 @@ from record_dataset import (
 )
 from recorder import EpisodeRecorder, InputTracker, _pointer_score, find_input_devices
 from record_recovery import (
-    main as record_recovery, pointer_inside_portal, wait_for_manual_start,
+    HandoffDiagnostics, main as record_recovery, pointer_inside_portal, wait_for_manual_start,
     wait_for_physical_mouse,
 )
 
@@ -94,6 +94,22 @@ class EpisodeEventStreamTest(unittest.TestCase):
         physical_mouse = FakePointerDevice("Razer Razer Basilisk V3", button_keys)
         receiver = FakePointerDevice("Corsair Wireless Dongle", button_keys)
         self.assertGreater(_pointer_score(physical_mouse), _pointer_score(receiver))
+
+    def test_physical_mouse_counters_do_not_consume_recorded_deltas(self):
+        import evdev
+
+        mouse = SimpleNamespace(
+            path="/dev/input/mouse-test", name="Physical mouse",
+            read_loop=lambda: iter([
+                SimpleNamespace(type=evdev.ecodes.EV_REL, code=evdev.ecodes.REL_X, value=-600),
+                SimpleNamespace(type=evdev.ecodes.EV_REL, code=evdev.ecodes.REL_X, value=300),
+            ]),
+        )
+        tracker = InputTracker([], [mouse])
+        tracker._mouse_loop(mouse)
+        self.assertEqual(tracker.mouse_counters_snapshot()["left"], 600)
+        self.assertEqual(tracker.mouse_counters_snapshot()["right"], 300)
+        self.assertEqual(tracker.get_mouse_delta_and_reset(), (-300, 0))
 
     @patch("recorder.evdev.InputDevice")
     @patch("recorder.evdev.list_devices")
@@ -242,6 +258,43 @@ class EpisodeRecorderOutcomeTest(unittest.TestCase):
         self.assertTrue(recorder.toggle_pause())
         self.assertFalse(recorder.toggle_pause())
         self.assertEqual(recorder.tracker.get_snapshot_and_reset.call_count, 2)
+
+    @patch("recorder.time.monotonic", return_value=10.0)
+    def test_recovery_resume_waits_three_seconds_without_recording(self, _clock):
+        recorder = EpisodeRecorder.__new__(EpisodeRecorder)
+        recorder.recording = True
+        recorder.paused = False
+        recorder.resume_delay_seconds = 3.0
+        recorder.resume_deadline = None
+        recorder.sync_lock = threading.Lock()
+        recorder.tracker = Mock()
+
+        self.assertTrue(recorder.toggle_pause())
+        self.assertTrue(recorder.toggle_pause())
+        self.assertEqual(recorder.resume_deadline, 13.0)
+        recorder._finish_resume_delay(12.99)
+        self.assertTrue(recorder.paused)
+        recorder._finish_resume_delay(13.0)
+        self.assertFalse(recorder.paused)
+        self.assertIsNone(recorder.resume_deadline)
+        self.assertEqual(recorder.tracker.get_snapshot_and_reset.call_count, 3)
+
+    @patch("recorder.time.monotonic", return_value=10.0)
+    def test_escape_during_recovery_resume_delay_cancels_resume(self, _clock):
+        recorder = EpisodeRecorder.__new__(EpisodeRecorder)
+        recorder.recording = True
+        recorder.paused = False
+        recorder.resume_delay_seconds = 3.0
+        recorder.resume_deadline = None
+        recorder.sync_lock = threading.Lock()
+        recorder.tracker = Mock()
+
+        recorder.toggle_pause()
+        recorder.toggle_pause()
+        self.assertTrue(recorder.toggle_pause())
+        self.assertIsNone(recorder.resume_deadline)
+        recorder._finish_resume_delay(13.0)
+        self.assertTrue(recorder.paused)
 
     @patch("recorder.get_default_output", return_value="DP-1")
     @patch("recorder.WaylandCamera")
@@ -460,6 +513,41 @@ class RecordingQuotaTest(unittest.TestCase):
 
 
 class RecoveryRecordingTest(unittest.TestCase):
+    def test_handoff_diagnostics_detects_large_mouse_motion_without_matching_yaw(self):
+        tracker = Mock()
+        tracker.mouse_counters_snapshot.side_effect = [
+            {"left": 0, "right": 0, "up": 0, "down": 0},
+            {"left": 0, "right": 0, "up": 0, "down": 0},
+            {"left": 1200, "right": 0, "up": 0, "down": 0},
+        ]
+        with tempfile.TemporaryDirectory() as directory, \
+             patch("record_recovery.query_hyprland_active_window",
+                   return_value={"portal_focused": True}), \
+             patch("record_recovery.query_hyprland_cursor", return_value=(500, 500)):
+            path = Path(directory) / "handoff_diagnostics.jsonl"
+            diagnostics = HandoffDiagnostics(tracker, "test", path)
+            diagnostics.sample((0.0, 90.0, 0.0))
+            diagnostics.sample((0.0, 92.0, 0.0))
+            self.assertEqual(diagnostics.weak_directions(), ["left"])
+            diagnostics.finish("weak_mouse_response")
+            records = [json.loads(line) for line in path.read_text().splitlines()]
+            self.assertEqual(records[-1]["weak_directions"], ["left"])
+            self.assertEqual(records[-1]["physical_counts"]["left"], 1200)
+
+    def test_handoff_diagnostics_accepts_proportional_camera_turn(self):
+        tracker = Mock()
+        tracker.mouse_counters_snapshot.side_effect = [
+            {"left": 0, "right": 0, "up": 0, "down": 0},
+            {"left": 0, "right": 0, "up": 0, "down": 0},
+            {"left": 1000, "right": 0, "up": 0, "down": 0},
+        ]
+        with patch("record_recovery.query_hyprland_active_window", return_value=None), \
+             patch("record_recovery.query_hyprland_cursor", return_value=None):
+            diagnostics = HandoffDiagnostics(tracker, "test")
+            diagnostics.sample((0.0, 90.0, 0.0))
+            diagnostics.sample((0.0, 125.0, 0.0))
+        self.assertEqual(diagnostics.weak_directions(), [])
+
     @patch("record_recovery.time.sleep")
     @patch("record_recovery.wait_for_terminal_event", return_value="interrupted")
     @patch("record_recovery.wait_for_camera")
@@ -524,12 +612,13 @@ class RecoveryRecordingTest(unittest.TestCase):
 
     def test_mouse_check_retries_capture_once_after_no_motion(self):
         now = [0.0]
+        controller = Mock()
         tracker = Mock()
         tracker.pop_control_events.return_value = []
         samples = iter([
             (0.0, 90.0, 0.0), (0.0, 90.0, 0.0),
             (0.0, 90.0, 0.0), (0.0, 90.0, 0.0),
-            (0.0, 91.0, 0.0), (0.0, 91.0, 0.0),
+            (0.0, 92.0, 0.0), (0.0, 92.0, 0.0),
         ])
         with patch("record_recovery.time.monotonic", side_effect=lambda: now[0]), \
              patch("record_recovery.time.sleep", side_effect=lambda seconds: now.__setitem__(0, now[0] + seconds)), \
@@ -538,9 +627,38 @@ class RecoveryRecordingTest(unittest.TestCase):
              patch("record_recovery.activate_portal_input",
                    return_value={"portal_focused": True}) as activate:
             self.assertIsNone(wait_for_physical_mouse(
-                Mock(), tracker, 0.2, "auto", (0.0, 90.0, 0.0)
+                controller, tracker, 0.2, "auto", (0.0, 90.0, 0.0)
             ))
+        activate.assert_called_once_with(controller, "auto", force_recenter=True)
+
+    def test_mouse_check_retries_then_rejects_weak_left_turn_before_clip(self):
+        now = [0.0]
+        tracker = Mock()
+        tracker.pop_control_events.return_value = []
+        diagnostics = Mock()
+        diagnostics.weak_directions.return_value = ["left"]
+        samples = iter([
+            (0.0, 92.0, 0.0), (0.0, 92.0, 0.0),
+            (0.0, 92.0, 0.0), (0.0, 92.0, 0.0),
+            (0.0, 94.0, 0.0), (0.0, 94.0, 0.0),
+        ])
+        with patch("record_recovery.time.monotonic", side_effect=lambda: now[0]), \
+             patch("record_recovery.time.sleep",
+                   side_effect=lambda seconds: now.__setitem__(0, now[0] + seconds)), \
+             patch("record_recovery.read_player_angles",
+                   side_effect=lambda *_args, **_kwargs: next(samples)), \
+             patch("record_recovery.activate_portal_input",
+                   return_value={"portal_focused": True}) as activate:
+            outcome = wait_for_physical_mouse(
+                Mock(), tracker, 0.2, "auto", (0.0, 90.0, 0.0),
+                diagnostics=diagnostics,
+            )
+        self.assertEqual(outcome, "restart_requested")
         activate.assert_called_once()
+        self.assertEqual(
+            [call.args[0] for call in diagnostics.finish.call_args_list],
+            ["retry_capture", "weak_mouse_response"],
+        )
 
     def test_mouse_check_k_stops_before_recording(self):
         tracker = Mock()
@@ -621,8 +739,11 @@ class RecoveryRecordingTest(unittest.TestCase):
                     "--keep-focused", "--disable-chamber-timeout",
                 ])
             self.assertEqual(disable_timeout.call_count, 2)
+            self.assertEqual(recorder_class.call_args.kwargs["resume_delay_seconds"], 3.0)
             disable_timeout.assert_any_call(recorder.controller, require_active=True)
-            activate_input.assert_called_once_with(recorder.controller, "auto")
+            activate_input.assert_called_once_with(
+                recorder.controller, "auto", force_recenter=True,
+            )
 
             recorder.start_recording.assert_called_once_with(
                 map_name="dataset_test9",
@@ -823,7 +944,10 @@ class RecoveryRecordingTest(unittest.TestCase):
                     "--manual-focus", "--focus-delay", "2",
                     "--result-file", str(result_file),
                 ])
-            manual_start.assert_called_once_with(recorder.tracker, 2.0)
+            self.assertEqual(manual_start.call_count, 1)
+            self.assertEqual(manual_start.call_args.args[:3], (
+                recorder.tracker, 2.0, recorder.controller,
+            ))
             mouse_check.assert_not_called()
             pointer_check.assert_not_called()
             recorder.start_recording.assert_called_once()

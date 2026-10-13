@@ -29,9 +29,23 @@ All notable changes to Project SHIONN are documented in this file.
   scheduler/early-stopping state, and legacy patience recovery from metrics.
 - Add opt-in live mouse-delta limiting with separate raw/applied JSONL actions,
   plus sustained `policy_freeze`, `wall_stuck`, and `turn_loop` event records.
+- Log physical mouse movement, Portal 2 camera angles, and Hyprland cursor/focus
+  during recovery handoff; allow real correction runs without model-attempt MP4s
+  to isolate encoding-related differences from test mode.
+- Recognize Portal 2's fullscreen Gamescope wrapper as a focus target while
+  leaving Gamescope's forced relative mouse grab untouched.
+- Refresh Gamescope's intermittent mouse grab at recovery handoff by briefly
+  switching to an empty workspace and back before the human focus check.
+- Re-focus Portal 2 before a new recovery-session model attempt if the prior
+  handoff left another window active.
 
 ### Changed
 
+- Recenter Portal 2's confined pointer at recovery handoff and on a weak-input
+  retry; require physical left/right motion to produce proportional camera yaw
+  before recording, including in manual-focus mode.
+- Delay recovery recording by three seconds after Escape resumes Portal 2, so
+  menu frames and transition inputs are omitted from the saved clip.
 - Poll physical mouse movement across the recovery focus wait and retry input
   capture once when no camera movement is detected.
 - Make R discard and restart the current supervised chamber, K stop the whole

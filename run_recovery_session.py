@@ -34,6 +34,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="After takeover, check focus and press P to start recovery manually")
     parser.add_argument("--test-mode", action="store_true",
                         help="Exercise handoff and controls without saving model videos or recovery clips")
+    parser.add_argument("--no-model-video", action="store_true",
+                        help="Save real corrections without encoding the preceding model attempt MP4")
     parser.add_argument("--countdown", type=float, default=3.0)
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
     parser.add_argument("--output", help="Wayland output name for both runners")
@@ -75,7 +77,7 @@ def model_command(args: argparse.Namespace, map_name: str, attempt_dir: Path) ->
         "--recording-dir", str(attempt_dir), "--log-actions",
         "--keep-focused", "--recovery-handoff", "--disable-chamber-timeout",
     ]
-    if not args.test_mode:
+    if not args.test_mode and not args.no_model_video:
         command.append("--record-video")
     if args.output:
         command.extend(("--output", args.output))
@@ -126,6 +128,7 @@ def main(argv: list[str] | None = None) -> int:
             "target_corrections": args.target_corrections,
             "max_model_attempts": args.max_model_attempts,
             "test_mode": args.test_mode,
+            "model_video": not (args.test_mode or args.no_model_video),
         }) + "\n")
         try:
             for number in range(1, args.max_model_attempts + 1):

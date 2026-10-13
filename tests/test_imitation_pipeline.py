@@ -28,7 +28,7 @@ from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_
 from models.imitation.train_bc import EarlyStopping, augment_batch, binary_class_weights_for_mode, consecutive_unimproved_epochs, format_duration, make_binary_class_weights, make_training_loader, partition_frozen_training, run_epoch, select_maps, split_training_manifests, training_sampling_weights
 # Project entry points and capture/controller modules at the repository root.
 from recorder import FFmpegVideoWriter
-from run_imitation import AttemptLog, EscapeKeyMonitor, RuntimeDiagnosticTracker, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, click_to_capture_portal_input, disable_chamber_timeout, frame_change, fullscreen_portal_window, hyprland_instance_candidates, limit_mouse_action, load_recovery_map, make_attempt_recording_path, parse_args, prepare_portal_visual_state, prepare_recovery_model_start, read_player_angles
+from run_imitation import AttemptLog, EscapeKeyMonitor, RuntimeDiagnosticTracker, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, click_to_capture_portal_input, disable_chamber_timeout, focus_portal_window, frame_change, fullscreen_portal_window, hyprland_instance_candidates, is_portal_window, limit_mouse_action, load_recovery_map, make_attempt_recording_path, parse_args, prepare_portal_visual_state, prepare_recovery_model_start, read_player_angles
 from wrapper import Portal2Controller
 
 
@@ -424,6 +424,90 @@ class ImitationPipelineTest(unittest.TestCase):
     def test_explicit_hyprland_instance_does_not_depend_on_session_environment(self):
         self.assertEqual(hyprland_instance_candidates("test-signature"), ["test-signature"])
 
+    def test_gamescope_window_must_belong_to_portal_2(self):
+        self.assertTrue(is_portal_window({"class": "steam_app_620", "title": "PORTAL 2"}))
+        self.assertTrue(is_portal_window({
+            "class": "gamescope", "title": "PORTAL 2 - Direct3D 9",
+        }))
+        self.assertFalse(is_portal_window({
+            "class": "gamescope", "title": "Another game",
+        }))
+        self.assertFalse(is_portal_window({"class": "steam", "title": "Portal 2"}))
+
+    @patch("run_imitation.time.sleep")
+    @patch("run_imitation.shutil.which", return_value="/usr/bin/hyprctl")
+    @patch("run_imitation.subprocess.run")
+    @patch("run_imitation.query_hyprland_active_window")
+    def test_focus_selects_exact_portal_gamescope_address(
+        self, active_window, run_command, _which, _sleep,
+    ):
+        clients = [
+            {"class": "gamescope", "title": "Another game", "address": "0x111", "visible": True},
+            {"class": "gamescope", "title": "PORTAL 2 - Direct3D 9", "address": "0x222", "visible": True},
+        ]
+        run_command.side_effect = [
+            SimpleNamespace(stdout=json.dumps(clients)), SimpleNamespace(stdout="ok"),
+        ]
+        active_window.return_value = {
+            "portal_focused": True, "class": "gamescope", "address": "0x222",
+        }
+        self.assertEqual(focus_portal_window("test-signature"), active_window.return_value)
+        self.assertEqual(run_command.call_args_list[1].args[0][-1], "address:0x222")
+
+    @patch("run_imitation.time.sleep")
+    @patch("run_imitation.subprocess.run")
+    @patch("run_imitation.click_to_capture_portal_input")
+    @patch("run_imitation.query_hyprland_cursor")
+    @patch("run_imitation.query_hyprland_active_window")
+    def test_gamescope_handoff_refreshes_workspace_without_xtest_or_warp(
+        self, active_window, cursor, click, run_command, _sleep,
+    ):
+        window = {
+            "portal_focused": True, "class": "gamescope",
+            "hyprland_instance": "test-signature",
+            "workspace": {"id": 7, "name": "7"}, "address": "0x222",
+        }
+        active_window.return_value = window
+        controller = Mock()
+        self.assertEqual(activate_portal_input(controller, force_recenter=True), window)
+        cursor.assert_not_called()
+        click.assert_not_called()
+        self.assertEqual([entry.args[0][-2:] for entry in run_command.call_args_list], [
+            ["workspace", "emptym"], ["workspace", "7"],
+        ])
+        controller.send_command.assert_called_once_with("unpause")
+
+    @patch("run_imitation.time.sleep")
+    @patch("run_imitation.subprocess.run")
+    @patch("run_imitation.query_hyprland_active_window")
+    def test_gamescope_normal_activation_does_not_switch_workspaces(
+        self, active_window, run_command, _sleep,
+    ):
+        window = {
+            "portal_focused": True, "class": "gamescope",
+            "hyprland_instance": "test-signature",
+            "workspace": {"id": 7}, "address": "0x222",
+        }
+        active_window.return_value = window
+        self.assertEqual(activate_portal_input(Mock()), window)
+        run_command.assert_not_called()
+
+    @patch("run_imitation.time.sleep")
+    @patch("run_imitation.subprocess.run")
+    @patch("run_imitation.query_hyprland_active_window")
+    def test_gamescope_handoff_restores_workspace_if_switch_fails_after_dispatch(
+        self, active_window, run_command, _sleep,
+    ):
+        window = {
+            "portal_focused": True, "class": "gamescope",
+            "hyprland_instance": "test-signature",
+            "workspace": {"id": 7}, "address": "0x222",
+        }
+        active_window.return_value = window
+        run_command.side_effect = [SimpleNamespace(), subprocess.CalledProcessError(1, "hyprctl")]
+        with self.assertRaisesRegex(RuntimeError, "Could not restore Portal 2 workspace"):
+            activate_portal_input(Mock(), force_recenter=True)
+
     @patch("run_imitation.time.sleep")
     @patch("run_imitation.subprocess.run")
     @patch("run_imitation.query_hyprland_active_window")
@@ -517,6 +601,22 @@ class ImitationPipelineTest(unittest.TestCase):
         focus_window.assert_called_once_with("auto")
         self.assertIn("movecursor", run_command.call_args.args[0])
         click.assert_called_once_with(controller)
+
+    @patch("run_imitation.time.sleep")
+    @patch("run_imitation.subprocess.run")
+    @patch("run_imitation.click_to_capture_portal_input", return_value=True)
+    @patch("run_imitation.query_hyprland_cursor", return_value=(500, 500))
+    @patch("run_imitation.query_hyprland_active_window")
+    def test_recovery_retry_forces_recenter_even_when_pointer_is_inside(
+        self, active_window, cursor, click, run_command, _sleep,
+    ):
+        window = {
+            "portal_focused": True, "at": [100, 200], "size": [800, 600],
+            "hyprland_instance": "test-signature",
+        }
+        active_window.return_value = window
+        self.assertEqual(activate_portal_input(Mock(), force_recenter=True), window)
+        self.assertEqual(run_command.call_args.args[0][-2:], ["500", "500"])
 
     @patch("run_imitation.time.sleep")
     @patch("run_imitation.shutil.which", return_value="/usr/bin/xte")

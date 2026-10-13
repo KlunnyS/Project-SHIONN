@@ -25,6 +25,7 @@ from wrapper import Portal2Controller, is_game_running, launch_game
 
 TERMINAL_EVENTS = ("EVT|goal_reached", "EVT|episode_failed")
 PORTAL_WINDOW_CLASS = "steam_app_620"
+GAMESCOPE_WINDOW_CLASS = "gamescope"
 EPISODE_FAILURE_PATTERN = re.compile(r"EVT\|episode_failed\|([^\r\n]*)")
 DIAGNOSTIC_MIN_SECONDS = 1.0
 WALL_STUCK_VISUAL_DELTA = 0.05
@@ -251,6 +252,17 @@ def hyprland_instance_candidates(instance: str = "auto") -> list[str]:
     return candidates
 
 
+def is_portal_window(window: dict) -> bool:
+    """Accept either Portal's XWayland surface or its Gamescope wrapper."""
+    if window.get("class") == PORTAL_WINDOW_CLASS:
+        return True
+    return (
+        window.get("class") == GAMESCOPE_WINDOW_CLASS
+        and isinstance(window.get("title"), str)
+        and bool(re.fullmatch(r"PORTAL 2(?: - .*)?", window["title"], re.IGNORECASE))
+    )
+
+
 def query_hyprland_active_window(instance: str = "auto") -> dict | None:
     """Return a small active-window snapshot, or None outside Hyprland."""
     if shutil.which("hyprctl") is None:
@@ -268,28 +280,49 @@ def query_hyprland_active_window(instance: str = "auto") -> dict | None:
         except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
             continue
         return {
+            "address": window.get("address"),
             "class": window.get("class"),
             "title": window.get("title"),
             "monitor": window.get("monitor"),
+            "workspace": window.get("workspace"),
             "fullscreen": window.get("fullscreen"),
             "at": window.get("at"),
             "size": window.get("size"),
-            "portal_focused": window.get("class") == PORTAL_WINDOW_CLASS,
+            "portal_focused": is_portal_window(window),
             "hyprland_instance": candidate,
         }
     return None
 
 
 def focus_portal_window(instance: str = "auto") -> dict | None:
-    """Ask Hyprland to focus Portal and return the resulting active window."""
+    """Focus the exact visible Portal or Gamescope window, not another game."""
     if shutil.which("hyprctl") is None:
         return None
     for candidate in hyprland_instance_candidates(instance):
         try:
+            clients_result = subprocess.run(
+                ["hyprctl", "-i", candidate, "clients", "-j"],
+                check=True, capture_output=True, text=True, timeout=2,
+            )
+            clients = json.loads(clients_result.stdout)
+            targets = [
+                window for window in clients
+                if is_portal_window(window) and not window.get("hidden")
+                and window.get("visible", True)
+                and re.fullmatch(r"0x[0-9a-fA-F]+", str(window.get("address", "")))
+            ]
+            if not targets:
+                continue
+            # Gamescope owns the outer window when present; the nested game is
+            # not a separate focus target in the host compositor.
+            target = next(
+                (window for window in targets if window.get("class") == GAMESCOPE_WINDOW_CLASS),
+                targets[0],
+            )
             subprocess.run(
                 [
                     "hyprctl", "-i", candidate, "dispatch", "focuswindow",
-                    f"class:^({PORTAL_WINDOW_CLASS})$",
+                    f"address:{target['address']}",
                 ],
                 check=True,
                 capture_output=True,
@@ -297,10 +330,10 @@ def focus_portal_window(instance: str = "auto") -> dict | None:
                 timeout=2,
             )
             time.sleep(0.1)
-        except (OSError, subprocess.SubprocessError):
+        except (OSError, ValueError, TypeError, subprocess.SubprocessError):
             continue
         status = query_hyprland_active_window(candidate)
-        if status is not None:
+        if status is not None and status["portal_focused"] and status.get("address") == target["address"]:
             return status
     return None
 
@@ -410,19 +443,83 @@ def click_to_capture_portal_input(controller: Portal2Controller) -> bool:
         restore_portal_binding(controller, "mouse1", binding)
 
 
+def refresh_gamescope_pointer_grab(status: dict) -> dict | None:
+    """Briefly leave and restore the game's workspace to renew its pointer grab.
+
+    Hyprland can report Gamescope focused even when relative mouse capture has
+    been lost. A workspace focus transition has restored capture in live tests.
+    This runs only during the human-recovery handoff, before recording starts.
+    """
+    instance = status.get("hyprland_instance")
+    workspace = status.get("workspace")
+    workspace_id = workspace.get("id") if isinstance(workspace, dict) else None
+    address = status.get("address")
+    if not instance or not isinstance(workspace_id, int) or workspace_id <= 0 or not address:
+        return None
+    switched = False
+    try:
+        subprocess.run(
+            ["hyprctl", "-i", instance, "dispatch", "workspace", "emptym"],
+            check=True, capture_output=True, text=True, timeout=2,
+        )
+        switched = True
+        time.sleep(0.5)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    finally:
+        if switched:
+            # Restore by ID, not "previous": another monitor may have its own
+            # previous-workspace history.
+            try:
+                subprocess.run(
+                    ["hyprctl", "-i", instance, "dispatch", "workspace", str(workspace_id)],
+                    check=True, capture_output=True, text=True, timeout=2,
+                )
+                time.sleep(0.5)
+            except (OSError, subprocess.SubprocessError) as error:
+                raise RuntimeError(
+                    f"Could not restore Portal 2 workspace {workspace_id} after pointer refresh"
+                ) from error
+    restored = query_hyprland_active_window(instance)
+    if not restored or restored.get("address") != address or not restored.get("portal_focused"):
+        restored = focus_portal_window(instance)
+    restored_workspace = restored.get("workspace") if restored else None
+    if (
+        restored and restored.get("address") == address
+        and restored.get("portal_focused")
+        and isinstance(restored_workspace, dict)
+        and restored_workspace.get("id") == workspace_id
+    ):
+        return restored
+    return None
+
+
 def activate_portal_input(
-    controller: Portal2Controller, instance: str = "auto"
+    controller: Portal2Controller, instance: str = "auto", *,
+    force_recenter: bool = False,
 ) -> dict | None:
-    """Focus Portal, acquire XWayland input without a game action, and unpause."""
+    """Focus Portal and acquire native XWayland or Gamescope-relative input."""
     status = query_hyprland_active_window(instance)
     already_focused = bool((status or {}).get("portal_focused"))
     if not already_focused:
         status = focus_portal_window(instance)
     if not (status or {}).get("portal_focused"):
         return None
+    candidate = status.get("hyprland_instance")
+    if status.get("class") == GAMESCOPE_WINDOW_CLASS:
+        # With --force-grab-cursor Gamescope owns the Wayland relative pointer.
+        # An XTEST click targets the host XWayland server, not its nested game,
+        # and warping the compositor cursor can disrupt that relative grab.
+        if force_recenter:
+            print("Refreshing Gamescope mouse capture via a brief workspace switch.")
+            status = refresh_gamescope_pointer_grab(status)
+            if status is None:
+                return None
+        controller.send_command("unpause")
+        time.sleep(0.1)
+        return query_hyprland_active_window(candidate)
     position = status.get("at")
     size = status.get("size")
-    candidate = status.get("hyprland_instance")
     if not (
         isinstance(position, list) and len(position) == 2
         and isinstance(size, list) and len(size) == 2
@@ -434,7 +531,9 @@ def activate_portal_input(
         position[0] <= cursor[0] < position[0] + size[0]
         and position[1] <= cursor[1] < position[1] + size[1]
     )
-    if not already_focused or cursor_outside:
+    # A confined but uncaptured pointer can still be pinned inside the window.
+    # Recovery handoffs explicitly request a recenter before the capture click.
+    if not already_focused or cursor_outside or force_recenter:
         center_x = int(position[0] + size[0] / 2)
         center_y = int(position[1] + size[1] / 2)
         try:
@@ -871,7 +970,11 @@ def main() -> None:
 
         focus_status = query_hyprland_active_window(args.hyprland_instance)
         if args.recovery_handoff:
-            focus_status = query_hyprland_active_window(args.hyprland_instance)
+            # A previous human takeover or workspace refresh may have left
+            # another window active. Re-focus the game before rejecting the
+            # next model attempt; this does not inject any mouse input.
+            if not (focus_status or {}).get("portal_focused"):
+                focus_status = focus_portal_window(args.hyprland_instance)
         elif args.keep_focused and not args.dry_run:
             focus_status = activate_portal_input(controller, args.hyprland_instance)
             input_ready = bool((focus_status or {}).get("portal_focused"))

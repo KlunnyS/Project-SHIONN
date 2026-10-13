@@ -183,8 +183,8 @@ automated instead:
 
 The session loads a training chamber and runs the model. Press **P** at a useful
 failure: the model releases its controls and the recovery recorder starts at
-the *same position*, after reacquiring Portal 2 input and a five-second focus
-delay. Sweep the physical mouse toward the other monitor and back during that
+the *same position*, after recentering the confined pointer, reacquiring Portal 2
+input, and a five-second focus delay. Sweep the physical mouse toward the other monitor and back during that
 wait, then return the view near its starting angle. The runner checks the
 Hyprland cursor position and Portal focus throughout the sweep, as well as
 camera response; a detected escape or large view shift retries the same
@@ -192,19 +192,29 @@ chamber without writing a correction. If confinement still looks wrong once
 recording starts, press **R** to reject that correction; its partial clip is
 kept under `episodes/recovery/discarded/` for review, not training. Reach the goal to save a
 successful correction and automatically start the model on the next chamber.
+The five-second handoff also logs physical mouse counts, game angles, and
+Hyprland cursor/focus to `handoff_diagnostics.jsonl` in the attempt folder.
+If substantial mouse movement produces almost no camera turn, the runner
+reacquires input once and then retries the chamber without a clip.
 If automated focus verification blocks collection, run the session with
 `--manual-focus`: after the first P handoff, check confinement and re-align the
 view at your own pace, then press P again to begin the recovery MP4 and actions
 CSV. No pre-start mouse movement is included in that recovery clip. This mode
-does not automatically reject an escaped pointer; use R if the take is invalid.
+does not automatically reject an escaped pointer, though it rejects clearly
+ineffective physical mouse movement; use R if the take is invalid.
 For a feature check without filling the dataset with unusable clips, add
 `--test-mode` (optionally alongside `--manual-focus`). The policy still sees
 live frames, but no model or recovery MP4/CSV is written. Test diagnostics
 go under `model_attempts/recovery_tests/` instead of the normal session folder.
+For a real correction run without the preceding model-attempt MP4, use
+`--no-model-video`; this helps isolate whether model-video encoding affects
+the handoff while keeping recovery MP4/CSV collection enabled.
 **R** restarts the current chamber from a new model attempt, whether pressed
 during model control or human correction. **K** stops the whole session;
 during correction it saves the partial clip under `interrupted`. Esc remains
-the model runner's emergency stop, not the handoff key. P is read from the
+the model runner's emergency stop, not the handoff key. During recovery recording,
+Esc pauses/resumes; capture waits three seconds after the resume press so the
+Portal 2 pause menu is not written to the clip. P is read from the
 physical keyboard and may also reach Portal 2, so ensure it has no in-game
 binding. The runner temporarily unbinds Portal 2's R key and restores its
 original binding at the end of each phase.

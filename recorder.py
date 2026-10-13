@@ -153,6 +153,12 @@ class InputTracker:
         
         self.mouse_dx = 0
         self.mouse_dy = 0
+        # Cumulative physical motion lets handoff checks inspect input without
+        # consuming the deltas later written to an episode's actions.csv.
+        self.mouse_total_left = 0
+        self.mouse_total_right = 0
+        self.mouse_total_up = 0
+        self.mouse_total_down = 0
         self.mouse_lock = threading.Lock()
         self.mouse_event_counts = {device.path: 0 for device in self.mice}
         self.mouse_errors = []
@@ -244,20 +250,38 @@ class InputTracker:
                     with self.mouse_lock:
                         if event.code == evdev.ecodes.REL_X:
                             self.mouse_dx += event.value
+                            if event.value < 0:
+                                self.mouse_total_left -= event.value
+                            else:
+                                self.mouse_total_right += event.value
                             self.mouse_event_counts[mouse.path] += 1
                         elif event.code == evdev.ecodes.REL_Y:
                             self.mouse_dy += event.value
+                            if event.value < 0:
+                                self.mouse_total_up -= event.value
+                            else:
+                                self.mouse_total_down += event.value
                             self.mouse_event_counts[mouse.path] += 1
                 elif event.type == evdev.ecodes.EV_ABS:
                     with self.mouse_lock:
                         if event.code == evdev.ecodes.ABS_X:
                             if last_abs_x is not None:
-                                self.mouse_dx += (event.value - last_abs_x)
+                                delta = event.value - last_abs_x
+                                self.mouse_dx += delta
+                                if delta < 0:
+                                    self.mouse_total_left -= delta
+                                else:
+                                    self.mouse_total_right += delta
                                 self.mouse_event_counts[mouse.path] += 1
                             last_abs_x = event.value
                         elif event.code == evdev.ecodes.ABS_Y:
                             if last_abs_y is not None:
-                                self.mouse_dy += (event.value - last_abs_y)
+                                delta = event.value - last_abs_y
+                                self.mouse_dy += delta
+                                if delta < 0:
+                                    self.mouse_total_up -= delta
+                                else:
+                                    self.mouse_total_down += delta
                                 self.mouse_event_counts[mouse.path] += 1
                             last_abs_y = event.value
                 elif event.type == evdev.ecodes.EV_KEY:
@@ -284,6 +308,16 @@ class InputTracker:
             self.mouse_dx = 0
             self.mouse_dy = 0
         return dx, dy
+
+    def mouse_counters_snapshot(self):
+        """Read physical motion totals without clearing recording input."""
+        with self.mouse_lock:
+            return {
+                "left": self.mouse_total_left,
+                "right": self.mouse_total_right,
+                "up": self.mouse_total_up,
+                "down": self.mouse_total_down,
+            }
 
     def get_snapshot_and_reset(self):
         dx, dy = self.get_mouse_delta_and_reset()
@@ -466,7 +500,10 @@ class EpisodeRecorder:
         restart_enabled=False,
         start_enabled=False,
         prepare_output=True,
+        resume_delay_seconds=0.0,
     ):
+        if resume_delay_seconds < 0:
+            raise ValueError("resume_delay_seconds cannot be negative")
         self.fps = fps
         self.kbds, self.mice = find_input_devices(mouse_selector=mouse_device)
         if not self.kbds or not self.mice:
@@ -490,6 +527,8 @@ class EpisodeRecorder:
         
         self.recording = False
         self.paused = False
+        self.resume_delay_seconds = resume_delay_seconds
+        self.resume_deadline = None
         self.ep_dir = None
         self.csv_file = None
         self.csv_writer = None
@@ -529,6 +568,7 @@ class EpisodeRecorder:
         
         self.frame_idx = 0
         self.paused = False
+        self.resume_deadline = None
         self.sync_lock = threading.Lock()
         self.recording = True
         
@@ -542,11 +582,32 @@ class EpisodeRecorder:
             return False
         # Wait for any in-flight frame/CSV tick before changing pause state.
         with self.sync_lock:
-            self.paused = not self.paused
+            if not self.paused:
+                self.paused = True
+                self.resume_deadline = None
+                message = "Recording paused. Press Esc to resume; K to stop."
+            elif self.resume_deadline is not None:
+                # Another Escape during the grace period reopens the game menu.
+                self.resume_deadline = None
+                message = "Resume cancelled; recording remains paused."
+            elif getattr(self, "resume_delay_seconds", 0.0):
+                self.resume_deadline = time.monotonic() + self.resume_delay_seconds
+                message = f"Game resumed; recording restarts in {self.resume_delay_seconds:g} seconds."
+            else:
+                self.paused = False
+                message = "Recording resumed."
             self.tracker.get_snapshot_and_reset()
-        print("Recording paused. Press Esc to resume; K to stop." if self.paused
-              else "Recording resumed.")
+        print(message)
         return self.paused
+
+    def _finish_resume_delay(self, now):
+        """Resume after game menus have disappeared, dropping grace-period input."""
+        deadline = getattr(self, "resume_deadline", None)
+        if self.paused and deadline is not None and now >= deadline:
+            self.resume_deadline = None
+            self.paused = False
+            self.tracker.get_snapshot_and_reset()
+            print("Recording resumed.")
         
     def stop_recording(self, outcome="unknown"):
         if not self.recording:
@@ -555,6 +616,7 @@ class EpisodeRecorder:
         print(f"\n--- STOPPING RECORDING (Outcome: {outcome}) ---")
         self.recording = False
         self.paused = False
+        self.resume_deadline = None
         self.sync_thread.join(timeout=2.0)
         
         if self.video_writer:
@@ -581,6 +643,7 @@ class EpisodeRecorder:
             with self.sync_lock:
                 if not self.recording:
                     break
+                self._finish_resume_delay(time.monotonic())
                 paused = self.paused or self.tracker.pause_is_pending()
                 if paused:
                     # Drop menu input and reset the tick clock; no catch-up frames.
