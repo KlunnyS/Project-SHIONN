@@ -8,8 +8,9 @@ __pycache__/
 htmlcov/
 
 # Local Python environments
-.venv/
-venv/
+.venv
+.venv-gpu/
+venv
 
 # Runtime logs and local configuration
 *.log
@@ -18,13 +19,14 @@ venv/
 !.env.example
 .agent
 AGENTS.md
+handoff.md
 
 # Recorded demonstrations and generated training data
 episodes*
 data/datasets/*cached_frames
 models/imitation/checkpoints*
 models/imitation/backups
-model_attempts/
+model_attempts
 
 run_tests
 

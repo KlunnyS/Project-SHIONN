@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 from record_dataset import (
     EpisodeEvent, EpisodeEventStream, RecordingProgress, event_outcome,
     parse_args, record_episodes, validate_args,
-    wait_for_terminal_event,
+    wait_for_proactive_start, wait_for_terminal_event,
 )
 from recorder import EpisodeRecorder, InputTracker, _pointer_score, find_input_devices
 from record_recovery import (
@@ -445,6 +445,64 @@ class RecordingQuotaTest(unittest.TestCase):
         self.assertEqual(args.map_names, ["dataset_test5", "dataset_test6"])
         self.assertEqual(args.episodes, 3)
         self.assertEqual(args.episodes_root, Path("episodes_eval"))
+
+    def test_proactive_turn_mode_uses_separate_root_and_requires_training_turn_label(self):
+        args = parse_args([
+            "--proactive-turn", "--turn-direction", "left",
+            "--map", "dataset_test3",
+        ])
+        validate_args(args)
+        self.assertEqual(args.episodes_root, Path("episodes/corrections/proactive_turns"))
+
+        with self.assertRaisesRegex(ValueError, "requires --turn-direction"):
+            validate_args(parse_args(["--proactive-turn"]))
+
+    def test_proactive_turn_mode_rejects_validation_chambers(self):
+        args = parse_args([
+            "--proactive-turn", "--turn-direction", "right",
+            "--map", "dataset_test11",
+        ])
+        with self.assertRaisesRegex(ValueError, "dataset_test1 through dataset_test10"):
+            validate_args(args)
+
+    @patch("record_dataset.time.sleep")
+    @patch("record_dataset.read_events", return_value=[])
+    def test_proactive_turn_waits_for_physical_start_control(self, _read_events, _sleep):
+        recorder = Mock()
+        recorder.tracker.pop_control_events.side_effect = [[], ["start"]]
+
+        result = wait_for_proactive_start(recorder, Mock(), EpisodeEventStream())
+
+        self.assertEqual(result, "start")
+        self.assertEqual(recorder.tracker.pop_control_events.call_count, 2)
+
+    @patch("record_dataset.time.sleep")
+    @patch("record_dataset.wait_for_terminal_event", return_value="goal_reached")
+    @patch("record_dataset.wait_for_proactive_start", return_value="start")
+    @patch("record_dataset.load_map_and_wait_for_ready")
+    def test_proactive_turn_clip_starts_on_p_and_records_its_direction_metadata(
+        self, _load_map, _wait_start, _wait_terminal, _sleep,
+    ):
+        args = SimpleNamespace(
+            proactive_turn=True, turn_direction="left", episodes=1,
+            map_names=["dataset_test2"], ready_timeout=60.0,
+            duration=60.0, restart_delay=0.0,
+        )
+        recorder = Mock()
+        controller = Mock()
+        progress = RecordingProgress()
+
+        record_episodes(recorder, controller, EpisodeEventStream(), args, progress)
+
+        recorder.start_recording.assert_called_once_with(
+            map_name="dataset_test2",
+            metadata_extra={
+                "recording_mode": "proactive_turn",
+                "turn_direction": "left",
+            },
+        )
+        recorder.tracker.get_snapshot_and_reset.assert_called_once()
+        self.assertEqual(progress.successes, 1)
 
     def test_duplicate_maps_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "unique"):

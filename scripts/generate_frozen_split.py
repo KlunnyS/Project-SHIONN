@@ -58,10 +58,18 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--base-cache", type=Path, default=Path("data/datasets/cached_frames"))
     parser.add_argument("--recovery-cache", type=Path, default=Path("data/datasets/recovery_cached_frames"))
+    parser.add_argument(
+        "--proactive-turn-cache", type=Path,
+        default=Path("data/datasets/proactive_turn_cached_frames"),
+    )
     args = parser.parse_args()
     if args.output.exists():
         parser.error(f"Refusing to overwrite {args.output}; choose a new versioned path")
-    groups = {"base": args.base_cache, "recovery": args.recovery_cache}
+    groups = {
+        "base": args.base_cache,
+        "recovery": args.recovery_cache,
+        "proactive_turn": args.proactive_turn_cache,
+    }
     for group, path in groups.items():
         if not path.is_dir():
             parser.error(f"{group} cache missing: {path}")

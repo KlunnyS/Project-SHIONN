@@ -19,7 +19,27 @@ To train using the frozen split, omit the old holdout arguments (they are applie
   --checkpoint-dir models/imitation/checkpoints/runs/NEW_RUN
 ```
 
-To include the registered recovery episode, add `--train-extra-cache-dir data/datasets/recovery_cached_frames`. Evaluation recordings, if ever captured, belong in a separate evaluation location and must never be added as a training cache.
+The v1 manifest registers one recovery episode. As of 2026-10-18, the separate
+recovery cache contains that episode plus 30 additional corrections from the
+2026-10-18 session. These 30 are not registered in v1; passing the expanded
+cache with `--train-extra-cache-dir` and the default frozen manifest will fail
+validation. Before training with the new corrections, generate and review a
+new split revision. The 2026-10-13 pilot remains outside the cache and should
+be considered separately. Do not edit the frozen v1 manifest in place.
+Evaluation recordings, if ever captured, belong in a separate evaluation
+location and must never be added as a training cache.
+
+## Recovery-inclusive revision (v2)
+
+After the 30 corrections from 2026-10-18 were reviewed and cached, a new
+manifest was generated at [`data/splits/frozen_v2.json`](../data/splits/frozen_v2.json)
+with split ID `frozen-2026-10-18-v2`. It contains 1,131 training episodes
+(1,100 unchanged base episodes plus 31 recovery episodes), the same 200
+validation episodes, and no cached evaluation episodes. The original
+`frozen_v1.json` remains unchanged. The 2026-10-13 pilot is not in the recovery
+cache or v2. Use `--split-manifest data/splits/frozen_v2.json` when a planned
+candidate is ready to train; the manifest alone does not mean training has
+started.
 
 When new training corrections are recorded, keep them on training chambers only. To create a new split revision, generate a **new** manifest filename and split ID, review the diff and per-role counts, then point `--split-manifest` at it. Do not silently rewrite v1:
 
@@ -29,4 +49,32 @@ When new training corrections are recorded, keep them on training chambers only.
   --output data/splits/frozen_v2.json
 ```
 
-The generator currently includes the base cache and the recovery cache. If corrections use another cache group, extend the generator and register that group before training. Keep `evaluation1`, `evaluation2`, `dataset_test11`, and `dataset_test12` out of all training correction caches while their roles stay frozen.
+The generator includes the base, recovery, and proactive-turn caches. Keep
+`evaluation1`, `evaluation2`, `dataset_test11`, and `dataset_test12` out of all
+training correction caches while their roles stay frozen.
+
+The current manifest has now been generated as `frozen_v3.json`; the paragraph
+below describes the verified result, not a future procedure.
+
+## Proactive-turn revision (v3)
+
+The approved 2026-10-18 pilot contains 20 goal-reached clips: 10 left and 10
+right turns across `dataset_test1`–`dataset_test5`. They are pre-wall
+demonstrations and remain separate from the recovery recordings. Cache them
+separately, then generate a new revision so their role is explicit:
+
+```bash
+.venv/bin/python -m models.imitation.preprocess \
+  --recordings-dir episodes/corrections/proactive_turns/goal_reached \
+  --cache-dir data/datasets/proactive_turn_cached_frames
+.venv/bin/python -m scripts.generate_frozen_split \
+  --split-id frozen-2026-10-18-v3 \
+  --output data/splits/frozen_v3.json
+```
+
+The generator registers them as `proactive_turn`, with the same training-only
+role as the recovery cache. Expected totals are 1,151 train (1,100 base, 31
+recovery, 20 proactive-turn), 200 validation, and 0 evaluation episodes. The
+v3 manifest is the candidate for subsequent training; v1 and v2 remain
+unchanged. Training can pass both correction caches with repeated
+`--train-extra-cache-dir` options.

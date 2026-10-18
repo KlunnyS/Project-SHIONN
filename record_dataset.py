@@ -83,8 +83,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--height", type=int, default=1080)
     parser.add_argument("--crf", type=int, default=20)
     parser.add_argument(
-        "--episodes-root", type=Path, default=Path("episodes"),
-        help="Recording directory; use episodes_eval for held-out evaluation runs.",
+        "--episodes-root", type=Path, default=None,
+        help="Recording root; proactive-turn mode defaults to its dedicated folder.",
+    )
+    parser.add_argument(
+        "--proactive-turn", action="store_true",
+        help=(
+            "Record a training-only turn correction from a manually selected "
+            "pre-wall position; press physical P to begin each clip."
+        ),
+    )
+    parser.add_argument(
+        "--turn-direction", choices=("left", "right"),
+        help="Required with --proactive-turn; saved in episode metadata.",
     )
     parser.add_argument(
         "--output",
@@ -101,6 +112,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     args = parser.parse_args(argv)
     args.map_names = args.map_names or ["dataset_test1"]
+    # Keep proactive examples separate by default while retaining the existing
+    # normal-recording path and honoring an explicitly supplied root.
+    if args.episodes_root is None:
+        args.episodes_root = Path(
+            "episodes/corrections/proactive_turns"
+            if args.proactive_turn else "episodes"
+        )
     return args
 
 
@@ -119,6 +137,18 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--episodes must be zero or greater")
     if args.fps <= 0 or args.width <= 0 or args.height <= 0:
         raise ValueError("capture dimensions and FPS must be greater than zero")
+    if args.proactive_turn:
+        if args.turn_direction not in ("left", "right"):
+            raise ValueError("--proactive-turn requires --turn-direction left or right")
+        training_maps = {f"dataset_test{number}" for number in range(1, 11)}
+        outside_training = sorted(set(args.map_names) - training_maps)
+        if outside_training:
+            raise ValueError(
+                "proactive-turn training recordings must use dataset_test1 through "
+                f"dataset_test10; got {', '.join(outside_training)}"
+            )
+    elif args.turn_direction is not None:
+        raise ValueError("--turn-direction can only be used with --proactive-turn")
 
 
 def connect_controller(controller: Portal2Controller, timeout: float = 60.0) -> None:
@@ -244,6 +274,40 @@ def wait_for_terminal_event(
         time.sleep(min(0.05, remaining_duration) if remaining_duration is not None else 0.05)
 
 
+def wait_for_proactive_start(
+    recorder: EpisodeRecorder,
+    controller: Portal2Controller,
+    event_stream: EpisodeEventStream,
+) -> str:
+    """Wait for the operator to position before the turn and press physical P."""
+    print(
+        "Position Portal 2 at the chosen pre-wall turn approach. "
+        "No data is being recorded yet; press P to start the proactive-turn clip."
+    )
+    while True:
+        for control in recorder.tracker.pop_control_events():
+            if control == "start":
+                return "start"
+            if control == "stop":
+                print("K pressed before recording; ending session without a clip.")
+                return "interrupted"
+            if control == "pause":
+                print("Esc has no effect before a proactive-turn clip starts.")
+
+        for event in read_events(controller, event_stream):
+            if event.name == "chamber_ready":
+                print("Chamber reloaded before recording; retrying from a fresh chamber.")
+                return "restart_requested"
+            outcome = event_outcome(event)
+            if outcome:
+                print(
+                    f"Chamber ended before recording ({outcome}); "
+                    "no clip was written."
+                )
+                return "restart_requested"
+        time.sleep(0.05)
+
+
 @dataclass
 class RecordingProgress:
     successes: int = 0
@@ -268,10 +332,26 @@ def record_episodes(
             map_name,
             args.ready_timeout,
         )
-        # Discard Alt-Tab/menu/reset input accumulated while no episode was
-        # active. Held movement keys remain held and are captured on tick 0.
+        if getattr(args, "proactive_turn", False):
+            start_result = wait_for_proactive_start(
+                recorder, controller, event_stream
+            )
+            if start_result == "interrupted":
+                return
+            if start_result != "start":
+                time.sleep(args.restart_delay)
+                continue
+
+        # Discard menu, positioning, and start-key input accumulated while no
+        # episode was active. Held movement keys remain captured on tick 0.
         recorder.tracker.get_snapshot_and_reset()
-        recorder.start_recording(map_name=map_name)
+        metadata_extra = None
+        if getattr(args, "proactive_turn", False):
+            metadata_extra = {
+                "recording_mode": "proactive_turn",
+                "turn_direction": args.turn_direction,
+            }
+        recorder.start_recording(map_name=map_name, metadata_extra=metadata_extra)
         outcome = wait_for_terminal_event(
             controller,
             event_stream,
@@ -330,6 +410,7 @@ def main() -> None:
         output_name=args.output,
         mouse_device=args.mouse_device,
         episodes_root=args.episodes_root,
+        start_enabled=args.proactive_turn,
     )
     controller = recorder.controller
     event_stream = EpisodeEventStream()
@@ -358,6 +439,8 @@ def main() -> None:
         )
         print(f"Capture output: {recorder.camera.output_name or 'wf-recorder default'}")
         print("During recording: Esc pauses/resumes; K ends and saves the partial episode. Ctrl+C also stops.")
+        if args.proactive_turn:
+            print("Proactive-turn mode: position before the turn, then press physical P to begin capture.")
         print(
             f"Alt-tab to Portal 2 now. The first map load starts in {args.focus_delay:g} seconds."
         )

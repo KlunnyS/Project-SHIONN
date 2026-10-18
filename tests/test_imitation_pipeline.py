@@ -28,7 +28,7 @@ from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_
 from models.imitation.train_bc import EarlyStopping, augment_batch, binary_class_weights_for_mode, consecutive_unimproved_epochs, format_duration, make_binary_class_weights, make_training_loader, partition_frozen_training, run_epoch, select_maps, split_training_manifests, training_sampling_weights
 # Project entry points and capture/controller modules at the repository root.
 from recorder import FFmpegVideoWriter
-from run_imitation import AttemptLog, EscapeKeyMonitor, RuntimeDiagnosticTracker, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, click_to_capture_portal_input, disable_chamber_timeout, focus_portal_window, frame_change, fullscreen_portal_window, hyprland_instance_candidates, is_portal_window, limit_mouse_action, load_recovery_map, make_attempt_recording_path, parse_args, prepare_portal_visual_state, prepare_recovery_model_start, read_player_angles
+from run_imitation import AttemptLog, EscapeKeyMonitor, RuntimeDiagnosticTracker, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, click_to_capture_portal_input, desktop_input_snapshot, disable_chamber_timeout, focus_portal_window, frame_change, fullscreen_portal_window, hyprland_instance_candidates, is_portal_window, limit_mouse_action, load_recovery_map, make_attempt_recording_path, parse_args, prepare_portal_visual_state, prepare_recovery_model_start, read_player_angles
 from wrapper import Portal2Controller
 
 
@@ -433,6 +433,26 @@ class ImitationPipelineTest(unittest.TestCase):
             "class": "gamescope", "title": "Another game",
         }))
         self.assertFalse(is_portal_window({"class": "steam", "title": "Portal 2"}))
+
+    @patch("run_imitation.query_hyprland_active_workspace")
+    @patch("run_imitation.query_hyprland_cursor", return_value=(450, 500))
+    def test_desktop_snapshot_records_cursor_and_workspace_relative_to_game_window(
+        self, _cursor, active_workspace,
+    ):
+        active_workspace.return_value = {"id": 4, "name": "4", "monitor": 1}
+        window = {
+            "class": "gamescope", "address": "0x222", "at": [100, 200],
+            "size": [800, 600], "monitor": 1,
+            "workspace": {"id": 4, "name": "4"},
+        }
+
+        snapshot = desktop_input_snapshot(window, "test-signature")
+
+        self.assertEqual(snapshot["cursor"], {"x": 450, "y": 500})
+        self.assertTrue(snapshot["cursor_inside_game_window"])
+        self.assertEqual(snapshot["active_workspace"]["id"], 4)
+        self.assertEqual(snapshot["game_window_workspace"]["id"], 4)
+        self.assertEqual(snapshot["window"]["address"], "0x222")
 
     @patch("run_imitation.time.sleep")
     @patch("run_imitation.shutil.which", return_value="/usr/bin/hyprctl")

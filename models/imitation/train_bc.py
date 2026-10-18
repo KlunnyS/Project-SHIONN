@@ -578,7 +578,11 @@ def main() -> None:
         if any(item.map_name in evaluation_maps for item in additions):
             raise ValueError(f"Evaluation chambers cannot enter training from {extra_dir}")
         if frozen_split is not None:
-            group = "recovery" if extra_dir.resolve() == Path("data/datasets/recovery_cached_frames").resolve() else extra_dir.name
+            known_extra_groups = {
+                Path("data/datasets/recovery_cached_frames").resolve(): "recovery",
+                Path("data/datasets/proactive_turn_cached_frames").resolve(): "proactive_turn",
+            }
+            group = known_extra_groups.get(extra_dir.resolve(), extra_dir.name)
             frozen_split.verify_cache(additions, group)
         if args.maps:
             additions = [item for item in additions if item.map_name in args.maps]

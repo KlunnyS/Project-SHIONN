@@ -6,6 +6,10 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Added
 
+- Add a local Dash control room for standard/proactive/recovery recording,
+  validation and live benchmarking, frozen-v3 training, and run inspection.
+  Dashboard subprocesses use an allow-list, a single-active-job guard, and
+  graceful stop controls.
 - Add supervised recovery sessions: P hands off a live model failure to a
   correction recording without a map reload, and successful corrections
   advance to the next training chamber with linked attempt logs.
@@ -32,18 +36,27 @@ All notable changes to Project SHIONN are documented in this file.
 - Log physical mouse movement, Portal 2 camera angles, and Hyprland cursor/focus
   during recovery handoff; allow real correction runs without model-attempt MP4s
   to isolate encoding-related differences from test mode.
-- Recognize Portal 2's fullscreen Gamescope wrapper as a focus target while
-  leaving Gamescope's forced relative mouse grab untouched.
+- Recognize Portal 2's fullscreen Gamescope wrapper as a focus target.
 - Refresh Gamescope's intermittent mouse grab at recovery handoff by briefly
   switching to an empty workspace and back before the human focus check.
 - Re-focus Portal 2 before a new recovery-session model attempt if the prior
   handoff left another window active.
+- Log per-attempt game-window geometry, cursor coordinates, cursor-in-window
+  status, and active/game workspace in model-run diagnostics.
+- Compare completed recording IDs with a preprocessing cache from
+  `dataset_stats.py --cache-dir`.
+- Preprocess the 30 successful 2026-10-18 recovery demonstrations into the
+  separate recovery cache; keep the frozen v1 manifest unchanged.
+- Add a proactive-turn mode to `record_dataset.py` that waits for physical P
+  after manual pre-wall positioning and stores left/right corrections in a
+  dedicated training-only recording root.
 
 ### Changed
 
-- Recenter Portal 2's confined pointer at recovery handoff and on a weak-input
-  retry; require physical left/right motion to produce proportional camera yaw
-  before recording, including in manual-focus mode.
+- Refresh Portal 2 input at recovery handoff and on a weak-input retry (pointer
+  recenter for direct XWayland; workspace switch for Gamescope); require
+  physical left/right motion to produce camera yaw before recording, including
+  in manual-focus mode.
 - Delay recovery recording by three seconds after Escape resumes Portal 2, so
   menu frames and transition inputs are omitted from the saved clip.
 - Poll physical mouse movement across the recovery focus wait and retry input

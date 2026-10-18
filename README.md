@@ -10,14 +10,18 @@ provided to the model.
 
 ## Current status
 
-Status last updated on **2026-10-09**:
+Status last updated on **2026-10-18**:
 
 - The recording, preprocessing, training, checkpoint, and live-inference
   pipeline works end to end.
 - The frozen base cache contains 1,300 successful demonstrations across 12
   navigation chambers: 1,100 training episodes and 200 complete-chamber
-  validation episodes. One recovery episode is cached separately. Generated
-  frames and recordings are stored outside Git.
+  validation episodes. The separate recovery cache contains one older episode
+  and 30 corrections recorded on 2026-10-18; the 2026-10-13 pilot remains
+  uncached. `frozen_v2.json` registers the 30 new corrections while preserving
+  the frozen validation set. The approved 20-clip proactive-turn pilot is in a
+  separate cache; `frozen_v3.json` adds those clips without changing validation
+  membership. Generated frames and recordings are ignored by Git.
 - The current candidate family is the 13.2M-parameter residual
   `shionn_imitation_v5` policy with binned mouse actions and complete-chamber
   validation.
@@ -28,11 +32,17 @@ Status last updated on **2026-10-09**:
   required before the model can be treated as reliable.
 - Reinforcement learning, reward shaping, recurrence, and portal-mechanics
   curricula remain future work.
+- The supervised recovery workflow is live-verified on the current Hyprland
+  and Gamescope setup. The 30-episode collection and preprocessing are complete;
+  the clips have been reviewed and approved. The planned combined candidate
+  now includes the approved proactive-turn pilot in frozen v3. Zero-mouse
+  analysis remains outstanding before the planned combined training run.
 
 The dated operational record, including exact checkpoint paths and safe
 commands, lives in the [training runbook](docs/TRAINING_RUNBOOK.md).
 The episode-level training/validation/evaluation assignment is documented in
 the [frozen data split](docs/DATA_SPLIT.md).
+The current recovery-session status and next steps are in [handoff.md](handoff.md).
 
 ## Pipeline
 
@@ -112,6 +122,10 @@ Use the [CLI reference](docs/CLI_REFERENCE.md) for all flags and defaults. Use
 the [training runbook](docs/TRAINING_RUNBOOK.md), rather than the generic command
 above, for the current workstation dataset and resource limits.
 
+A local Plotly dashboard is available in [`dashboard`](dashboard/README.md).
+It provides guarded controls for recording, benchmarking, and frozen-v3
+training while continuing to call the same project CLIs.
+
 ## Data and generated artifacts
 
 A finished recording contains:
@@ -139,9 +153,13 @@ the large recording, cache, and checkpoint paths are symlinks into
 | [Chamber authoring](docs/CHAMBER_AUTHORING.md) | Build, instrument, compile, verify, and pilot a chamber. |
 | [Navigation layouts](docs/NAVIGATION_CHAMBER_LAYOUTS.md) | Geometry and intent of the navigation curriculum chambers. |
 | [Changelog](CHANGELOG.md) | Notable repository behavior and compatibility changes. |
+| [Handoff](handoff.md) | Current recovery status, verified pilot, board state, and next collection command. |
+| [Dashboard](dashboard/README.md) | Local Dash control room for recording, training, and benchmarks. |
 
-Each subject has one maintained home: avoid copying flags into architecture
-documents or copying current run state outside the training runbook.
+Each subject has one maintained home: current training state is in the runbook,
+current recovery-session state is in the handoff, and implementation details
+belong in the relevant guide. Other documents should link rather than duplicate
+those records.
 
 ## Repository map
 

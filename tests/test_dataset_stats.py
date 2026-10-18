@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 # Project dataset report module at the repository root.
-from dataset_stats import collect_dataset_stats, format_report
+from dataset_stats import collect_dataset_stats, format_cache_coverage, format_report
 
 
 class DatasetStatsTest(unittest.TestCase):
@@ -95,6 +95,33 @@ class DatasetStatsTest(unittest.TestCase):
             self.assertIn("    dataset_test2: 1 episode, 2 action rows", report)
             self.assertIn("  dataset_test2: 2 episodes, 6 action rows", report)
             self.assertIn("  unknown: 1 episode, 1 action row", report)
+
+    def test_reports_cache_coverage_and_unmatched_ids(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory) / "recordings"
+            cache = Path(temporary_directory) / "cache"
+            cache.mkdir()
+            self.make_episode(
+                root, "goal_reached", "episode_20261018_120000_000001", 3
+            )
+            self.make_episode(
+                root, "goal_reached", "episode_20261018_130000_000002", 2
+            )
+            (cache / "episode_20261018_120000_000001.json").write_text(
+                json.dumps({"episode": "episode_20261018_120000_000001"})
+            )
+            (cache / "episode_20260920_210843_068095.json").write_text(
+                json.dumps({"episode": "episode_20260920_210843_068095"})
+            )
+
+            report = format_cache_coverage(collect_dataset_stats(root), cache)
+
+            self.assertIn("2 cached episodes", report)
+            self.assertIn("2 complete source episodes", report)
+            self.assertIn("1 source episode not cached", report)
+            self.assertIn("1 cache-only episode", report)
+            self.assertIn("episode_20261018_130000_000002", report)
+            self.assertIn("episode_20260920_210843_068095", report)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ Python entry point; the defaults below reflect the current code. See the
 | Install Python, capture, and input dependencies | `./install_dependencies.sh --all` |
 | Open Hammer++ | `./hammerpp-home.sh` |
 | Record 20 successful chamber runs | `.venv/bin/python record_dataset.py --map dataset_test2 --episodes 20` |
+| Record pre-wall proactive turns | `.venv/bin/python record_dataset.py --proactive-turn --turn-direction left --map dataset_test1 --episodes 2` |
 | Report dataset outcomes and chambers | `.venv/bin/python dataset_stats.py` |
 | Cache successful demonstrations | `.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes/goal_reached` |
 | Train a new candidate | `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints/runs/candidate` |
@@ -40,6 +41,34 @@ For round-robin collection, repeat `--map`; `--episodes` is the successful-run t
 
 This records one success on each map before starting the next round. A failed attempt is saved and retried on the same map, so failures do not advance the round.
 
+For proactive-turn corrections, add `--proactive-turn` and select a direction.
+The recorder loads the map but waits without saving frames until you manually
+position the player before a turn and press the physical **P** key. That makes
+the clip begin before wall contact, not at spawn and not after getting stuck.
+The default output root becomes
+`episodes/corrections/proactive_turns/`; each successful clip is stored under
+`goal_reached/` with its chamber and turn direction in `metadata.json`. **P**
+must be unbound in Portal 2. Proactive-turn mode only accepts training maps
+`dataset_test1`–`dataset_test10`, keeping the validation chambers out of the
+training correction data.
+
+Example batch for one direction (two successful clips on each of five maps):
+
+```bash
+.venv/bin/python record_dataset.py \
+  --proactive-turn --turn-direction left \
+  --map dataset_test1 --map dataset_test2 --map dataset_test3 \
+  --map dataset_test4 --map dataset_test5 \
+  --episodes 2 --duration 60
+```
+
+Repeat with `--turn-direction right` for a balanced 20-clip set. Vary the
+starting distance and approach angle across attempts; use gradual mouse
+steering and lateral movement where it helps the turn. After each successful
+clip the recorder advances to the next map; unsuccessful or timed-out attempts
+are saved by outcome and retried on the same map. Esc pauses/resumes recording,
+K stops the session, and Ctrl+C is an emergency stop.
+
 | Flag | Default | Meaning |
 |---|---:|---|
 | `--map NAME` | `dataset_test1` | Chamber sent as `map NAME`; repeat this flag to cycle distinct maps in order. Saved in each episode's `metadata.json`. |
@@ -53,7 +82,9 @@ This records one success on each map before starting the next round. A failed at
 | `--width N` | `1920` | Captured/video frame width. |
 | `--height N` | `1080` | Captured/video frame height. |
 | `--crf N` | `20` | H.264 encoder CRF passed to FFmpeg. |
-| `--episodes-root PATH` | `episodes` | Recording root. Use `episodes_eval` for held-out evaluation references. |
+| `--episodes-root PATH` | `episodes` | Recording root; proactive-turn mode defaults to `episodes/corrections/proactive_turns`. |
+| `--proactive-turn` | off | Wait for physical P after manual positioning; save under a separate proactive-turn root. |
+| `--turn-direction {left,right}` | required in proactive mode | Store the intended turn direction in episode metadata. |
 | `--output NAME` | first detected output | Wayland monitor name from `wf-recorder -L`. |
 | `--mouse-device PATH_OR_NAME` | auto-detected pointer | Exact `/dev/input/event*` path or case-insensitive fragment of a device name. |
 | `--no-launch` | off | Require Portal 2 to be running instead of launching it through Steam. |
@@ -62,11 +93,14 @@ During an active recording, press **Esc** to pause or resume. Pausing writes no 
 
 ## `dataset_stats.py`
 
-Example: `.venv/bin/python dataset_stats.py` or `.venv/bin/python dataset_stats.py episodes/goal_reached`
+Examples: `.venv/bin/python dataset_stats.py`,
+`.venv/bin/python dataset_stats.py episodes/recovery/goal_reached`, or
+`.venv/bin/python dataset_stats.py episodes/recovery/goal_reached --cache-dir data/datasets/recovery_cached_frames`
 
 | Argument | Default | Meaning |
 |---|---:|---|
 | `dataset_dir` | `episodes` | Directory to scan for completed episodes. Passing the success folder limits the report to successful recordings. |
+| `--cache-dir PATH` | none | Compare complete source episode IDs with preprocessing metadata in this cache; reports missing and cache-only IDs. |
 
 ## `models.imitation.preprocess`
 
@@ -228,7 +262,7 @@ See [the benchmark workflow](BENCHMARKING.md) for complete commands and how to k
 
 `.venv/bin/python analyze_mouse_validation.py PATH/TO/action_comparison.csv --wall-ranges PATH/TO/wall_ranges.csv` measures those mouse-bin statistics and jump false positives on annotated expert validation frames. The annotation CSV needs `episode,start_frame,end_frame` columns with inclusive frame ranges. `--jump-threshold` selects a calibrated threshold for the error comparison.
 
-`.venv/bin/python record_recovery.py --map NAME --source-attempt PATH/TO/attempt.jsonl` records a human recovery from the current Portal 2 position without reloading the chamber. It saves under `episodes/recovery/goal_reached` on success. Esc pauses/resumes; after the resume press, recovery capture waits three seconds for the Portal 2 menu to disappear, writing no frames or actions during that wait. K ends the session and saves a partial attempt under `interrupted`. In a supervised session (`--session-controls`), R rejects the partial correction, saves it under `episodes/recovery/discarded/` for review rather than training, and restarts that chamber's model attempt. The handoff recenters the confined pointer before reacquiring input. Keep the mouse still until the focus prompt, then sweep it toward the other monitor and back to test confinement; return the camera near its starting angle before the wait ends. The runner checks both camera response and Hyprland cursor position/focus during the sweep and retries with another forced recenter if camera response is too weak. If the cursor escapes, focus is lost, or the camera ends up far from its starting angle, the session retries the same chamber without saving a correction. If the chamber finishes before recording starts, the session also retries that chamber without a correction. With `--keep-focused`, `--focus-delay` must be at least two seconds. `--max-seconds`, `--focus-delay`, `--episodes-root`, `--port`, `--fps`, `--output`, and `--mouse-device` adjust capture settings.
+`.venv/bin/python record_recovery.py --map NAME --source-attempt PATH/TO/attempt.jsonl` records a human recovery from the current Portal 2 position without reloading the chamber. It saves under `episodes/recovery/goal_reached` on success. Esc pauses/resumes; after the resume press, recovery capture waits three seconds for the Portal 2 menu to disappear, writing no frames or actions during that wait. K ends the session and saves a partial attempt under `interrupted`. In a supervised session (`--session-controls`), R rejects the partial correction, saves it under `episodes/recovery/discarded/` for review rather than training, and restarts that chamber's model attempt. At handoff, the direct XWayland path recenters the pointer and reacquires input; the Gamescope path briefly switches to an empty Hyprland workspace and back. Keep the mouse still until the focus prompt, then sweep it toward the other monitor and back to test confinement; in automatic-focus mode return the camera near its starting angle before the wait ends. The runner checks camera response before recording and, in automatic-focus mode, checks Hyprland cursor position/focus during the sweep. A weak mouse response triggers one capture retry. If the cursor escapes, focus is lost, or the camera ends up far from its starting angle, the session retries the same chamber without saving a correction. Manual-focus mode allows re-alignment at the operator's pace while still checking that physical mouse motion turns the camera before starting the clip. If the chamber finishes before recording starts, the session also retries that chamber without a correction. With `--keep-focused`, `--focus-delay` must be at least two seconds. `--max-seconds`, `--focus-delay`, `--episodes-root`, `--port`, `--fps`, `--output`, and `--mouse-device` adjust capture settings.
 
 `run_recovery_session.py` runs repeated model attempts on training chambers only. During a model attempt, **P** stops the policy and starts `record_recovery.py` without reloading the chamber. **R** restarts the current chamber from a fresh model attempt, **K** stops the session, and a model time limit also retries the same chamber. If the model finishes before takeover, the same chamber is reloaded for another model attempt; only a successful human correction advances to the next chamber and counts toward the target. An incomplete correction stops the session. The model-attempt MP4 ends at handoff; the recovery MP4 and actions CSV are separate and start only after the focus wait. `--no-model-video` omits only the model-attempt MP4 while still saving real recovery clips, for comparing video-encoding effects on handoff. Use `--map` repeatedly to select a rotation, `--target-corrections` to set the success goal, and `--max-model-attempts` to bound retries as well as new chambers. The `[1/100]` prefix is the current model attempt out of that maximum, including retries; `(0/5 corrections)` is successful human corrections out of the target. `--model-seconds` is the model's normal code time limit (60 seconds by default), independent of the chamber timer. `--recovery-seconds` defaults to `0`, so human correction has no local timer. `--session-root` and `--episodes-root` control the separate model-log and correction directories. P must be unbound in Portal 2; the runner temporarily unbinds R and restores its prior binding when each model or correction phase ends. The session uses the opt-in `run_imitation.py --recovery-handoff --disable-chamber-timeout` and `record_recovery.py --keep-focused --disable-chamber-timeout --session-controls`; the updated installed VScript must acknowledge suppression before control begins. `record_recovery.py --result-file PATH` writes a machine-readable outcome for the session runner.
 
@@ -236,9 +270,9 @@ If the automatic focus check prevents a useful recovery, add `--manual-focus` to
 
 Add `--test-mode` to exercise chamber loading, policy control, P handoff, focus checks, R/K controls, and goal detection without saving any model MP4 or recovery MP4/CSV. It still uses live screen capture for inference and keeps JSONL diagnostics under `model_attempts/recovery_tests/` by default; no episode directory is created. Combine it with `--manual-focus` to test the manual handoff and press P a second time to begin the no-save recovery phase. A test-mode goal counts toward that test session's `--target-corrections`, but creates no training clip.
 
-Every supervised handoff now writes `handoff_diagnostics.jsonl` beside its `recovery_result.json`. It samples cumulative physical mouse movement without consuming training input, the game's camera angles, and Hyprland cursor/focus during the pre-recording wait. A substantial left/right physical sweep with almost no corresponding camera yaw causes one recapture attempt and then a same-chamber retry, without saving a recovery clip. Review these diagnostics when an early takeover works but a wall-stuck takeover does not. Live mouse capture must still be validated in the actual Hyprland session before resuming a full dataset run.
+Every supervised handoff now writes `handoff_diagnostics.jsonl` beside its `recovery_result.json`. It samples cumulative physical mouse movement without consuming training input, the game's camera angles, and Hyprland cursor/focus during the pre-recording wait. A substantial left/right physical sweep with almost no corresponding camera yaw causes one recapture attempt and then a same-chamber retry, without saving a recovery clip. Review these diagnostics when an early takeover works but a wall-stuck takeover does not. Gamescope workspace refresh was live-verified on 2026-10-13; see [`handoff.md`](../handoff.md) for the saved pilot and remaining collection plan.
 
-When Portal 2 is launched inside fullscreen Gamescope with `--force-grab-cursor`, the runner recognizes a `gamescope` window titled `PORTAL 2 - ...` and focuses that exact window. The direct XWayland path still uses an XTEST click; the Gamescope handoff briefly switches to an empty workspace and back to refresh its intermittent mouse grab, then verifies the original game window is focused. It does not click or warp the host pointer. This happens before recovery recording starts and is also used for a weak-input retry. A live no-save handoff test is still required before real collection, since compositor behavior cannot be covered by unit tests.
+When Portal 2 is launched inside fullscreen Gamescope with `--force-grab-cursor`, the runner recognizes a `gamescope` window titled `PORTAL 2 - ...` and focuses that exact window. The direct XWayland path still uses an XTEST click; the Gamescope handoff briefly switches to an empty workspace and back to refresh its intermittent mouse grab, then verifies the original game window is focused. The Gamescope path uses no synthetic click or host pointer warp. This happens before recovery recording starts and is also used for a weak-input retry. The workspace refresh passed a live no-save test and a real saved pilot on 2026-10-13. See [`handoff.md`](../handoff.md) for the pilot path and remaining collection plan.
 
 ## Shell, Fish, and direct diagnostics
 

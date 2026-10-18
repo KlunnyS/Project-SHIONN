@@ -8,7 +8,7 @@ import csv
 import json
 import re
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -33,6 +33,7 @@ class DatasetStats:
     categories: dict[str, dict[str, DatasetCount]]
     chambers_by_date: dict[str, dict[str, dict[str, DatasetCount]]]
     skipped_incomplete: int = 0
+    episode_ids: set[str] = field(default_factory=set)
 
     @property
     def total(self) -> DatasetCount:
@@ -96,6 +97,7 @@ def collect_dataset_stats(root: Path) -> DatasetStats:
         lambda: defaultdict(lambda: defaultdict(DatasetCount))
     )
     skipped_incomplete = 0
+    episode_ids: set[str] = set()
     if not root.exists():
         raise FileNotFoundError(f"Dataset directory does not exist: {root}")
 
@@ -113,6 +115,7 @@ def collect_dataset_stats(root: Path) -> DatasetStats:
         action_rows = count_action_rows(actions_path)
         categories[category][date].add(action_rows)
         chambers_by_date[category][date][chamber].add(action_rows)
+        episode_ids.add(episode_dir.name)
 
     return DatasetStats(
         categories={
@@ -123,7 +126,50 @@ def collect_dataset_stats(root: Path) -> DatasetStats:
             for category, dates in chambers_by_date.items()
         },
         skipped_incomplete=skipped_incomplete,
+        episode_ids=episode_ids,
     )
+
+
+def cached_episode_ids(cache_dir: Path) -> set[str]:
+    """Read episode IDs from the preprocessing metadata in a frame cache."""
+    cache_dir = cache_dir.resolve()
+    if not cache_dir.is_dir():
+        raise FileNotFoundError(f"Cache directory does not exist: {cache_dir}")
+    episode_ids = set()
+    for metadata_path in sorted(cache_dir.glob("episode_*.json")):
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        episode_id = metadata.get("episode")
+        if isinstance(episode_id, str) and episode_id.strip():
+            episode_ids.add(episode_id)
+        else:
+            episode_ids.add(metadata_path.stem)
+    return episode_ids
+
+
+def format_cache_coverage(stats: DatasetStats, cache_dir: Path) -> str:
+    """Compare complete source recordings with episode IDs present in a cache."""
+    source_ids = stats.episode_ids
+    cached_ids = cached_episode_ids(cache_dir)
+    missing_ids = sorted(source_ids - cached_ids)
+    cache_only_ids = sorted(cached_ids - source_ids)
+    def plural(count: int, singular: str, plural_form: str) -> str:
+        return singular if count == 1 else plural_form
+
+    lines = [
+        f"CACHE: {len(cached_ids):,} cached "
+        f"{plural(len(cached_ids), 'episode', 'episodes')}; "
+        f"{len(source_ids):,} complete source "
+        f"{plural(len(source_ids), 'episode', 'episodes')}; "
+        f"{len(missing_ids):,} source "
+        f"{plural(len(missing_ids), 'episode', 'episodes')} not cached; "
+        f"{len(cache_only_ids):,} cache-only "
+        f"{plural(len(cache_only_ids), 'episode', 'episodes')}"
+    ]
+    if missing_ids:
+        lines.append("  not cached: " + ", ".join(missing_ids))
+    if cache_only_ids:
+        lines.append("  cache-only: " + ", ".join(cache_only_ids))
+    return "\n".join(lines)
 
 
 def format_count(count: DatasetCount) -> str:
@@ -176,9 +222,16 @@ def main() -> None:
         default=Path("episodes"),
         help="Episode dataset directory (default: episodes)",
     )
+    parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        help="Optionally compare these recordings with a preprocessing cache",
+    )
     args = parser.parse_args()
     stats = collect_dataset_stats(args.dataset_dir)
     print(format_report(args.dataset_dir, stats))
+    if args.cache_dir is not None:
+        print(format_cache_coverage(stats, args.cache_dir))
 
 
 if __name__ == "__main__":

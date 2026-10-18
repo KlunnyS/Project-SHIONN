@@ -183,15 +183,19 @@ automated instead:
 
 The session loads a training chamber and runs the model. Press **P** at a useful
 failure: the model releases its controls and the recovery recorder starts at
-the *same position*, after recentering the confined pointer, reacquiring Portal 2
-input, and a five-second focus delay. Sweep the physical mouse toward the other monitor and back during that
-wait, then return the view near its starting angle. The runner checks the
-Hyprland cursor position and Portal focus throughout the sweep, as well as
-camera response; a detected escape or large view shift retries the same
-chamber without writing a correction. If confinement still looks wrong once
+the *same position*. On the current Gamescope setup, the handoff briefly
+switches to an empty Hyprland workspace and back to refresh the mouse grab,
+then gives a five-second focus wait. In automatic-focus mode, sweep the physical
+mouse toward the other monitor and back during that wait, then return the view
+within about 8 degrees of its starting angle. The runner checks cursor position,
+Portal focus, and camera response; a detected escape or large view shift retries
+the same chamber without writing a correction. Manual-focus mode lets you align
+the view at your own pace and checks that physical mouse movement turns the
+camera when you press P to start the clip. If confinement looks wrong once
 recording starts, press **R** to reject that correction; its partial clip is
-kept under `episodes/recovery/discarded/` for review, not training. Reach the goal to save a
-successful correction and automatically start the model on the next chamber.
+kept under `episodes/recovery/discarded/` for review, not training. Reach the
+goal to save a successful correction and automatically start the model on the
+next chamber.
 The five-second handoff also logs physical mouse counts, game angles, and
 Hyprland cursor/focus to `handoff_diagnostics.jsonl` in the attempt folder.
 If substantial mouse movement produces almost no camera turn, the runner
@@ -206,6 +210,20 @@ For a feature check without filling the dataset with unusable clips, add
 `--test-mode` (optionally alongside `--manual-focus`). The policy still sees
 live frames, but no model or recovery MP4/CSV is written. Test diagnostics
 go under `model_attempts/recovery_tests/` instead of the normal session folder.
+The Gamescope workspace-refresh handoff passed a live no-save test on
+2026-10-13, followed by one successful saved pilot on `dataset_test1`. A later
+session on 2026-10-18 saved 30 additional corrections across
+`dataset_test1`–`dataset_test10`; all 30 have been preprocessed into the
+recovery cache. Check source/cache coverage with:
+
+```bash
+.venv/bin/python dataset_stats.py episodes/recovery/goal_reached \
+  --cache-dir data/datasets/recovery_cached_frames
+```
+
+The expanded cache does not change the frozen v1 split. Generate and review a
+new split manifest before using these corrections in training. See
+[`handoff.md`](../handoff.md) for recording paths and current status.
 For a real correction run without the preceding model-attempt MP4, use
 `--no-model-video`; this helps isolate whether model-video encoding affects
 the handoff while keeping recovery MP4/CSV collection enabled.
@@ -257,6 +275,31 @@ recoveries before assigning a large sampling fraction. After preprocessing new
 corrections, generate and review a *new* split manifest as described in
 [DATA_SPLIT.md](DATA_SPLIT.md), then pass it with `--split-manifest` when
 training. The original frozen v1 manifest must not be silently overwritten.
+
+## 7. Record proactive-turn corrections
+
+Use this mode for a useful turn that begins **before** the agent would touch a
+wall. It is distinct from #4-style recovery after the policy is already
+stuck. The recorder loads a training chamber, then waits without writing data
+while you manually move to the chosen approach point. Press physical **P** to
+start aligned video/action capture from that position. Reach the goal to save a
+successful clip; failures are kept under their outcome and retried. P must be
+unbound in Portal 2. Only `dataset_test1`–`dataset_test10` are accepted, to
+protect the frozen validation chambers.
+
+```bash
+.venv/bin/python record_dataset.py --proactive-turn --turn-direction left --map dataset_test1 --map dataset_test2 --map dataset_test3 --map dataset_test4 --map dataset_test5 --episodes 2 --duration 60
+```
+
+Repeat for `--turn-direction right`. This example targets 20 successful clips
+total (10 per direction, two on each of five maps). Across attempts, vary how
+far from the turn you begin and the approach angle; steer gradually and add
+lateral movement when it supports the path. Inspect every MP4/CSV pair and
+metadata before caching. Keep these files under
+`episodes/corrections/proactive_turns/` and use a distinct proactive-turn cache;
+do not combine them with the policy-induced recovery cache. Before training,
+extend the split generator to register this additional cache group in a new
+manifest revision, preserving v1 and the existing validation set.
 
 ## Acceptance criteria
 

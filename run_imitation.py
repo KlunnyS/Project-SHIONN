@@ -351,6 +351,55 @@ def query_hyprland_cursor(instance: str) -> tuple[int, int] | None:
         return None
 
 
+def query_hyprland_active_workspace(instance: str) -> dict | None:
+    """Return the currently active Hyprland workspace, if available."""
+    try:
+        result = subprocess.run(
+            ["hyprctl", "-i", instance, "-j", "activeworkspace"], check=True,
+            capture_output=True, text=True, timeout=2,
+        )
+        workspace = json.loads(result.stdout)
+    except (OSError, ValueError, TypeError, subprocess.SubprocessError):
+        return None
+    return {
+        "id": workspace.get("id"),
+        "name": workspace.get("name"),
+        "monitor": workspace.get("monitor"),
+    }
+
+
+def desktop_input_snapshot(window: dict | None, instance: str) -> dict:
+    """Describe game-window geometry, compositor cursor, and workspace state."""
+    if instance == "auto":
+        instance = (window or {}).get("hyprland_instance") or next(
+            iter(hyprland_instance_candidates("auto")), "auto"
+        )
+    cursor = query_hyprland_cursor(instance)
+    workspace = query_hyprland_active_workspace(instance)
+    inside_window = None
+    if window is not None and cursor is not None:
+        position = window.get("at")
+        size = window.get("size")
+        if (
+            isinstance(position, list) and len(position) >= 2
+            and isinstance(size, list) and len(size) >= 2
+        ):
+            left, top = position[:2]
+            width, height = size[:2]
+            inside_window = (
+                left <= cursor[0] < left + width
+                and top <= cursor[1] < top + height
+            )
+    return {
+        "window": window,
+        "cursor": {"x": cursor[0], "y": cursor[1]} if cursor is not None else None,
+        "cursor_inside_game_window": inside_window,
+        "active_workspace": workspace,
+        "game_window_workspace": (window or {}).get("workspace"),
+        "game_window_monitor": (window or {}).get("monitor"),
+    }
+
+
 def fullscreen_portal_window(instance: str = "auto") -> dict | None:
     """Focus Portal and put it in compositor fullscreen before capture."""
     status = focus_portal_window(instance)
@@ -989,6 +1038,10 @@ def main() -> None:
                 "focus", event="initial", window=focus_status,
                 input_activated=input_ready,
             )
+            attempt_log.write(
+                "desktop_state", phase="initial",
+                **desktop_input_snapshot(focus_status, args.hyprland_instance),
+            )
 
         started = time.monotonic()
         next_tick = started
@@ -1107,6 +1160,16 @@ def main() -> None:
                     )
                     if not (focus_status or {}).get("portal_focused"):
                         raise RuntimeError("Portal 2 lost focus and could not be refocused")
+                desktop_state = desktop_input_snapshot(
+                    focus_status, args.hyprland_instance
+                )
+                if attempt_log is not None:
+                    attempt_log.write(
+                        "desktop_state", phase="periodic",
+                        elapsed_seconds=now - started,
+                        tick=tick_count,
+                        **desktop_state,
+                    )
                 if args.verbose and action is not None:
                     focus_text = (
                         "unknown" if focus_status is None
@@ -1119,6 +1182,9 @@ def main() -> None:
                         f"visual_delta={change or 0.0:.3f} "
                         f"action={action_label(action)} "
                         f"mouse=({action['mouse_dx']},{action['mouse_dy']})"
+                        f" cursor={desktop_state['cursor']}"
+                        f" cursor_in_window={desktop_state['cursor_inside_game_window']}"
+                        f" workspace={desktop_state['active_workspace']}"
                     )
                 next_status = now + args.status_every
 
