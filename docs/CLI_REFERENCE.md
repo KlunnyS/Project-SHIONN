@@ -211,8 +211,12 @@ Example: `.venv/bin/python run_imitation.py --checkpoint models/imitation/checkp
 | `--log-actions` | off | Write per-tick JSONL diagnostics without requiring `--record-video`. |
 | `--log-file PATH` | none | Write diagnostics to this JSONL file; implies logging. |
 | `--verbose` | off | Print a compact status line periodically. |
-| `--status-every SECONDS` | `1` | Interval for status output and focus checks. |
+| `--status-every SECONDS` | `1` | Interval for status printing; telemetry and focus checks run separately. |
+| `--telemetry-hz FLOAT` | `15` | Desktop/camera sampling target (1–20 Hz); logged runs sample desktop state outside inference. |
+| `--mouse-preflight` | off | Verify opposing yaw responses, then reload the map before inference. Requires `--map` and `--keep-focused`; incompatible with dry-run/recovery handoff. Implies diagnostics logging. |
 | `--keep-focused` | off | On Hyprland, focus Portal 2, enter compositor fullscreen, enable/equip the portal-gun viewmodel, activate XWayland input through `xte` without zooming, and restore focus/input after a loss. Requires `xte` (from `xautomation`). |
+| `--hyprland-focus-guard` | off | Temporarily disable hover focus; stop on focus/window/workspace/monitor changes. Requires `--keep-focused` on Hyprland without recovery handoff; restores the previous setting on cleanup. Implies logging. |
+| `--hyprland-confine-pointer` | off | Add a temporary confinement rule for the selected game window. Implies focus guard; requires mouse preflight. Stops if containment is outside/unknown and disables the rule/removes its tag on cleanup. |
 | `--hyprland-instance VALUE` | `auto` | Hyprland instance signature; `auto` discovers candidates, including for SSH sessions. |
 
 Positive `--max-seconds` makes the runner ignore chamber-only `episode_failed|timeout` as a stop signal; its own time limit remains authoritative. `--max-seconds 0` lets that event end the run. Escape and Ctrl+C stop the policy; held controls are released during cleanup.
@@ -241,17 +245,22 @@ The runner makes a full checkpoint × chamber matrix. By default, each repeat vi
 | `--port N` | `8020` | Portal 2 netconsole port. |
 | `--fps FLOAT` | `24` | Prediction/capture rate. |
 | `--width N`, `--height N` | `1920`, `1080` | Screen/video size. |
-| `--status-every SECONDS` | `1` | Status and focus-check interval passed to each run. |
+| `--status-every SECONDS` | `1` | Status printing interval passed to each run. |
+| `--telemetry-hz FLOAT` | `15` | Desktop/camera sampling target (1–20 Hz). |
+| `--mouse-preflight` / `--no-mouse-preflight` | on | Check both mouse directions before every attempt and reload the map. Automatically skipped for dry-run. Failure stops the sequence even with `--continue-on-error`. |
+| `--hyprland-focus-guard` | off | Forward the temporary hover-focus guard to every attempt. Guard failure always stops the sequence. |
+| `--hyprland-confine-pointer` | off | Forward temporary game-window confinement to each attempt. Implies focus guard; requires live mouse preflight. |
 | `--hyprland-instance VALUE` | `auto` | Hyprland instance signature for focus handling. |
 | `--no-video` | off | Keep JSONL diagnostics but omit MP4 videos. |
 | `--no-launch` | off | Require an already-running game. |
-| `--keep-focused` | off | For each job, prepare Portal fullscreen with the portal gun equipped, then restore focus/input on Hyprland. |
+| `--keep-focused` / `--no-keep-focused` | on | Prepare the game and restore focus/input through the active compositor. Disabling requires `--no-mouse-preflight` unless dry-run. |
 | `--dry-run` | off | Predict without applying controls; still loads maps and records attempts. |
 | `--verbose` | off | Print periodic live-runner status. |
 | `--continue-on-error` | off | Try later jobs after a runner process fails; the sequence still exits nonzero. |
+| `--persistent-mouse` | off | Run attempts in one Python process, sharing one virtual mouse until the sequence ends. Checkpoints/capture/preflight still reset per attempt. |
 | `--plan-only` | off | Show the job order without creating files or launching the game. |
 
-Every job gets a separate `attempt_*.jsonl` and, unless `--no-video` is used, MP4. `sequence.jsonl` in the timestamped folder records each job's checkpoint, map, return code, stop reason, and paths. A completed sequence also writes `benchmark_summary.json` with per-model, per-map success rates. `goal_reached` and `episode_failed` require chamber event signals; `time_limit` means no terminal event was received before the local deadline. Escape or Ctrl+C cancels the remaining jobs. The sequence stops on a process error unless `--continue-on-error` is set. Attempt logs use `action` for the applied action and `raw_action` for the unchanged policy output; `mouse_limited` records whether the cap changed that tick.
+Every job gets a separate `attempt_*.jsonl` and, unless `--no-video` is used, MP4. `sequence.jsonl` in the timestamped folder records each job's checkpoint, map, return code, stop reason, and paths. A completed sequence also writes `benchmark_summary.json` with per-model, per-map success rates. `goal_reached` and `episode_failed` require chamber event signals; `time_limit` means no terminal event was received before the local deadline. Escape or Ctrl+C cancels the remaining jobs. The sequence stops on a process error unless `--continue-on-error` is set; mouse-preflight failures always stop it. Attempt logs use `action` for the limited action request, `action_applied` for successful submission, and `raw_action` for the unchanged policy output; `mouse_limited` records whether the cap changed that tick.
 
 ## Benchmark reports
 

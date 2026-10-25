@@ -6,6 +6,22 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Added
 
+- Add opt-in sequence `--persistent-mouse`: run attempts through the imitation
+  runner in one Python process, preserving one virtual mouse across map/model
+  resets while retaining preflight checks and per-attempt guard cleanup.
+- Add separate opt-in game-window pointer confinement for Hyprland using a
+  temporary named rule and unique tag. Require mouse preflight, abort on
+  containment faults, and disable the rule/remove its tag on cleanup.
+- Add an opt-in Hyprland focus guard: temporarily disable hover focus, restore
+  the original value on cleanup, and stop on focus/window/workspace changes
+  instead of repeatedly pulling the game back into focus. Record restoration
+  results and retain a recovery note if interrupted without cleanup.
+- Sample logged live-run desktop state independently at a target 15 Hz, with
+  monotonic timing, stale/unknown focus gating, marked asynchronous camera
+  observations, and real socket/uinput submission results.
+- Require a bidirectional mouse-capture preflight and chamber reload for live
+  sequences by default. Capture failures stop the sequence; reports flag
+  missing/unknown telemetry and observed faults for review.
 - Add a local Dash control room for standard/proactive/recovery recording,
   validation and live benchmarking, frozen-v3 training, and run inspection.
   Dashboard subprocesses use an allow-list, a single-active-job guard, and

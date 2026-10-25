@@ -41,7 +41,46 @@ def read_attempt_log(path: Path | None) -> dict:
         "focus_losses": summary.get("focus_losses"),
         "dry_run": metadata.get("dry_run", False),
         "has_summary": bool(summary),
+        "mouse_preflight": summary.get("mouse_preflight", "unknown"),
+        "telemetry": summary.get("telemetry"),
+        "camera_telemetry": summary.get("camera_telemetry"),
+        "injection_failures": summary.get("injection_failures"),
+        "focus_guard": metadata.get("focus_guard"),
+        "focus_guard_cleanup": summary.get("focus_guard_cleanup"),
     }
+
+
+def capture_review_reasons(details: dict) -> list[str]:
+    """Report missing evidence explicitly; legacy logs cannot prove clean capture."""
+    reasons = []
+    if details.get("mouse_preflight") != "passed":
+        reasons.append("mouse_preflight_not_passed")
+    for name in ("telemetry", "camera_telemetry"):
+        stats = details.get(name)
+        if not stats or stats.get("samples", 0) < 2:
+            reasons.append(name + "_missing")
+            continue
+        gap = stats.get("max_sample_gap_seconds")
+        if gap is None or gap > 0.25:
+            reasons.append(name + "_sampling_gap")
+    desktop = details.get("telemetry") or {}
+    if desktop.get("max_collection_seconds", 0) > 0.25:
+        reasons.append("desktop_collection_slow")
+    for key in ("focus_losses", "cursor_exits", "unknown_focus_samples", "unknown_cursor_samples"):
+        if desktop.get(key, 0):
+            reasons.append(key)
+    if (details.get("camera_telemetry") or {}).get("unknown_samples", 0):
+        reasons.append("unknown_camera_samples")
+    if details.get("injection_failures") != 0:
+        reasons.append("injection_failed_or_unknown")
+    if details.get("focus_guard") and (details.get("focus_guard_cleanup") or {}).get("status") != "restored":
+        reasons.append("focus_guard_cleanup_or_external_change")
+    guard = details.get("focus_guard") or {}
+    if guard.get("confinement_requested"):
+        probe = guard.get("rule_match_probe") or {}
+        if type(probe.get("expected")) is not bool or probe.get("observed") is not probe["expected"]:
+            reasons.append("confinement_rule_match_unverified")
+    return reasons
 
 
 def summarize_sequence(sequence_path: Path) -> dict:
@@ -72,6 +111,12 @@ def summarize_sequence(sequence_path: Path) -> dict:
                 "outcome": outcome, "valid": valid,
                 "duration_seconds": details.get("duration_seconds"),
                 "focus_losses": details.get("focus_losses"),
+                "capture_review_reasons": capture_review_reasons(details),
+                "mouse_preflight": details.get("mouse_preflight", "unknown"),
+                "telemetry": details.get("telemetry"),
+                "camera_telemetry": details.get("camera_telemetry"),
+                "focus_guard": details.get("focus_guard"),
+                "focus_guard_cleanup": details.get("focus_guard_cleanup"),
                 "log": record.get("log"), "video": record.get("video"),
             }
             attempts.append(attempt)
@@ -96,6 +141,8 @@ def summarize_sequence(sequence_path: Path) -> dict:
             "median_success_seconds": median(success_times) if success_times else None,
             "outcomes": dict(sorted(Counter(row["outcome"] for row in valid_rows).items())),
             "focus_losses": sum(int(row["focus_losses"] or 0) for row in valid_rows),
+            "capture_checks_passed_attempts": sum(not row["capture_review_reasons"] for row in valid_rows),
+            "capture_review_required_attempts": sum(bool(row["capture_review_reasons"]) for row in valid_rows),
         })
     return {
         "sequence": str(sequence_path.resolve()),
@@ -123,6 +170,7 @@ def main(argv: list[str] | None = None) -> dict:
             f"{row['model']} on {row['map']}: {row['successes']}/{row['valid_attempts']} "
             f"success ({rate}), median success {duration}, "
             f"invalid attempts {row['invalid_attempts']}"
+            f", capture review required {row['capture_review_required_attempts']}"
         )
     print(f"Benchmark report: {output}")
     return report

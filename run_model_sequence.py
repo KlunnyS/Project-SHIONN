@@ -5,6 +5,7 @@ from __future__ import annotations
 # Python standard library: build and run the checkpoint-by-chamber job plan.
 import argparse
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -13,12 +14,51 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from contextlib import contextmanager
 
 # Project benchmark module at the repository root.
 from benchmark_sequence import main as write_benchmark_summary
+from focus_guard import FOCUS_GUARD_EXIT_CODE, FocusGuardViolation
 
 
 ROOT = Path(__file__).resolve().parent
+
+
+@contextmanager
+def persistent_virtual_mouse(enabled):
+    """Keep the input device registered while attempts reset their other state."""
+    if not enabled:
+        yield None
+        return
+    from wrapper import Portal2Controller
+
+    owner = Portal2Controller(log_file=None)
+    try:
+        if not owner.init_virtual_mouse():
+            raise RuntimeError("Could not create the sequence's persistent virtual mouse")
+        # Allow device registration before map loading/focus acquisition.
+        time.sleep(0.5)
+        yield owner.ui
+    finally:
+        owner.disconnect()
+
+
+def run_persistent_attempt(command, mouse):
+    """Call the same runner in-process, retaining only the owned mouse device."""
+    from run_imitation import main as run_attempt
+
+    original_directory = Path.cwd()
+    try:
+        os.chdir(ROOT)
+        run_attempt(command[2:], virtual_mouse=mouse)
+    except FocusGuardViolation:
+        return FOCUS_GUARD_EXIT_CODE
+    except Exception as error:
+        print(f"Runner error: {type(error).__name__}: {error}", file=sys.stderr)
+        return 1
+    finally:
+        os.chdir(original_directory)
+    return 0
 
 
 @dataclass(frozen=True)
@@ -86,6 +126,7 @@ def runner_command(job: Job, run_dir: Path, args: argparse.Namespace) -> list[st
         "--countdown", str(args.countdown),
         "--max-seconds", str(args.max_seconds),
         "--status-every", str(args.status_every),
+        "--telemetry-hz", str(args.telemetry_hz),
         "--hyprland-instance", args.hyprland_instance,
     ]
     if not args.no_video:
@@ -102,6 +143,12 @@ def runner_command(job: Job, run_dir: Path, args: argparse.Namespace) -> list[st
         command.append("--no-launch")
     if args.keep_focused:
         command.append("--keep-focused")
+    if args.hyprland_focus_guard:
+        command.append("--hyprland-focus-guard")
+    if args.hyprland_confine_pointer:
+        command.append("--hyprland-confine-pointer")
+    if args.mouse_preflight and not args.dry_run:
+        command.append("--mouse-preflight")
     if args.dry_run:
         command.append("--dry-run")
     if args.verbose or args.dry_run:
@@ -156,15 +203,27 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--width", type=int, default=1920)
     parser.add_argument("--height", type=int, default=1080)
     parser.add_argument("--status-every", type=float, default=1.0)
+    parser.add_argument("--telemetry-hz", type=float, default=15.0)
+    parser.add_argument("--mouse-preflight", action=argparse.BooleanOptionalAction, default=True,
+                        help="Require a bidirectional capture check and map reload for each live attempt")
     parser.add_argument("--hyprland-instance", default="auto")
+    parser.add_argument("--hyprland-focus-guard", action="store_true",
+                        help="Disable hover focus temporarily and stop the sequence if guarded focus changes")
+    parser.add_argument("--hyprland-confine-pointer", action="store_true",
+                        help="Temporarily confine the game pointer; implies focus guard and requires live preflight")
     parser.add_argument("--no-video", action="store_true", help="Save JSONL diagnostics only")
     parser.add_argument("--no-launch", action="store_true", help="Require Portal 2 to be running")
-    parser.add_argument("--keep-focused", action="store_true", help="Restore Portal 2 focus on Hyprland")
+    parser.add_argument("--keep-focused", action=argparse.BooleanOptionalAction, default=True,
+                        help="Restore Portal 2 focus through the active compositor")
     parser.add_argument("--dry-run", action="store_true", help="Predict without applying controls")
     parser.add_argument("--verbose", action="store_true", help="Print periodic runner status")
     parser.add_argument("--continue-on-error", action="store_true", help="Try later jobs after a runner error")
     parser.add_argument("--plan-only", action="store_true", help="Print jobs without opening Portal 2")
+    parser.add_argument("--persistent-mouse", action="store_true",
+                        help="Run attempts in one Python process with one virtual mouse for the whole sequence")
     args = parser.parse_args(argv)
+    if args.hyprland_confine_pointer:
+        args.hyprland_focus_guard = True
     if args.repeats < 1:
         parser.error("--repeats must be at least 1")
     for name in ("max_seconds", "countdown", "pause_seconds"):
@@ -179,6 +238,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--move-w-threshold must be between 0 and 1")
     if args.mouse_max_abs is not None and args.mouse_max_abs <= 0:
         parser.error("--mouse-max-abs must be greater than zero")
+    if not 1 <= args.telemetry_hz <= 20:
+        parser.error("--telemetry-hz must be between 1 and 20")
+    if args.hyprland_focus_guard and not args.keep_focused:
+        parser.error("--hyprland-focus-guard requires --keep-focused")
+    if args.hyprland_confine_pointer and (not args.mouse_preflight or args.dry_run):
+        parser.error("--hyprland-confine-pointer requires mouse preflight without --dry-run")
+    if args.mouse_preflight and not args.dry_run and not args.keep_focused:
+        parser.error("mouse preflight requires --keep-focused; use --no-mouse-preflight for diagnostic runs")
     if not all(args.maps) or len(set(args.maps)) != len(args.maps):
         parser.error("--map values must be nonempty and unique")
     try:
@@ -211,10 +278,11 @@ def main(argv: list[str] | None = None) -> int:
     manifest_path = sequence_dir / "sequence.jsonl"
     print(f"Sequence results: {sequence_dir}")
     had_error = False
-    with manifest_path.open("w", encoding="utf-8", buffering=1) as manifest:
+    with manifest_path.open("w", encoding="utf-8", buffering=1) as manifest, persistent_virtual_mouse(args.persistent_mouse) as mouse:
         manifest.write(json.dumps({
             "type": "sequence", "time_utc": datetime.now(timezone.utc).isoformat(),
             "jobs": len(jobs), "order": args.order,
+            "execution_mode": "persistent_mouse_in_process" if args.persistent_mouse else "subprocess_per_attempt",
         }) + "\n")
         for index, job in enumerate(jobs):
             run_dir = job_directory(sequence_dir, job)
@@ -223,24 +291,34 @@ def main(argv: list[str] | None = None) -> int:
             print(shlex.join(command), flush=True)
             started = time.monotonic()
             try:
-                result = subprocess.run(command, cwd=ROOT, check=False)
+                if args.persistent_mouse:
+                    print("Running in-process with the sequence's persistent virtual mouse.", flush=True)
+                    returncode = run_persistent_attempt(command, mouse)
+                else:
+                    returncode = subprocess.run(command, cwd=ROOT, check=False).returncode
             except KeyboardInterrupt:
                 print("\nSequence interrupted; remaining jobs were skipped.")
                 return 130
             stop_reason, log_path, video_path = inspect_attempt(run_dir)
-            if result.returncode != 0:
-                stop_reason = "runner_error"
+            if returncode != 0:
+                if returncode == FOCUS_GUARD_EXIT_CODE and stop_reason not in ("focus_guard_violation", "focus_guard_restore_failed"):
+                    stop_reason = "focus_guard_violation"
+                elif stop_reason not in ("mouse_capture_failed", "focus_guard_violation", "focus_guard_restore_failed"):
+                    stop_reason = "runner_error"
                 had_error = True
             record = {
                 "type": "result", "job": job.number, "model": job.model.label,
                 "checkpoint": str(job.model.checkpoint), "map": job.map_name,
                 "repeat": job.repeat, "stop_reason": stop_reason,
-                "returncode": result.returncode,
+                "returncode": returncode,
                 "elapsed_seconds": round(time.monotonic() - started, 2),
                 "log": str(log_path) if log_path else None, "video": video_path,
             }
             manifest.write(json.dumps(record) + "\n")
             print(f"Result: {stop_reason}; log: {log_path or 'none'}")
+            if stop_reason in ("mouse_capture_failed", "focus_guard_violation", "focus_guard_restore_failed"):
+                print(f"Input/focus check failed ({stop_reason}); remaining jobs were skipped.")
+                return 1
             if stop_reason in ("escape_key", "keyboard_interrupt", "cancelled", "incomplete"):
                 print("Sequence stopped; remaining jobs were skipped.")
                 return 130

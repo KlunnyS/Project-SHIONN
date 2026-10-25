@@ -51,8 +51,10 @@ class Portal2Controller:
         if self.sock:
             try:
                 self.sock.sendall((cmd + "\n").encode('utf-8'))
+                return True
             except Exception as e:
                 print(f"Error sending command '{cmd}': {e}")
+        return False
 
     def read_console(self, print_to_terminal=False):
         """Reads available output from the developer console and logs it."""
@@ -235,7 +237,7 @@ class Portal2Controller:
             print(f"Moving mouse (dx={dx}, dy={dy}, steps={steps})...")
         if not self.ui:
             if not self.init_virtual_mouse():
-                return
+                return False
                 
         try:
             from evdev import ecodes as e
@@ -246,8 +248,10 @@ class Portal2Controller:
                     self.ui.write(e.EV_REL, e.REL_Y, dy)
                 self.ui.syn()
                 time.sleep(delay)
+            return True
         except Exception as ex:
             print(f"Error during mouse movement: {ex}")
+            return False
 
     def click_virtual_mouse(self, button="left"):
         """Click through uinput so a focused XWayland game can acquire input."""
@@ -302,20 +306,31 @@ class Portal2Controller:
                 "move_w": 0, "move_a": 0, "move_s": 0, "move_d": 0,
                 "jump": 0, "use": 0, "fire_left": 0, "fire_right": 0,
             }
-        handlers = {
-            "move_w": self.move_forward, "move_a": self.move_left,
-            "move_s": self.move_backward, "move_d": self.move_right,
-            "jump": self.jump_state, "use": self.interact_state,
-            "fire_left": self.fire_left, "fire_right": self.fire_right,
+        commands = {
+            "move_w": "forward", "move_a": "moveleft",
+            "move_s": "back", "move_d": "moveright",
+            "jump": "jump", "use": "use",
+            "fire_left": "attack", "fire_right": "attack2",
         }
-        for name, handler in handlers.items():
+        key_results = {}
+        for name, command in commands.items():
             next_state = int(bool(action.get(name, 0)))
             if next_state != self._policy_action_state[name]:
-                handler(state=bool(next_state))
-                self._policy_action_state[name] = next_state
+                sent = self.send_command(("+" if next_state else "-") + command)
+                key_results[name] = sent
+                if sent:
+                    self._policy_action_state[name] = next_state
         dx, dy = int(action.get("mouse_dx", 0)), int(action.get("mouse_dy", 0))
+        mouse_sent = None
         if dx or dy:
-            self.move_mouse(dx, dy, steps=1, delay=0)
+            mouse_sent = self.move_mouse(dx, dy, steps=1, delay=0)
+        self.last_action_result = {
+            "key_transitions_sent": key_results,
+            "mouse_sent": mouse_sent,
+            # Submission to the OS/socket is not proof of game consumption.
+            "game_consumed": None,
+        }
+        return all(key_results.values()) and mouse_sent is not False
 
     def release_policy_actions(self):
         """Release all held inference keys at an episode boundary or shutdown."""

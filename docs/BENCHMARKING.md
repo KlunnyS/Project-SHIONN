@@ -35,9 +35,253 @@ Add `--output NAME` if the default Wayland output is wrong. Each attempt writes 
 .venv/bin/python benchmark_sequence.py model_attempts/sequences/sequence_TIMESTAMP
 ```
 
+Sequences now enable focus handling and a bidirectional mouse preflight by
+default. Before policy inference, the runner sends three small horizontal pulses
+in each direction and checks game yaw (0.25–20 degrees per direction), opposing
+responses, pitch stability, and game focus. It aborts the sequence if capture is
+weak or unknown, even with `--continue-on-error`. After passing, it reloads the
+chamber and restores focus before recording model frames. Preflight pulses are
+logged separately and never become expert demonstrations. `--dry-run` skips
+preflight and sends no policy controls. `--no-mouse-preflight` is available for
+diagnosis, but those results require capture review.
+
+For a single short capture check followed by a model smoke run:
+
+```bash
+.venv/bin/python run_imitation.py \
+  --checkpoint models/imitation/checkpoints/runs/v5_recovery_proactive_v3/best.pt \
+  --map dataset_test1 --keep-focused --mouse-preflight \
+  --max-seconds 10 --log-actions
+```
+
+Logged runs sample desktop state in a separate thread at a target 15 Hz
+(`--telemetry-hz 1..20`), independent of inference and status printing. Every
+record includes a monotonic timestamp. `desktop_state` records actual collection
+start/end times, focused window identity, workspace, cursor position and
+containment. Tick records include sample age and staleness, raw and limited
+actions, submission times, and socket/uinput submission results. With
+`--keep-focused`, unknown or stale focus suppresses policy input; observed focus
+loss releases held actions and triggers reacquisition. Geometry from a previously
+focused game is marked cached; containment is unknown until the game is observed
+focused again. Unsupported Niri cursor values remain `null`.
+
+`camera_response` records use marked, asynchronous `getpos` queries through the
+runner's existing console reader, preserving terminal-event handling. Request
+and receipt timestamps and tick IDs bracket each observation; angle deltas span
+successive observations, not a guaranteed one-action response. Missing, late,
+or malformed replies remain unknown. Camera sampling follows runner ticks and
+can fall below its target during slow inference; desktop sampling continues.
+Socket/uinput submission success does not establish game consumption. Inspect
+mouse actions between camera observations and review video before diagnosing
+capture loss; `policy_freeze` remains a policy-output signature only.
+
+The summary reports actual sampling gaps, unknown observations, focus losses,
+cursor exits, injection failures and preflight outcome. Benchmark reports expose
+`capture_review_reasons` per attempt and counts of attempts passing capture
+checks versus requiring review. Missing legacy telemetry requires review.
+Sampling gaps or collection latency above 250 ms, missing camera data, unknown
+cursor state, or observed focus/cursor faults also require review. Existing
+success rates still describe completed attempts; they are not automatically
+clean checkpoint rankings. Passing these checks does not prove uninterrupted
+capture between samples.
+
 The report gives successes, valid attempts, success rate, median successful run duration, outcome counts, invalid attempts, and focus losses by model and map. A runner error or manual cancellation is marked invalid instead of counting as a navigation failure. The summary also retains each attempt's video and log path. Compare multiple checkpoints by repeating `--checkpoint LABEL=PATH` in the sequence command.
 
 Review the beginning and at least one later frame before accepting a sequence. With `--keep-focused`, Hyprland should report a nonzero fullscreen state and the runner requests the same visible portal-gun viewmodel used in the demonstrations. Reject runs containing a zoomed opening, desktop bars, window borders, an open Steam overlay, or other large visual mismatches. Input activation requires `xte`: the runner briefly unbinds `MOUSE1`, delivers an XWayland left click to capture input, and restores the prior binding so no portal is fired. An enabled but closed Steam overlay is harmless; hide any visible performance HUD before the authoritative repeated benchmark.
+
+### Guard against hover-driven window switching on Hyprland
+
+The 2026-10-25 sequence recorded focus switching to Firefox after cursor
+escapes, followed by the runner restoring game focus. The workstation config
+has `input:follow_mouse = 1`, which makes hover focus a plausible contributor.
+This is a working hypothesis, not proof of the initial grab failure.
+
+Add `--hyprland-focus-guard` to a direct run or sequence to temporarily set
+`input:follow_mouse` to zero. It reads the live value, checks that the write
+took effect, and restores the original value on normal shutdown, Escape,
+Ctrl+C, SIGTERM, or an error. The flag requires `--keep-focused` on Hyprland
+and is unavailable during recovery handoff. It implies diagnostics logging.
+It does not edit desktop configuration files or enable pointer confinement.
+The previously disabled `steam_app_620` confinement rule does not match the
+outer Gamescope window in the recorded attempts; leave that separate setting
+out of this first controlled experiment.
+
+During guarded inference, an observed focus loss (even if focus returns before
+the next policy tick), stale/unknown focus, a different game window address,
+or a workspace/monitor change stops the attempt. The runner releases held
+actions and does not try to refocus. A sequence also stops on guard violations
+or restoration failure, including with `--continue-on-error`.
+
+Test the repeated-start path that previously showed window switching:
+
+```bash
+.venv/bin/python run_model_sequence.py \
+  --checkpoint balanced=models/imitation/checkpoints/runs/v5_balanced_recovery_v1/best.pt \
+  --map dataset_test1 --map dataset_test11 --repeats 3 \
+  --max-seconds 60 --keep-focused --hyprland-focus-guard \
+  --no-launch --verbose --recording-root /tmp/shionn-focus-guard
+```
+
+This is a capture diagnostic, not a checkpoint-promotion benchmark. Compare
+focus/cursor observations and camera responses with the original sequence;
+an idle model cannot establish continuous mouse-capture reliability. Hover
+suppression does not establish cursor confinement or relative-input capture,
+so keep the mouse preflight and telemetry enabled.
+
+The guard serializes ownership per Hyprland session. It logs the original
+value and exact restore command, with a recovery note under
+`/tmp/shionn-focus-guard-<uid>-<instance-hash>.json`. SIGKILL, a power loss,
+or loss of compositor IPC can prevent restoration; an active stale note with
+a mismatched setting blocks another guard from silently accepting the leftover
+value. Use the saved command to restore the original setting, then retry.
+An explicit preference change during the run is preserved and reported for
+capture review. Guard setup/cleanup are recorded in attempt logs and benchmark
+reports. The six-attempt guarded sequence at
+`/tmp/shionn-focus-guard/sequence_20261025_162021_137292/` completed with
+no observed focus losses, and restored the hover setting after every attempt.
+Cursor containment still failed in all three test11 runs, starting at about
+23.2, 46.5, and 34.5 seconds. No exits were recorded during test1 inference;
+one test1 run commanded no mouse movement at all. This separates the observed
+focus-switching improvement from the unresolved pointer-grab problem.
+
+Reference: [Hyprland 0.56.2 focus and window actions](https://github.com/hyprwm/Hyprland/blob/v0.56.2/src/config/shared/actions/ConfigActions.cpp).
+
+### Test game-window pointer confinement
+
+Use `--hyprland-confine-pointer` for a separate confinement experiment. It
+implies the hover-focus guard, and requires mouse preflight, `--keep-focused`,
+and a map reload before inference. Dry-run and recovery handoff are excluded.
+The implementation uses Hyprland's named `windowrule` configuration with
+`confine_pointer = on`, targeting only the selected window via a unique static
+tag. `match:tag` takes the literal tag name, without regex anchors. This covers
+the outer Gamescope window rather than the nested Portal window class. It
+verifies the tag before enabling the rule. It also toggles the window's readable
+`no_follow_mouse` effect through the same named rule and checks that effect
+with `getprop`, proving the rule matched. Global hover focus is already disabled
+during this check. Disabling the rule restores the underlying window property.
+On cleanup it
+disables the named rule, removes and verifies removal of its tag, and restores
+hover focus. No desktop config file is edited. Disabled named entries remain
+in compositor runtime memory until its next config reload.
+
+Start with two runs of the chamber where all guarded attempts escaped:
+
+```bash
+.venv/bin/python run_model_sequence.py \
+  --checkpoint balanced=models/imitation/checkpoints/runs/v5_balanced_recovery_v1/best.pt \
+  --map dataset_test11 --repeats 2 --max-seconds 60 \
+  --keep-focused --hyprland-confine-pointer --no-launch --verbose \
+  --recording-root /tmp/shionn-confined
+```
+
+Unknown or outside pointer containment during the initial check or inference
+stops the attempt. A sampled cursor exit also stops it even if the pointer
+returns before the next policy tick. Setup failures stop the entire sequence
+even if logging has not started or `--continue-on-error` is set. The rule's
+acceptance does not establish working relative mouse input: require the
+bidirectional yaw preflight and review camera response during commanded turns.
+Hyprland 0.56.2's installed config verifier accepts the rule syntax; live
+confinement remains unverified until this pilot is inspected.
+
+The recovery note/log includes `confinement_cleanup_commands` as well as the
+hover restore command. If killed without cleanup, run those commands, verify
+the unique tag is gone from `hyprctl clients -j`, and remove the stale recovery
+note before retrying. Startup refuses a stale confinement note instead of
+silently leaving a prior constraint active.
+
+Reference: [Hyprland 0.56.2 named-rule keyword handling](https://github.com/hyprwm/Hyprland/blob/v0.56.2/src/debug/HyprCtl.cpp).
+
+The user-run confinement pilot on 2026-10-25 completed one 60-second attempt
+without an exit, then stopped the second at about 18 seconds when the pointer
+crossed onto DP-2 while Gamescope retained focus. Cleanup succeeded. The user's
+Steam options already included `--backend sdl --force-grab-cursor`, so adding
+those flags again would not test a new configuration.
+
+The next driver comparison prefixes `SDL_VIDEODRIVER=x11 SDL_VIDEO_DRIVER=x11`
+to the same Steam options, with the user fully exiting and relaunching Portal
+2/Gamescope before the next test. Keep resolution, model, map, and runner flags
+fixed, saving results under `/tmp/shionn-confined-x11`. The SDL2/SDL3 variables
+select the X11 video driver; this is a diagnostic experiment, not a demonstrated
+capture remedy. New attempt window snapshots log `xwayland`; confirm the outer
+game window reports true. Keyboard-assisted unsticking is allowed for capture
+stress tests, but those runs must not be scored as autonomous model benchmarks.
+
+The X11 driver trial confirmed `xwayland: true`, but still recorded exits at
+about 7.3 seconds in an incomplete earlier attempt and 21.9 seconds in the next
+sequence's second attempt; that sequence's first attempt completed 60 seconds
+without an exit. Subsequent source review found a bug in the SHIONN rule setup:
+`match:tag` was given `^tag$`, while Hyprland matches literal tag names. Thus
+previous "confined" runs did not establish an effective host confinement rule.
+The matcher is corrected, and startup now verifies the same rule's readable
+effect rather than only checking tag presence. Reports flag older confinement
+logs without this evidence as `confinement_rule_match_unverified`. Keep the
+current Steam settings for the next user-run pilot to isolate this code fix;
+save it under `/tmp/shionn-confined-tagfix`. Effective matching still does not
+replace the yaw preflight or prove uninterrupted capture.
+
+References: [SDL2 video-driver selection](https://wiki.libsdl.org/SDL2/SDL_HINT_VIDEODRIVER),
+[SDL3 video-driver selection](https://wiki.libsdl.org/SDL3/SDL_HINT_VIDEO_DRIVER).
+Literal tag behavior: [Hyprland 0.56.2 TagKeeper](https://github.com/hyprwm/Hyprland/blob/v0.56.2/src/helpers/TagKeeper.cpp).
+
+### Isolate virtual-mouse lifecycle between sequence attempts
+
+After correcting tag matching, the first test11 run completed 60 seconds
+without observed cursor exits and with effective-rule verification. The second
+failed its yaw preflight before policy inference: left yaw was about +2.70
+degrees and right yaw was zero despite submitted pulses and observed focus.
+This differs from a mid-run cursor escape. The default sequence starts a fresh
+Python process and creates/destroys a virtual mouse for every attempt.
+
+`run_model_sequence.py --persistent-mouse` tests that lifecycle hypothesis by
+creating one virtual mouse for the whole sequence before loading/focusing the
+first map. Attempts call `run_imitation.main` in the same Python process and
+borrow that device. Each attempt still loads its selected checkpoint afresh,
+reloads the chamber, starts/stops capture and keyboard monitoring, runs mouse
+preflight, and restores the temporary focus/confinement guard. The sequence
+destroys the virtual mouse once on completion, failure, or interruption.
+Python/CUDA process reuse is also a difference from the default mode, so a
+successful test would not alone prove which part of process/device teardown
+caused the original problem. No threshold is relaxed and no failed check is
+automatically retried.
+
+Keep the current Steam options and other settings fixed:
+
+```bash
+.venv/bin/python run_model_sequence.py \
+  --checkpoint balanced=models/imitation/checkpoints/runs/v5_balanced_recovery_v1/best.pt \
+  --map dataset_test11 --repeats 2 --max-seconds 60 \
+  --keep-focused --hyprland-confine-pointer --persistent-mouse \
+  --no-launch --verbose --recording-root /tmp/shionn-persistent-mouse
+```
+
+Leave all physical controls alone until `Policy control started` is printed.
+Keyboard-assisted unsticking after that point is permitted for this capture
+diagnostic, but it makes the run unsuitable as an autonomous model score.
+The manifest records `execution_mode`; each attempt records `runner_pid` and
+`shared_virtual_mouse` so the selected execution path is auditable. The mode
+has isolated lifecycle/cleanup coverage. The user-run pilot at
+`/tmp/shionn-persistent-mouse/sequence_20261025_172543_365196/` completed
+both 60-second test11 attempts with no observed cursor exits, focus losses,
+or submission failures. Both yaw checks and effective rule probes passed;
+the second attempt exercised 680 mouse-active policy ticks and 418 moving
+camera observations. Guard cleanup succeeded on both attempts. The second
+had two camera-query timeouts out of 700 observations, requiring telemetry
+review; the first had no automatic capture flags. This supports retaining the
+shared process/device mode for further capture tests, while two attempts do
+not establish long-run reliability or identify which lifecycle change helped.
+
+The follow-up five-repeat test at
+`/tmp/shionn-persistent-mouse-confirmation/sequence_20261025_175754_528314/`
+passed all automatic capture checks on every attempt: zero recorded cursor
+exits, focus losses, unknown camera replies, or submission failures, with
+successful preflights, effective rule probes, and cleanup. Steering was
+exercised over 2,720 mouse-active policy ticks. The sequence retained one PID
+and shared mouse mode. `capture_confirmation.json` records this inspection.
+Keyboard assistance was allowed, so the two goal events are not an autonomous
+model score. Keep the current X11 Steam configuration, verified confinement
+and persistent mouse for local comparisons. No further capture-only reruns
+are needed until the configuration changes or another fault occurs; use
+unassisted runs for subsequent model-performance comparisons.
 
 ## 3. Record separate references for evaluation chambers
 

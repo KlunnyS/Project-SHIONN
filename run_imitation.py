@@ -8,6 +8,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import threading
 import time
@@ -21,6 +22,8 @@ import numpy as np
 # Project modules at the repository root: capture and Portal 2 control.
 from recorder import FFmpegVideoWriter, WaylandCamera, get_default_output
 from wrapper import Portal2Controller, is_game_running, launch_game
+from live_input_telemetry import CameraTelemetry, DesktopTelemetry, angle_delta
+from focus_guard import FOCUS_GUARD_EXIT_CODE, FocusGuardViolation, HyprlandFocusGuard
 
 
 TERMINAL_EVENTS = ("EVT|goal_reached", "EVT|episode_failed")
@@ -195,10 +198,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--log-actions", action="store_true", help="Save structured per-tick diagnostics without requiring video recording")
     parser.add_argument("--log-file", type=Path, help="Custom JSONL diagnostics path; implies --log-actions")
     parser.add_argument("--verbose", action="store_true", help="Print a concise runtime status line once per second")
-    parser.add_argument("--status-every", type=float, default=1.0, help="Seconds between --verbose status lines and focus checks")
+    parser.add_argument("--status-every", type=float, default=1.0, help="Seconds between --verbose status lines")
+    parser.add_argument("--telemetry-hz", type=float, default=15.0,
+                        help="Target desktop/camera sampling rate, independent of status printing (1–20 Hz)")
+    parser.add_argument("--mouse-preflight", action="store_true",
+                        help="Verify bidirectional mouse capture, then reload --map before inference; requires --keep-focused")
     parser.add_argument("--keep-focused", action="store_true", help="Focus Portal 2 and restore focus if it is lost")
+    parser.add_argument("--hyprland-focus-guard", action="store_true",
+                        help="Temporarily disable hover focus; stop on focus/window/workspace changes instead of refocusing")
+    parser.add_argument("--hyprland-confine-pointer", action="store_true",
+                        help="Add a temporary game-window confinement rule; implies focus guard and requires mouse preflight")
     parser.add_argument("--hyprland-instance", default="auto", help="Hyprland instance signature; auto discovers it for SSH sessions")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.hyprland_confine_pointer:
+        args.hyprland_focus_guard = True
+    return args
 
 
 def make_attempt_recording_path(
@@ -217,14 +231,17 @@ class AttemptLog:
         self.path = path
         path.parent.mkdir(parents=True, exist_ok=True)
         self._handle = path.open("w", encoding="utf-8", buffering=1)
+        self._lock = threading.Lock()
 
     def write(self, record_type: str, **values) -> None:
         record = {
             "type": record_type,
             "time_utc": datetime.now(timezone.utc).isoformat(),
+            "monotonic_seconds": time.monotonic(),
             **values,
         }
-        self._handle.write(json.dumps(record, separators=(",", ":")) + "\n")
+        with self._lock:
+            self._handle.write(json.dumps(record, separators=(",", ":")) + "\n")
 
     def close(self) -> None:
         self._handle.close()
@@ -350,6 +367,8 @@ def query_hyprland_active_window(instance: str = "auto") -> dict | None:
             "fullscreen": window.get("fullscreen"),
             "at": window.get("at"),
             "size": window.get("size"),
+            "xwayland": window.get("xwayland"),
+            "window_manager": "hyprland",
             "portal_focused": is_portal_window(window),
             "hyprland_instance": candidate,
         }
@@ -462,7 +481,7 @@ def query_hyprland_active_workspace(instance: str) -> dict | None:
     }
 
 
-def desktop_input_snapshot(window: dict | None, instance: str) -> dict:
+def desktop_input_snapshot(window: dict | None, instance: str, game_window: dict | None = None) -> dict:
     """Describe game-window geometry, compositor cursor, and workspace state."""
     if instance == "auto":
         instance = (window or {}).get("hyprland_instance") or next(
@@ -470,10 +489,11 @@ def desktop_input_snapshot(window: dict | None, instance: str) -> dict:
         )
     cursor = None if niri_is_active() else query_hyprland_cursor(instance)
     workspace = query_hyprland_active_workspace(instance)
+    game_window = window if (window or {}).get("portal_focused") else game_window
     inside_window = None
-    if window is not None and cursor is not None:
-        position = window.get("at")
-        size = window.get("size")
+    if game_window is not None and cursor is not None and (window or {}).get("portal_focused") is True:
+        position = game_window.get("at")
+        size = game_window.get("size")
         if (
             isinstance(position, list) and len(position) >= 2
             and isinstance(size, list) and len(size) >= 2
@@ -486,11 +506,14 @@ def desktop_input_snapshot(window: dict | None, instance: str) -> dict:
             )
     return {
         "window": window,
+        "portal_focused": (window or {}).get("portal_focused"),
+        "game_window": game_window,
+        "game_window_geometry_cached": not bool((window or {}).get("portal_focused")),
         "cursor": {"x": cursor[0], "y": cursor[1]} if cursor is not None else None,
         "cursor_inside_game_window": inside_window,
         "active_workspace": workspace,
-        "game_window_workspace": (window or {}).get("workspace"),
-        "game_window_monitor": (window or {}).get("monitor"),
+        "game_window_workspace": (game_window or {}).get("workspace"),
+        "game_window_monitor": (game_window or {}).get("monitor"),
     }
 
 
@@ -879,8 +902,7 @@ def apply_predicted_action(
         if not verbose:
             print(action)
         return False
-    controller.apply_action(action)
-    return True
+    return controller.apply_action(action) is True
 
 
 def connect_controller(port: int, attempts: int = 10, delay: float = 2.0) -> Portal2Controller:
@@ -982,8 +1004,56 @@ def prepare_recovery_model_start(
     raise RuntimeError("Portal 2 camera snapped during startup twice; no model actions were sent")
 
 
-def main() -> None:
-    args = parse_args()
+class MouseCaptureError(RuntimeError):
+    """A benchmark must not proceed after an unverified mouse check."""
+
+
+def mouse_capture_preflight(controller, instance, stop_monitor, log):
+    """Check two small opposing yaw responses; caller must reload before policy use."""
+    controller.release_policy_actions()
+    if controller.ui is None:
+        if not controller.init_virtual_mouse():
+            raise MouseCaptureError("Could not initialize virtual mouse")
+        if stop_monitor.wait(0.5):
+            raise InterruptedError("Emergency stop during mouse preflight")
+    responses = []
+    for direction, dx in (("left", -40), ("right", 40)):
+        before = read_player_angles(controller)
+        for _ in range(3):
+            if stop_monitor.stop_requested:
+                raise InterruptedError("Emergency stop during mouse preflight")
+            focus = query_hyprland_active_window(instance)
+            if (focus or {}).get("portal_focused") is not True:
+                raise MouseCaptureError("Game focus is lost or unknown during mouse preflight")
+            injected_at = time.monotonic()
+            sent = controller.move_mouse(dx, 0, steps=1, delay=0)
+            log.write("mouse_preflight", phase="pulse", direction=direction,
+                      mouse_dx=dx, sent=sent, injected_monotonic=injected_at, window=focus)
+            if sent is not True:
+                raise MouseCaptureError("Mouse preflight injection failed")
+            if stop_monitor.wait(0.05):
+                raise InterruptedError("Emergency stop during mouse preflight")
+        if stop_monitor.wait(0.15):
+            raise InterruptedError("Emergency stop during mouse preflight")
+        after = read_player_angles(controller)
+        focus = query_hyprland_active_window(instance)
+        yaw = angle_delta(after[1], before[1])
+        pitch = angle_delta(after[0], before[0])
+        passed = ((focus or {}).get("portal_focused") is True
+                  and 0.25 <= abs(yaw) <= 20 and abs(pitch) <= 2)
+        log.write("mouse_preflight", phase="response", direction=direction,
+                  before_angles=before, after_angles=after, yaw_delta=yaw,
+                  pitch_delta=pitch, passed=passed, window=focus)
+        if not passed:
+            raise MouseCaptureError(f"Weak, excessive, or unfocused {direction} camera response ({yaw:+.2f}°)")
+        responses.append(yaw)
+    if responses[0] * responses[1] >= 0:
+        raise MouseCaptureError("Camera did not turn in opposing directions")
+    log.write("mouse_preflight", phase="verified", yaw_deltas=responses)
+
+
+def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
+    args = parse_args(argv)
     # Project inference module is loaded here, after CLI parsing, for runner startup.
     from models.imitation.inference import PolicyInference
 
@@ -1002,6 +1072,16 @@ def main() -> None:
         )
     if args.status_every <= 0:
         raise ValueError("--status-every must be greater than zero")
+    if not 1 <= args.telemetry_hz <= 20:
+        raise ValueError("--telemetry-hz must be between 1 and 20")
+    if args.hyprland_focus_guard and (not args.keep_focused or niri_is_active() or args.recovery_handoff):
+        raise ValueError("--hyprland-focus-guard requires --keep-focused on Hyprland without recovery handoff")
+    if args.hyprland_confine_pointer and not args.mouse_preflight:
+        raise ValueError("--hyprland-confine-pointer requires --mouse-preflight to verify yaw and reload the map")
+    if args.mouse_preflight and (
+        not args.map_name or not args.keep_focused or args.dry_run or args.recovery_handoff
+    ):
+        raise ValueError("--mouse-preflight requires --map and --keep-focused, without --dry-run or --recovery-handoff")
     if args.mouse_max_abs is not None and args.mouse_max_abs <= 0:
         raise ValueError("--mouse-max-abs must be greater than zero")
     if not args.checkpoint.is_file():
@@ -1019,6 +1099,9 @@ def main() -> None:
             raise RuntimeError("Portal 2 did not start")
 
     controller = connect_controller(args.port)
+    if virtual_mouse is not None:
+        # The sequence owns this device. Keep it registered across attempts.
+        controller.ui = virtual_mouse
     # Per-frame mouse prints obscure the runner's status output. Every predicted
     # movement is still available in the optional JSONL diagnostics.
     controller.trace_mouse_moves = False
@@ -1036,6 +1119,10 @@ def main() -> None:
     video_writer = None
     video_path = None
     attempt_log = None
+    desktop_telemetry = None
+    camera_telemetry = None
+    preflight_status = "not_requested"
+    injection_failures = 0
     log_path = None
     tick_count = 0
     focus_loss_count = 0
@@ -1047,8 +1134,15 @@ def main() -> None:
     saved_restart_binding = None
     stop_reason = "time_limit"
     diagnostic_tracker = RuntimeDiagnosticTracker()
+    focus_guard = HyprlandFocusGuard(confine_pointer=args.hyprland_confine_pointer) if args.hyprland_focus_guard else None
+    previous_sigterm_handler = None
+
+    def stop_on_sigterm(_signum, _frame):
+        raise KeyboardInterrupt
 
     try:
+        if focus_guard is not None:
+            previous_sigterm_handler = signal.signal(signal.SIGTERM, stop_on_sigterm)
         if args.recovery_handoff:
             saved_restart_binding = read_portal_binding(controller, "r")
             controller.send_command("unbind r")
@@ -1071,13 +1165,19 @@ def main() -> None:
                 raise RuntimeError(
                     "Could not prepare Portal 2's fullscreen visual state"
                 )
+        if focus_guard is not None:
+            try:
+                focus_guard.activate(visual_state)
+            except Exception as error:
+                raise FocusGuardViolation(f"Could not enable focus/confinement guard: {error}") from error
         camera.start()
         print(f"Policy device: {policy.device}")
         print(f"Capture output: {camera.output_name or 'wf-recorder default'}")
-        print(
-            f"Starting in {args.countdown:g} seconds. "
+        controls = (
             "P hands off, R restarts this chamber, K stops the session; Esc/Ctrl+C is emergency stop."
+            if args.recovery_handoff else "Esc/Ctrl+C stops the policy."
         )
+        print(f"Starting in {args.countdown:g} seconds. {controls}")
         if escape_monitor.wait(max(0.0, args.countdown)):
             print("\nEscape pressed. Cancelling policy run.")
             return
@@ -1098,16 +1198,12 @@ def main() -> None:
         attempt_time = datetime.now()
         if args.record_video:
             video_path = make_attempt_recording_path(args.recording_dir, attempt_time)
-            video_writer = FFmpegVideoWriter(
-                str(video_path), args.width, args.height, max(1, round(args.fps))
-            )
-            print(f"Recording model attempt to: {video_path}")
 
         if args.log_file:
             log_path = args.log_file
         elif args.record_video:
             log_path = video_path.with_suffix(".jsonl")
-        elif args.log_actions:
+        elif args.log_actions or args.mouse_preflight or args.hyprland_focus_guard:
             log_path = make_attempt_recording_path(
                 args.recording_dir, attempt_time
             ).with_suffix(".jsonl")
@@ -1116,6 +1212,8 @@ def main() -> None:
             attempt_log.write(
                 "metadata",
                 checkpoint=str(args.checkpoint),
+                runner_pid=os.getpid(),
+                shared_virtual_mouse=virtual_mouse is not None,
                 device=str(policy.device),
                 map=args.map_name,
                 capture={
@@ -1131,6 +1229,9 @@ def main() -> None:
                 jump_threshold=args.jump_threshold,
                 move_w_threshold=args.move_w_threshold,
                 mouse_max_abs=args.mouse_max_abs,
+                telemetry_hz=args.telemetry_hz,
+                mouse_preflight=args.mouse_preflight,
+                focus_guard=focus_guard.describe() if focus_guard else None,
                 chamber_timeout_disabled=args.disable_chamber_timeout,
                 mouse_bins=policy.mouse_bins.config if policy.mouse_bins is not None else None,
                 runtime_diagnostics={
@@ -1157,6 +1258,38 @@ def main() -> None:
             raise RuntimeError(
                 "Could not focus Portal 2 through the active compositor; refusing to inject input"
             )
+        if args.mouse_preflight:
+            preflight_status = "failed"
+            print("Mouse preflight: leave keyboard and mouse untouched until 'Policy control started'.", flush=True)
+            mouse_capture_preflight(controller, args.hyprland_instance, escape_monitor, attempt_log)
+            # The check changes view angles: reload the chamber, never save the
+            # pulses as model frames or use their state as a benchmark start.
+            load_recovery_map(controller, args.map_name)
+            if args.disable_chamber_timeout:
+                disable_chamber_timeout(controller)
+            visual_state = prepare_portal_visual_state(controller, args.hyprland_instance)
+            if visual_state is None:
+                raise MouseCaptureError("Could not restore visual state after preflight")
+            focus_status = activate_portal_input(controller, args.hyprland_instance)
+            if (focus_status or {}).get("portal_focused") is not True:
+                raise MouseCaptureError("Could not restore focus after preflight")
+            if escape_monitor.wait(0.25):
+                raise InterruptedError("Emergency stop after mouse preflight")
+            policy.reset()
+            preflight_status = "passed"
+            attempt_log.write("mouse_preflight", phase="complete", status="passed", map_reloaded=True)
+            print("Mouse preflight passed; chamber reloaded.", flush=True)
+        if focus_guard is not None:
+            guard_snapshot = desktop_input_snapshot(focus_status, args.hyprland_instance) if args.hyprland_confine_pointer else {
+                "window": focus_status, "portal_focused": (focus_status or {}).get("portal_focused"),
+            }
+            focus_guard.check(guard_snapshot)
+            attempt_log.write("focus_guard", event="enabled", **focus_guard.describe())
+        if video_path is not None:
+            video_writer = FFmpegVideoWriter(
+                str(video_path), args.width, args.height, max(1, round(args.fps))
+            )
+            print(f"Recording model attempt to: {video_path}")
         if attempt_log is not None:
             attempt_log.write(
                 "focus", event="initial", window=focus_status,
@@ -1167,10 +1300,30 @@ def main() -> None:
                 **desktop_input_snapshot(focus_status, args.hyprland_instance),
             )
 
+        # Sampling runs outside inference so GPU stalls do not hide focus loss.
+        # Keep the last identified game geometry; never test containment against
+        # an unrelated newly focused terminal or desktop window.
+        game_window = focus_status if (focus_status or {}).get("portal_focused") else None
+
+        def sample_desktop():
+            nonlocal game_window
+            active = query_hyprland_active_window(args.hyprland_instance)
+            if (active or {}).get("portal_focused"):
+                game_window = active
+            return desktop_input_snapshot(active, args.hyprland_instance, game_window)
+
+        if attempt_log is not None:
+            desktop_telemetry = DesktopTelemetry(sample_desktop, attempt_log, args.telemetry_hz)
+            desktop_telemetry.collect()
+            desktop_telemetry.start()
+            camera_telemetry = CameraTelemetry(controller, attempt_log, args.telemetry_hz)
+
         started = time.monotonic()
         next_tick = started
         next_status = started
+        next_focus_check = started
         tick_duration = 1.0 / args.fps
+        print("Policy control started. " + controls, flush=True)
         while not args.max_seconds or time.monotonic() - started < args.max_seconds:
             if escape_monitor.session_stop_requested:
                 print("\nK pressed. Stopping recovery session.")
@@ -1205,6 +1358,40 @@ def main() -> None:
                 if attempt_log is not None:
                     attempt_log.write("stop", reason=stop_reason)
                 break
+            now = time.monotonic()
+            if desktop_telemetry is not None:
+                desktop_state = desktop_telemetry.latest()
+                focus_status = desktop_state.get("window")
+                focused = desktop_state["portal_focused"]
+            else:
+                if now >= next_focus_check:
+                    focus_status = query_hyprland_active_window(args.hyprland_instance)
+                    next_focus_check = now + 1.0 / args.telemetry_hz
+                focused = (focus_status or {}).get("portal_focused")
+                desktop_state = {"window": focus_status}
+            if focus_guard is not None:
+                focus_guard.check(desktop_state, desktop_telemetry.focus_losses if desktop_telemetry else 0,
+                                  desktop_telemetry.cursor_exits if desktop_telemetry else 0)
+            if args.keep_focused and focused is not True:
+                controller.release_policy_actions()
+                policy.reset()
+                diagnostic_tracker.reset()
+                input_ready = False
+                # Unknown/stale IPC is not counted as measured focus loss and
+                # cannot authorize input. Retry observations without injecting.
+                if focused is False:
+                    focus_loss_count += 1
+                    restored = (
+                        focus_portal_window(args.hyprland_instance) if args.dry_run
+                        else activate_portal_input(controller, args.hyprland_instance)
+                    )
+                    if (restored or {}).get("portal_focused") is not True:
+                        raise RuntimeError("Portal 2 lost focus and could not be refocused")
+                if attempt_log is not None:
+                    attempt_log.write("input_gate", reason="focus_unknown" if focused is None else "focus_lost",
+                                      telemetry=desktop_state, tick=tick_count)
+            elif focused is True:
+                input_ready = not args.dry_run
             frame = camera.get_latest_frame()
             action = None
             raw_action = None
@@ -1220,15 +1407,37 @@ def main() -> None:
                     video_writer.write(frame)
                 raw_action, diagnostics = policy.predict_with_diagnostics(frame)
                 action = limit_mouse_action(raw_action, args.mouse_max_abs)
-                action_applied = apply_predicted_action(
-                    controller,
-                    action,
-                    dry_run=args.dry_run,
-                    verbose=args.verbose,
-                )
+                # Inference may take longer than a telemetry interval. Recheck
+                # immediately before submission rather than trust pre-GPU focus.
+                if desktop_telemetry is not None:
+                    desktop_state = desktop_telemetry.latest()
+                    focus_status = desktop_state.get("window")
+                    focused = desktop_state["portal_focused"]
+                if focus_guard is not None:
+                    focus_guard.check(desktop_state, desktop_telemetry.focus_losses if desktop_telemetry else 0,
+                                      desktop_telemetry.cursor_exits if desktop_telemetry else 0)
+                if args.keep_focused and focused is not True:
+                    controller.release_policy_actions()
+                    policy.reset()
+                    diagnostic_tracker.reset()
+                    input_ready = False
+                action_started = time.monotonic()
+                if not args.keep_focused or focused is True:
+                    action_applied = apply_predicted_action(
+                        controller, action, dry_run=args.dry_run, verbose=args.verbose,
+                    )
+                    if not args.dry_run and not action_applied:
+                        injection_failures += 1
+                        if attempt_log is not None:
+                            attempt_log.write("injection_failure", action=action,
+                                              result=getattr(controller, "last_action_result", None))
+                        raise RuntimeError("Policy action submission failed; stopping benchmark")
+                action_finished = time.monotonic()
                 tick_count += 1
 
             console_output = controller.read_console(print_to_terminal=False)
+            if camera_telemetry is not None:
+                camera_telemetry.consume(console_output, tick_count)
             console_events = [
                 event for event in ("EVT|chamber_ready", *TERMINAL_EVENTS)
                 if event in console_output
@@ -1236,6 +1445,20 @@ def main() -> None:
             terminal_received, ignored_chamber_timeout = classify_terminal_events(
                 console_output, args.max_seconds
             )
+            if attempt_log is not None and action is not None:
+                attempt_log.write(
+                    "tick", tick=tick_count,
+                    elapsed_seconds=time.monotonic() - started,
+                    action=action, raw_action=raw_action,
+                    mouse_limited=raw_action != action, policy=diagnostics,
+                    action_applied=action_applied,
+                    action_started_monotonic=action_started,
+                    action_finished_monotonic=action_finished,
+                    injection_result=getattr(controller, "last_action_result", None) if action_applied else None,
+                    visual_delta=change, focus=focus_status,
+                    desktop_sample=desktop_state, input_ready=input_ready,
+                    console_events=console_events,
+                )
             if "EVT|chamber_ready" in console_output:
                 policy.reset()
                 diagnostic_tracker.reset()
@@ -1268,37 +1491,10 @@ def main() -> None:
 
             now = time.monotonic()
             if now >= next_status:
-                focus_status = query_hyprland_active_window(args.hyprland_instance)
-                if args.keep_focused and not (focus_status or {}).get("portal_focused"):
-                    focus_loss_count += 1
-                    controller.release_policy_actions()
-                    policy.reset()
-                    diagnostic_tracker.reset()
-                    focus_status = (
-                        focus_portal_window(args.hyprland_instance)
-                        if args.dry_run
-                        else activate_portal_input(controller, args.hyprland_instance)
-                    )
-                    input_ready = not args.dry_run and bool(
-                        (focus_status or {}).get("portal_focused")
-                    )
-                    if not (focus_status or {}).get("portal_focused"):
-                        raise RuntimeError("Portal 2 lost focus and could not be refocused")
-                desktop_state = desktop_input_snapshot(
-                    focus_status, args.hyprland_instance
-                )
-                if attempt_log is not None:
-                    attempt_log.write(
-                        "desktop_state", phase="periodic",
-                        elapsed_seconds=now - started,
-                        tick=tick_count,
-                        **desktop_state,
-                    )
                 if args.verbose and action is not None:
                     focus_text = (
-                        "unknown" if focus_status is None
-                        else "portal" if focus_status["portal_focused"]
-                        else f"{focus_status['class']}"
+                        "unknown" if focused is None
+                        else "portal" if focused else str((focus_status or {}).get("class"))
                     )
                     print(
                         f"status t={now - started:6.1f}s ticks={tick_count} "
@@ -1306,13 +1502,13 @@ def main() -> None:
                         f"visual_delta={change or 0.0:.3f} "
                         f"action={action_label(action)} "
                         f"mouse=({action['mouse_dx']},{action['mouse_dy']})"
-                        f" cursor={desktop_state['cursor']}"
-                        f" cursor_in_window={desktop_state['cursor_inside_game_window']}"
-                        f" workspace={desktop_state['active_workspace']}"
+                        f" cursor={desktop_state.get('cursor')}"
+                        f" cursor_in_window={desktop_state.get('cursor_inside_game_window')}"
+                        f" workspace={desktop_state.get('active_workspace')}"
                     )
                 next_status = now + args.status_every
 
-            if action is not None:
+            if action is not None and action_applied:
                 for event in diagnostic_tracker.update(
                     now - started, action, change
                 ):
@@ -1327,21 +1523,8 @@ def main() -> None:
                             f"event={event['event']}"
                         )
 
-            if attempt_log is not None and action is not None:
-                attempt_log.write(
-                    "tick",
-                    tick=tick_count,
-                    elapsed_seconds=now - started,
-                    action=action,
-                    raw_action=raw_action,
-                    mouse_limited=raw_action != action,
-                    policy=diagnostics,
-                    action_applied=action_applied,
-                    visual_delta=change,
-                    focus=focus_status,
-                    input_ready=input_ready,
-                    console_events=console_events,
-                )
+            if camera_telemetry is not None:
+                camera_telemetry.request(tick_count)
 
             next_tick += tick_duration
             sleep_time = next_tick - time.monotonic()
@@ -1349,18 +1532,46 @@ def main() -> None:
                 time.sleep(sleep_time)
             else:
                 next_tick = time.monotonic()
+    except FocusGuardViolation as error:
+        stop_reason = "focus_guard_violation"
+        if attempt_log is not None:
+            attempt_log.write("focus_guard", event="stopped", reason=str(error),
+                              telemetry=desktop_state if desktop_telemetry else None)
+        print(f"Focus guard stopped the attempt: {error}")
+        raise
     except KeyboardInterrupt:
         print("\nEmergency stop requested.")
         stop_reason = "keyboard_interrupt"
         if attempt_log is not None:
             attempt_log.write("stop", reason="keyboard_interrupt")
+    except InterruptedError:
+        stop_reason = "escape_key"
+        if attempt_log is not None:
+            attempt_log.write("stop", reason=stop_reason)
+    except MouseCaptureError as error:
+        stop_reason = "mouse_capture_failed"
+        if attempt_log is not None:
+            attempt_log.write("mouse_preflight", phase="failed", error=str(error))
+        raise
     except Exception as error:
-        stop_reason = "error"
+        stop_reason = "mouse_capture_failed" if preflight_status == "failed" else "error"
         if attempt_log is not None:
             attempt_log.write("error", error_type=type(error).__name__, message=str(error))
         raise
     finally:
         controller.release_policy_actions()
+        if desktop_telemetry is not None:
+            desktop_telemetry.stop()
+        if camera_telemetry is not None:
+            camera_telemetry.close(tick_count)
+        if focus_guard is not None:
+            restoration = focus_guard.restore()
+            if attempt_log is not None:
+                attempt_log.write("focus_guard", event="cleanup", **restoration)
+            if restoration["status"] == "failed":
+                stop_reason = "focus_guard_restore_failed"
+        if previous_sigterm_handler is not None:
+            signal.signal(signal.SIGTERM, previous_sigterm_handler)
         escape_monitor.stop()
         if saved_restart_binding is not None:
             restore_portal_binding(controller, "r", saved_restart_binding)
@@ -1374,7 +1585,12 @@ def main() -> None:
             attempt_log.write(
                 "summary",
                 ticks=tick_count,
-                focus_losses=focus_loss_count,
+                focus_losses=desktop_telemetry.focus_losses if desktop_telemetry else focus_loss_count,
+                telemetry=desktop_telemetry.summary() if desktop_telemetry else None,
+                camera_telemetry=camera_telemetry.summary() if camera_telemetry else None,
+                mouse_preflight=preflight_status,
+                focus_guard_cleanup=focus_guard.restore_result if focus_guard else None,
+                injection_failures=injection_failures,
                 input_ready=input_ready,
                 mean_visual_delta=(
                     visual_change_total / visual_change_samples
@@ -1386,9 +1602,18 @@ def main() -> None:
             attempt_log.close()
             print(f"Attempt diagnostics saved to: {log_path}")
         camera.stop()
+        if virtual_mouse is not None:
+            controller.ui = None  # Only its sequence owner may destroy it.
         controller.disconnect()
         print("Policy stopped and held actions released.")
+        if stop_reason == "focus_guard_restore_failed":
+            raise FocusGuardViolation("Could not restore Hyprland guard settings; see the cleanup commands")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except FocusGuardViolation:
+        # Let sequence orchestration recognize early setup failures even when
+        # capture/log creation has not started yet.
+        raise SystemExit(FOCUS_GUARD_EXIT_CODE) from None

@@ -442,12 +442,14 @@ class ImitationPipelineTest(unittest.TestCase):
         active_workspace.return_value = {"id": 4, "name": "4", "monitor": 1}
         window = {
             "class": "gamescope", "address": "0x222", "at": [100, 200],
+            "portal_focused": True,
             "size": [800, 600], "monitor": 1,
             "workspace": {"id": 4, "name": "4"},
         }
 
         snapshot = desktop_input_snapshot(window, "test-signature")
 
+        self.assertIs(snapshot["portal_focused"], True)
         self.assertEqual(snapshot["cursor"], {"x": 450, "y": 500})
         self.assertTrue(snapshot["cursor_inside_game_window"])
         self.assertEqual(snapshot["active_workspace"]["id"], 4)

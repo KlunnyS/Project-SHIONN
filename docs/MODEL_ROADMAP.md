@@ -22,6 +22,79 @@ context rather than bad input capture or missing demonstrations.
 
 ## Benchmarks and evidence
 
+### 2026-10-25 persistent mouse: local capture confirmation passed
+
+The five-repeat balanced test11 confirmation at
+`/tmp/shionn-persistent-mouse-confirmation/sequence_20261025_175754_528314/`
+passed every automatic capture check: zero recorded cursor exits, focus losses,
+unknown camera observations, or input submission failures. Bidirectional mouse
+preflight, effective confinement-rule probes, and guard restoration passed on
+all five attempts. Steering was exercised over 2,720 mouse-active policy ticks.
+Together with the two-run pilot, seven consecutive persistent-mode attempts
+had no recorded cursor/focus faults. This supports the current local X11 Steam
+configuration with `--hyprland-confine-pointer --persistent-mouse`; it does not
+isolate the cause or establish reliability on other configurations.
+
+Keyboard assistance was permitted, so these are capture diagnostics rather
+than autonomous model scores. No further capture-only reruns are needed unless
+the configuration changes or another fault appears. Continue controlled data
+and sampling work; clean, unassisted candidate comparisons remain outstanding.
+See [benchmarking](BENCHMARKING.md) for configuration and evidence details.
+
+### 2026-10-25 hover guard: focus retained, test11 pointer escapes remain
+
+The six-attempt balanced test1/test11 diagnostic in
+`/tmp/shionn-focus-guard/sequence_20261025_162021_137292/` completed with
+zero observed focus losses and successful hover-setting restoration after every
+attempt. Every test11 run recorded a cursor exit, starting at about 23.2, 46.5,
+and 34.5 seconds; test1 inference recorded none, although one test1 run had no
+mouse commands. All six timed out. This supports separating focus switching
+from pointer confinement, without proving the root cause of either. This
+historical test preceded the verified rule matching and persistent-mouse
+confirmation above.
+
+### 2026-10-25 direct runs: policy failures with no observed capture faults
+
+Two subsequent direct test1 runs passed the automatic capture checks, with no
+observed cursor exits, focus losses, unknown camera replies, or submission
+failures. The new candidate's run in `/tmp/shionn-direct-stress/` progressively
+commanded downward mouse motion, reached 89-degree pitch at 13.29 seconds, then
+became idle at about 13.36 seconds; Escape ended the run at 186.4 seconds.
+The balanced run in `/tmp/shionn-balanced-direct/` moved/turned until its final
+nonidle prediction at 37.53 seconds, then requested no controls while facing a
+wall. Its pitch ended near -0.53 degrees, with a range of -5.64 to 33.02 degrees;
+Escape ended the run at 59.1 seconds. Final-frame inspection confirms the wall.
+
+These are specific examples of downward-view drift and wall-state idling under
+observed stable capture, useful for the Phase 1 data/sampling audit. Most of the
+new model's long attempt was idle and did not exercise continuous mouse capture.
+One direct attempt per checkpoint does not establish repeatability or ranking,
+and does not resolve the earlier sequence's grab/focus faults.
+
+### 2026-10-25 instrumented sequence: stopped for capture failure
+
+The sequence at
+`/tmp/shionn-v5-comparison/sequence_20261025_150806_092817/` planned 30
+attempts but completed only eight gameplay attempts. Job 9 stopped the entire
+sequence when preflight measured zero left yaw despite submitted mouse pulses
+and observed game focus. Both checkpoints completed test12 once and timed out
+on test1 twice and test11 once. These are incomplete, capture-confounded results.
+
+Five of eight gameplay attempts have capture-review flags. There were three
+focus-loss episodes to Firefox and 98 cursor-exit transitions across three
+attempts (1, 4, and 93). The final successful preflight produced ±1.351593
+degrees rather than the usual ±4.054779; the next failed at zero. Camera
+telemetry parsed successfully throughout gameplay, and policy submission
+failures were zero. Thus the new observability path exposed live input-path
+instability, while the cause of confinement/grab failures remains unresolved.
+Cursor exits alone do not establish loss of relative game input; short zero-yaw
+intervals must also account for asynchronous engine and observation timing.
+
+The generated benchmark summary and capture diagnostics are beside the manifest
+in temporary storage. Preserve those artifacts before `/tmp` is cleared. Fix
+and validate confinement/reacquisition with short runs before restarting the
+full comparison. Do not promote a checkpoint from these partial results.
+
 ### Live sequence: useful failure evidence, not a clean score
 
 Sequence: `model_attempts/sequences/sequence_20261020_185151_464090/`.
@@ -129,6 +202,14 @@ Time windows are planning estimates from the current project state, not firm
 deadlines. Start each phase only when its entry condition is met.
 
 ### Phase 0 — repair benchmark observability (next work session, 1–3 days)
+
+The 2026-10-25 implementation provides 15 Hz desktop sampling, timestamped
+submission results, asynchronous camera observations, and per-attempt mouse
+preflight with a map reload. See [benchmarking](BENCHMARKING.md) for usage and
+uncertainty handling. Five user-run confirmation attempts passed all automatic
+capture checks under real inference load, meeting the observability exit
+condition for the documented local configuration. Clean autonomous model
+comparisons remain separate work in Phase 2.
 
 1. Keep recent cursor-escape runs classified as capture-confounded. Do not use
    their completion rates to promote or reject a checkpoint.
