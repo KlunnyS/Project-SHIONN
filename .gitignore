@@ -18,6 +18,8 @@ venv
 .env.*
 !.env.example
 .agent
+.agents
+plugins/
 AGENTS.md
 handoff.md
 
