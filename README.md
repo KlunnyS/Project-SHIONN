@@ -10,7 +10,7 @@ provided to the model.
 
 ## Current status
 
-Status last updated on **2026-10-18**:
+Status last updated on **2026-10-25**:
 
 - The recording, preprocessing, training, checkpoint, and live-inference
   pipeline works end to end.
@@ -22,27 +22,36 @@ Status last updated on **2026-10-18**:
   the frozen validation set. The approved 20-clip proactive-turn pilot is in a
   separate cache; `frozen_v3.json` adds those clips without changing validation
   membership. Generated frames and recordings are ignored by Git.
-- The current candidate family is the 13.2M-parameter residual
-  `shionn_imitation_v5` policy with binned mouse actions and complete-chamber
-  validation.
-- The completed v5 baseline stopped after epoch 6 and retained epoch 2 as its
-  best checkpoint (`2.677965` validation loss).
-- An unzoomed 2026-10-04 live smoke check completed held-out `dataset_test12`
-  with input ready and zero focus losses; repeated clean trials are still
-  required before the model can be treated as reliable.
+- The current candidate is `v5_recovery_proactive_v3`, a 13.2M-parameter
+  residual CNN with binned mouse actions. Its full frozen-validation action
+  score is modestly better than `v5_balanced_recovery_v1` (0.8460 vs 0.8440
+  exact binary-action match; dx MAE 6.29 vs 7.09).
+- The latest 27-attempt live comparison is capture-confounded: all models
+  struggled on `dataset_test1` and `dataset_test11`, while the easy `test12`
+  was consistently completed. Cursor escape and Gamescope capture may have
+  affected results, so they do not provide a clean ranking of checkpoints.
+- The model still predicts less mouse activity than the expert demonstrations.
+  Fix live input telemetry and test correction-data sampling before deciding
+  whether to build a temporal V6 architecture.
 - Reinforcement learning, reward shaping, recurrence, and portal-mechanics
   curricula remain future work.
 - The supervised recovery workflow is live-verified on the current Hyprland
   and Gamescope setup. The 30-episode collection and preprocessing are complete;
-  the clips have been reviewed and approved. The planned combined candidate
-  now includes the approved proactive-turn pilot in frozen v3. Zero-mouse
-  analysis remains outstanding before the planned combined training run.
+  the clips have been reviewed and approved. The current candidate includes
+  the approved proactive-turn pilot in frozen v3. The next data experiment is
+  a controlled sampling comparison for recovery and proactive-turn examples.
 
 The dated operational record, including exact checkpoint paths and safe
-commands, lives in the [training runbook](docs/TRAINING_RUNBOOK.md).
+commands, lives in the [training runbook](docs/TRAINING_RUNBOOK.md). The full
+benchmark evidence and phased model plan are in the
+[model roadmap](docs/MODEL_ROADMAP.md).
 The episode-level training/validation/evaluation assignment is documented in
 the [frozen data split](docs/DATA_SPLIT.md).
-The current recovery-session status and next steps are in [handoff.md](handoff.md).
+The current private work-session handoff is in the local, git-ignored
+`handoff.md`; shared technical and model-planning details are in the docs linked
+above.
+An Arch/Niri model-run path is documented in [NIRI_ARCH_SETUP](docs/NIRI_ARCH_SETUP.md);
+recovery handoff on Niri remains unvalidated.
 
 ## Pipeline
 

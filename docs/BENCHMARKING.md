@@ -4,6 +4,9 @@ Run these commands from the repository root after training a candidate. Replace 
 
 The [frozen split](DATA_SPLIT.md) defines test1–10 as training, test11/12 as validation, and evaluation1/2 as evaluation-only. The latter two have had prior live runs, which should be disclosed with results; neither is part of the training cache. Check the checkpoint's split ID and manifest hash when comparing candidates trained after the split was introduced.
 
+For the latest V5 comparison, limitations of the 2026-10-20 live sequence, and
+the next model/data phases, see the [model roadmap](MODEL_ROADMAP.md).
+
 ## 1. Compare actions on held-out expert frames
 
 ```bash

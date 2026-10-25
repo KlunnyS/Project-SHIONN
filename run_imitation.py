@@ -196,7 +196,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--log-file", type=Path, help="Custom JSONL diagnostics path; implies --log-actions")
     parser.add_argument("--verbose", action="store_true", help="Print a concise runtime status line once per second")
     parser.add_argument("--status-every", type=float, default=1.0, help="Seconds between --verbose status lines and focus checks")
-    parser.add_argument("--keep-focused", action="store_true", help="On Hyprland, focus and activate Portal input, restoring it if focus is lost")
+    parser.add_argument("--keep-focused", action="store_true", help="Focus Portal 2 and restore focus if it is lost")
     parser.add_argument("--hyprland-instance", default="auto", help="Hyprland instance signature; auto discovers it for SSH sessions")
     return parser.parse_args(argv)
 
@@ -263,8 +263,70 @@ def is_portal_window(window: dict) -> bool:
     )
 
 
+def niri_is_active() -> bool:
+    """Detect a Niri session from its IPC socket environment."""
+    return bool(os.environ.get("NIRI_SOCKET")) and shutil.which("niri") is not None
+
+
+def query_niri_active_window() -> dict | None:
+    """Return a normalized focused-window record from Niri's documented IPC."""
+    if not niri_is_active():
+        return None
+    try:
+        result = subprocess.run(
+            ["niri", "msg", "--json", "focused-window"], check=True,
+            capture_output=True, text=True, timeout=2,
+        )
+        window = json.loads(result.stdout)
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return None
+    if not isinstance(window, dict):
+        return None
+    app_id = window.get("app_id") or ""
+    title = window.get("title") or ""
+    normalized = {
+        "address": window.get("id"), "class": app_id, "title": title,
+        "workspace": {"id": window.get("workspace_id")},
+        # Niri's stable Window IPC type does not expose a fullscreen flag.
+        "fullscreen": None,
+        "niri_window_id": window.get("id"), "window_manager": "niri",
+    }
+    # Gamescope's title identifies the wrapped Portal window in current Steam
+    # setups; direct XWayland Portal windows use Steam's app ID/class.
+    normalized["portal_focused"] = (
+        app_id == PORTAL_WINDOW_CLASS
+        or (app_id == GAMESCOPE_WINDOW_CLASS and bool(
+            re.fullmatch(r"PORTAL 2(?: - .*)?", title, re.IGNORECASE)
+        ))
+    )
+    return normalized
+
+
+def query_niri_workspace() -> dict | None:
+    """Return focused Niri workspace metadata; cursor coordinates are not exposed."""
+    if not niri_is_active():
+        return None
+    try:
+        result = subprocess.run(
+            ["niri", "msg", "--json", "workspaces"], check=True,
+            capture_output=True, text=True, timeout=2,
+        )
+        workspaces = json.loads(result.stdout)
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return None
+    if not isinstance(workspaces, list):
+        return None
+    active = next((item for item in workspaces if item.get("is_focused")), None)
+    if active is None:
+        return None
+    return {"id": active.get("id"), "name": active.get("name"),
+            "monitor": active.get("output"), "window_manager": "niri"}
+
+
 def query_hyprland_active_window(instance: str = "auto") -> dict | None:
     """Return a small active-window snapshot, or None outside Hyprland."""
+    if niri_is_active():
+        return query_niri_active_window()
     if shutil.which("hyprctl") is None:
         return None
     for candidate in hyprland_instance_candidates(instance):
@@ -296,6 +358,36 @@ def query_hyprland_active_window(instance: str = "auto") -> dict | None:
 
 def focus_portal_window(instance: str = "auto") -> dict | None:
     """Focus the exact visible Portal or Gamescope window, not another game."""
+    if niri_is_active():
+        try:
+            result = subprocess.run(
+                ["niri", "msg", "--json", "windows"], check=True,
+                capture_output=True, text=True, timeout=2,
+            )
+            windows = json.loads(result.stdout)
+        except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+            return None
+        if not isinstance(windows, list):
+            return None
+        targets = [window for window in windows if isinstance(window, dict) and (
+            window.get("app_id") == PORTAL_WINDOW_CLASS
+            or (window.get("app_id") == GAMESCOPE_WINDOW_CLASS and re.fullmatch(
+                r"PORTAL 2(?: - .*)?", str(window.get("title", "")), re.IGNORECASE
+            ))
+        )]
+        if not targets:
+            return None
+        target = next((item for item in targets if item.get("app_id") == GAMESCOPE_WINDOW_CLASS), targets[0])
+        try:
+            subprocess.run(
+                ["niri", "msg", "action", "focus-window", "--id", str(target["id"])],
+                check=True, capture_output=True, text=True, timeout=2,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        time.sleep(0.1)
+        status = query_niri_active_window()
+        return status if status and status.get("niri_window_id") == target.get("id") else None
     if shutil.which("hyprctl") is None:
         return None
     for candidate in hyprland_instance_candidates(instance):
@@ -353,6 +445,8 @@ def query_hyprland_cursor(instance: str) -> tuple[int, int] | None:
 
 def query_hyprland_active_workspace(instance: str) -> dict | None:
     """Return the currently active Hyprland workspace, if available."""
+    if niri_is_active():
+        return query_niri_workspace()
     try:
         result = subprocess.run(
             ["hyprctl", "-i", instance, "-j", "activeworkspace"], check=True,
@@ -374,7 +468,7 @@ def desktop_input_snapshot(window: dict | None, instance: str) -> dict:
         instance = (window or {}).get("hyprland_instance") or next(
             iter(hyprland_instance_candidates("auto")), "auto"
         )
-    cursor = query_hyprland_cursor(instance)
+    cursor = None if niri_is_active() else query_hyprland_cursor(instance)
     workspace = query_hyprland_active_workspace(instance)
     inside_window = None
     if window is not None and cursor is not None:
@@ -405,6 +499,10 @@ def fullscreen_portal_window(instance: str = "auto") -> dict | None:
     status = focus_portal_window(instance)
     if not (status or {}).get("portal_focused"):
         return status
+    if (status or {}).get("window_manager") == "niri":
+        # FullscreenWindow is a toggle and Niri's Window response has no
+        # fullscreen state. Do not toggle blindly; Gamescope owns game mode.
+        return query_niri_active_window()
     if status.get("fullscreen"):
         return status
     candidate = status.get("hyprland_instance")
@@ -429,7 +527,10 @@ def prepare_portal_visual_state(
 ) -> dict | None:
     """Match the clean fullscreen, equipped-viewmodel training input."""
     status = fullscreen_portal_window(instance)
-    if not (status or {}).get("portal_focused") or not status.get("fullscreen"):
+    niri_focus_only = (status or {}).get("window_manager") == "niri"
+    if not (status or {}).get("portal_focused") or (
+        not niri_focus_only and not status.get("fullscreen")
+    ):
         return None
     controller.send_command("r_drawviewmodel 1")
     controller.send_command("use weapon_portalgun")
@@ -554,6 +655,24 @@ def activate_portal_input(
         status = focus_portal_window(instance)
     if not (status or {}).get("portal_focused"):
         return None
+    if status.get("window_manager") == "niri":
+        if status.get("class") == GAMESCOPE_WINDOW_CLASS:
+            if force_recenter:
+                raise RuntimeError(
+                    "Automated recovery mouse reacquisition is not supported on Niri yet; "
+                    "Niri does not expose cursor coordinates and its Gamescope grab refresh "
+                    "has not been validated."
+                )
+            # Niri can focus Gamescope, but focusing alone does not prove that
+            # its nested game has captured relative mouse input.
+            controller.send_command("unpause")
+            time.sleep(0.1)
+            return query_niri_active_window()
+        if not click_to_capture_portal_input(controller):
+            return None
+        controller.send_command("unpause")
+        time.sleep(0.1)
+        return query_niri_active_window()
     candidate = status.get("hyprland_instance")
     if status.get("class") == GAMESCOPE_WINDOW_CLASS:
         # With --force-grab-cursor Gamescope owns the Wayland relative pointer.
@@ -876,6 +995,11 @@ def main() -> None:
         raise ValueError("--disable-chamber-timeout requires --map")
     if args.recovery_handoff and (not args.map_name or not args.keep_focused):
         raise ValueError("--recovery-handoff requires --map and --keep-focused")
+    if args.recovery_handoff and niri_is_active():
+        raise RuntimeError(
+            "Automated recovery handoff is currently Hyprland-only. Niri focus works, "
+            "but cursor containment and Gamescope mouse-grab reacquisition need laptop validation."
+        )
     if args.status_every <= 0:
         raise ValueError("--status-every must be greater than zero")
     if args.mouse_max_abs is not None and args.mouse_max_abs <= 0:
@@ -1031,7 +1155,7 @@ def main() -> None:
             focus_status = focus_portal_window(args.hyprland_instance)
         if args.keep_focused and not (focus_status or {}).get("portal_focused"):
             raise RuntimeError(
-                "Could not focus Portal 2 through Hyprland; refusing to inject global mouse input"
+                "Could not focus Portal 2 through the active compositor; refusing to inject input"
             )
         if attempt_log is not None:
             attempt_log.write(

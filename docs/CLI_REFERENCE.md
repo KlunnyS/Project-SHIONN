@@ -18,6 +18,7 @@ Python entry point; the defaults below reflect the current code. See the
 | Cache successful demonstrations | `.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes/goal_reached` |
 | Train a new candidate | `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints/runs/candidate` |
 | Run a configured model | `./run_model.sh --checkpoint PATH` |
+| Run a configured model from an Arch/Niri session | `./run_model_niri.sh --checkpoint PATH` |
 | Collect supervised recovery clips | `.venv/bin/python run_recovery_session.py --checkpoint PATH --target-corrections 30` |
 | Run automated tests | `.venv/bin/python -m unittest discover -s tests -p 'test_*.py'` |
 
@@ -28,6 +29,10 @@ training, or inference because the large artifact directories are symlinks to
 that drive. Use the [training runbook](TRAINING_RUNBOOK.md) for the active
 dataset's safe systemd command rather than treating the generic training row as
 an operational prescription.
+
+For an Arch Linux laptop running Niri, see the [Niri setup guide](NIRI_ARCH_SETUP.md).
+That path supports model-run window focus; recovery handoff is not enabled until
+cursor containment and Gamescope mouse reacquisition are validated there.
 
 ## `record_dataset.py`
 
