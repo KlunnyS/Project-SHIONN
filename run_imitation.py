@@ -22,14 +22,13 @@ import numpy as np
 # Project modules at the repository root: capture and Portal 2 control.
 from recorder import FFmpegVideoWriter, WaylandCamera, get_default_output
 from wrapper import Portal2Controller, is_game_running, launch_game
+from episode_events import EpisodeEvent, EpisodeEventStream
 from live_input_telemetry import CameraTelemetry, DesktopTelemetry, angle_delta
 from focus_guard import FOCUS_GUARD_EXIT_CODE, FocusGuardViolation, HyprlandFocusGuard
 
 
-TERMINAL_EVENTS = ("EVT|goal_reached", "EVT|episode_failed")
 PORTAL_WINDOW_CLASS = "steam_app_620"
 GAMESCOPE_WINDOW_CLASS = "gamescope"
-EPISODE_FAILURE_PATTERN = re.compile(r"EVT\|episode_failed\|([^\r\n]*)")
 DIAGNOSTIC_MIN_SECONDS = 1.0
 WALL_STUCK_VISUAL_DELTA = 0.05
 TURN_LOOP_MOUSE_MIN_ABS = 45
@@ -43,18 +42,52 @@ def classify_terminal_events(
     console_output: str, max_seconds: float
 ) -> tuple[bool, bool]:
     """Return (terminal event received, chamber timeout ignored)."""
-    if "EVT|goal_reached" in console_output:
+    stream = EpisodeEventStream()
+    events = collect_console_events(stream, console_output)
+    return classify_episode_events(events, max_seconds)
+
+
+def collect_console_events(
+    stream: EpisodeEventStream, console_output: str
+) -> list[EpisodeEvent]:
+    """Feed arbitrary TCP chunks to the shared line parser and drain events."""
+    stream.feed(console_output)
+    events = []
+    while True:
+        event = stream.pop()
+        if event is None:
+            return events
+        events.append(event)
+
+
+def collect_handoff_console_events(
+    controller: Portal2Controller, stream: EpisodeEventStream,
+    initial_output: str, settle_seconds: float = 0.1,
+) -> list[EpisodeEvent]:
+    """Briefly finish a partial line before ending policy control for handoff."""
+    events = collect_console_events(stream, initial_output)
+    deadline = time.monotonic() + max(0.0, settle_seconds)
+    while stream.has_partial_line and time.monotonic() < deadline:
+        time.sleep(0.005)
+        events.extend(collect_console_events(
+            stream, controller.read_console(print_to_terminal=False)
+        ))
+    return events
+
+
+def classify_episode_events(
+    events: list[EpisodeEvent], max_seconds: float
+) -> tuple[bool, bool]:
+    """Classify complete events without depending on TCP receive boundaries."""
+    if any(event.name == "goal_reached" for event in events):
         return True, False
 
-    has_failure_marker = "EVT|episode_failed" in console_output
-    if not has_failure_marker:
+    failure_reasons = [event.value for event in events if event.name == "episode_failed"]
+    if not failure_reasons:
         return False, False
 
-    failure_reasons = [
-        match.group(1).strip() for match in EPISODE_FAILURE_PATTERN.finditer(console_output)
-    ]
     only_timeout = bool(failure_reasons) and all(
-        reason == "timeout" for reason in failure_reasons
+        reason.strip() == "timeout" for reason in failure_reasons
     )
     if max_seconds > 0 and only_timeout:
         return False, True
@@ -1159,6 +1192,7 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
         fps=max(1, round(args.fps)),
         output_name=args.output or get_default_output(),
     )
+    console_event_stream = EpisodeEventStream()
     escape_monitor = EscapeKeyMonitor(
         evdev.ecodes.KEY_P if args.recovery_handoff else None,
         evdev.ecodes.KEY_R if args.recovery_handoff else None,
@@ -1422,10 +1456,13 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                 break
             if args.recovery_handoff and escape_monitor.handoff_requested:
                 pending_output = controller.read_console(print_to_terminal=False)
-                terminal_received, _ = classify_terminal_events(pending_output, args.max_seconds)
+                pending_events = collect_handoff_console_events(
+                    controller, console_event_stream, pending_output
+                )
+                terminal_received, _ = classify_episode_events(pending_events, args.max_seconds)
                 if terminal_received:
                     stop_reason = (
-                        "goal_reached" if "EVT|goal_reached" in pending_output
+                        "goal_reached" if any(event.name == "goal_reached" for event in pending_events)
                         else "episode_failed"
                     )
                     print(f"\nChamber ended before takeover ({stop_reason}); skipping recovery.")
@@ -1552,14 +1589,15 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                 tick_count += 1
 
             console_output = controller.read_console(print_to_terminal=False)
+            parsed_events = collect_console_events(console_event_stream, console_output)
             if camera_telemetry is not None:
                 camera_telemetry.consume(console_output, tick_count)
             console_events = [
-                event for event in ("EVT|chamber_ready", *TERMINAL_EVENTS)
-                if event in console_output
+                f"EVT|{event.name}" for event in parsed_events
+                if event.name in ("chamber_ready", "goal_reached", "episode_failed")
             ]
-            terminal_received, ignored_chamber_timeout = classify_terminal_events(
-                console_output, args.max_seconds
+            terminal_received, ignored_chamber_timeout = classify_episode_events(
+                parsed_events, args.max_seconds
             )
             if attempt_log is not None and action is not None:
                 attempt_log.write(
@@ -1578,7 +1616,7 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                 )
             if args.expert_replay is not None and terminal_received:
                 policy.finish()
-            if "EVT|chamber_ready" in console_output:
+            if any(event.name == "chamber_ready" for event in parsed_events):
                 policy.reset()
                 diagnostic_tracker.reset()
                 controller.release_policy_actions()
@@ -1591,13 +1629,16 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                 policy.reset()
                 diagnostic_tracker.reset()
                 controller.release_policy_actions()
-                if "EVT|goal_reached" in console_output:
+                if any(event.name == "goal_reached" for event in parsed_events):
                     terminal_outcome = "goal_reached"
                     failure_reason = None
                 else:
                     terminal_outcome = "episode_failed"
-                    match = EPISODE_FAILURE_PATTERN.search(console_output)
-                    failure_reason = match.group(1).strip() if match else None
+                    failure = next(
+                        (event for event in parsed_events if event.name == "episode_failed"),
+                        None,
+                    )
+                    failure_reason = failure.value.strip() if failure else None
                 if attempt_log is not None:
                     attempt_log.write(
                         "terminal", outcome=terminal_outcome,

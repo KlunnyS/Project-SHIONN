@@ -28,7 +28,8 @@ from models.imitation.preprocess import ACTION_COLUMNS, cache_episode, discover_
 from models.imitation.train_bc import EarlyStopping, augment_batch, binary_class_weights_for_mode, consecutive_unimproved_epochs, format_duration, make_binary_class_weights, make_training_loader, partition_frozen_training, run_epoch, select_maps, split_training_manifests, training_sampling_weights
 # Project entry points and capture/controller modules at the repository root.
 from recorder import FFmpegVideoWriter
-from run_imitation import AttemptLog, EscapeKeyMonitor, RuntimeDiagnosticTracker, action_label, activate_portal_input, apply_predicted_action, classify_terminal_events, click_to_capture_portal_input, desktop_input_snapshot, disable_chamber_timeout, focus_portal_window, frame_change, fullscreen_portal_window, hyprland_instance_candidates, is_portal_window, limit_mouse_action, load_recovery_map, make_attempt_recording_path, parse_args, prepare_portal_visual_state, prepare_recovery_model_start, read_player_angles
+from run_imitation import AttemptLog, EscapeKeyMonitor, RuntimeDiagnosticTracker, action_label, activate_portal_input, apply_predicted_action, classify_episode_events, classify_terminal_events, click_to_capture_portal_input, collect_console_events, collect_handoff_console_events, desktop_input_snapshot, disable_chamber_timeout, focus_portal_window, frame_change, fullscreen_portal_window, hyprland_instance_candidates, is_portal_window, limit_mouse_action, load_recovery_map, make_attempt_recording_path, parse_args, prepare_portal_visual_state, prepare_recovery_model_start, read_player_angles
+from record_dataset import EpisodeEventStream
 from wrapper import Portal2Controller
 
 
@@ -215,6 +216,33 @@ class ImitationPipelineTest(unittest.TestCase):
             classify_terminal_events("EVT|goal_reached|1\n", max_seconds=60.0),
             (True, False),
         )
+
+    def test_live_terminal_events_survive_every_receive_boundary_once(self):
+        for event_line, expected in (
+            ("EVT|goal_reached|1\n", (True, False)),
+            ("EVT|episode_failed|out_of_bounds\n", (True, False)),
+            ("EVT|episode_failed|timeout\n", (False, True)),
+        ):
+            for split_at in range(len(event_line) + 1):
+                with self.subTest(event_line=event_line, split_at=split_at):
+                    stream = EpisodeEventStream()
+                    events = collect_console_events(stream, event_line[:split_at])
+                    events += collect_console_events(stream, event_line[split_at:])
+                    self.assertEqual(classify_episode_events(events, 60.0), expected)
+                    self.assertEqual(len(events), 1)
+
+    def test_handoff_finishes_a_terminal_event_already_split_across_reads(self):
+        controller = Mock()
+        controller.read_console.return_value = "out_of_bounds\n"
+        stream = EpisodeEventStream()
+
+        events = collect_handoff_console_events(
+            controller, stream, "EVT|episode_failed|"
+        )
+
+        self.assertEqual(classify_episode_events(events, 60.0), (True, False))
+        self.assertEqual(len(events), 1)
+        controller.read_console.assert_called_once_with(print_to_terminal=False)
 
     @patch("run_imitation.evdev.InputDevice")
     @patch("run_imitation.evdev.list_devices")

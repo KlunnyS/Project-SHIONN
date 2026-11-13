@@ -30,6 +30,7 @@ import numpy as np
 import evdev
 
 # Project module at the repository root: Portal 2 console/game control.
+from episode_events import EpisodeEventStream
 from wrapper import Portal2Controller, is_game_running
 
 # --- Device Discovery ---
@@ -674,6 +675,23 @@ class EpisodeRecorder:
         self.ep_dir = completed_dir
         print(f"Episode saved to: {completed_dir}")
 
+    def handle_console_events(self, event_stream, output):
+        """Apply complete episode events while retaining fragmented TCP lines."""
+        event_stream.feed(output)
+        while True:
+            event = event_stream.pop()
+            if event is None:
+                return
+            if event.name == "chamber_ready":
+                if not self.recording:
+                    self.start_recording()
+            elif event.name == "goal_reached":
+                if self.recording:
+                    self.stop_recording("goal_reached")
+            elif event.name == "episode_failed":
+                if self.recording:
+                    self.stop_recording("episode_failed")
+
     def _sync_loop(self):
         tick_duration = 1.0 / self.fps
         next_tick = time.monotonic()
@@ -732,6 +750,7 @@ class EpisodeRecorder:
             time.sleep(2)
             
         print("Connected to game console. Listening for EVT signals...")
+        event_stream = EpisodeEventStream()
         
         try:
             while True:
@@ -742,18 +761,7 @@ class EpisodeRecorder:
                     if control == "pause":
                         self.toggle_pause()
                 out = self.controller.read_console()
-                if out:
-                    # Parse out for events
-                    for line in out.splitlines():
-                        if "EVT|chamber_ready" in line:
-                            if not self.recording:
-                                self.start_recording()
-                        elif "EVT|goal_reached" in line:
-                            if self.recording:
-                                self.stop_recording("goal_reached")
-                        elif "EVT|episode_failed" in line:
-                            if self.recording:
-                                self.stop_recording("episode_failed")
+                self.handle_console_events(event_stream, out)
                 time.sleep(0.05)
         except KeyboardInterrupt:
             print("\nExiting...")

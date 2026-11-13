@@ -154,6 +154,31 @@ class EpisodeEventStreamTest(unittest.TestCase):
 
 
 class EpisodeRecorderOutcomeTest(unittest.TestCase):
+    def test_low_level_recorder_applies_events_split_across_console_reads(self):
+        recorder = EpisodeRecorder.__new__(EpisodeRecorder)
+        recorder.recording = False
+        stopped = []
+
+        def start():
+            recorder.recording = True
+
+        def stop(outcome):
+            recorder.recording = False
+            stopped.append(outcome)
+
+        recorder.start_recording = Mock(side_effect=start)
+        recorder.stop_recording = Mock(side_effect=stop)
+        stream = EpisodeEventStream()
+
+        recorder.handle_console_events(stream, "EVT|chamber_")
+        recorder.handle_console_events(stream, "ready|123.5\nEVT|goal_")
+        recorder.handle_console_events(stream, "reached|1\n")
+
+        recorder.start_recording.assert_called_once_with()
+        recorder.stop_recording.assert_called_once_with("goal_reached")
+        self.assertEqual(stopped, ["goal_reached"])
+        self.assertFalse(stream.has_partial_line)
+
     def test_low_level_recorder_k_stops_session(self):
         recorder = EpisodeRecorder.__new__(EpisodeRecorder)
         recorder.recording = False

@@ -126,6 +126,23 @@ class PolicyInference:
         while len(stacked) < PREPROCESSING_CONFIG["frame_stack"]:
             stacked.insert(0, stacked[0])
         tensor = torch.from_numpy(np.ascontiguousarray(np.stack(stacked).transpose(0, 3, 1, 2).reshape(12, 180, 320))).unsqueeze(0)
+        return self.predict_stacked_tensor(tensor, history_frames=len(self.frames))
+
+    def predict_stacked_tensor(
+        self, stacked: np.ndarray | torch.Tensor, *, history_frames: int | None = None
+    ) -> tuple[dict[str, int], dict[str, Any]]:
+        """Predict from one cached RGB frame stack in live inference format.
+
+        ``stacked`` is a uint8 or 0..255 tensor shaped ``[12, 180, 320]`` (or
+        ``[1, 12, 180, 320]``). Recurrent checkpoints advance exactly one
+        observation and retain their hidden state, allowing offline evaluators
+        to process an episode in order with explicit resets between episodes.
+        """
+        tensor = torch.as_tensor(stacked)
+        if tensor.ndim == 3:
+            tensor = tensor.unsqueeze(0)
+        if tensor.shape != (1, 12, 180, 320):
+            raise ValueError("Expected one cached frame stack shaped [12, 180, 320]")
         input_tensor = tensor.to(self.device, dtype=torch.float32)
         if self.device.type == "cuda":
             input_tensor = input_tensor.contiguous(memory_format=torch.channels_last)
@@ -135,29 +152,23 @@ class PolicyInference:
                 self.hidden = self.hidden.detach()
             else:
                 output = self.policy(input_tensor.div_(255.0))
-        action = {name: int(output[name].argmax(dim=1).item()) for name in BINARY_ACTION_COLUMNS}
+        predicted, binary_probabilities, mouse_probabilities = self.decode_outputs(output)
+        action = {name: int(predicted[0, index]) for index, name in enumerate(
+            (*BINARY_ACTION_COLUMNS, "mouse_dx", "mouse_dy")
+        )}
         probabilities = {
-            name: float(torch.softmax(output[name], dim=1)[0, 1].item())
-            for name in BINARY_ACTION_COLUMNS
+            name: float(binary_probabilities[0, index])
+            for index, name in enumerate(BINARY_ACTION_COLUMNS)
         }
-        if self.jump_threshold is not None:
-            action["jump"] = int(probabilities["jump"] >= self.jump_threshold)
-        if self.move_w_threshold is not None:
-            action["move_w"] = int(probabilities["move_w"] >= self.move_w_threshold)
         diagnostics = {
             "binary_probabilities": probabilities,
-            "history_frames": len(self.frames),
+            "history_frames": len(self.frames) if history_frames is None else history_frames,
         }
         if self.mouse_bins is not None:
-            mouse_probabilities = {}
-            for axis_index, (name, key) in enumerate((
-                ("dx", "mouse_dx_logits"), ("dy", "mouse_dy_logits")
-            )):
-                axis_probabilities = torch.softmax(output[key], dim=1)[0].cpu().tolist()
-                class_index = int(output[key].argmax(dim=1).item())
-                action[f"mouse_{name}"] = self.mouse_bins.decode(axis_index, class_index)
-                mouse_probabilities[name] = axis_probabilities
-            diagnostics["mouse_bin_probabilities"] = mouse_probabilities
+            diagnostics["mouse_bin_probabilities"] = {
+                axis: mouse_probabilities[index][0].tolist()
+                for index, axis in enumerate(("dx", "dy"))
+            }
         else:
             normalized_mouse = output["mouse_mean"].squeeze(0).cpu().numpy()
             mouse = normalized_mouse * self.mouse_scale
@@ -170,6 +181,41 @@ class PolicyInference:
             diagnostics["mouse_mean"] = [float(mouse[0]), float(mouse[1])]
             diagnostics["mouse_std"] = [float(mouse_std[0]), float(mouse_std[1])]
         return action, diagnostics
+
+    def decode_outputs(self, output: dict[str, torch.Tensor]):
+        """Apply the shared live decoder to one or more policy output rows."""
+        predicted_binary = np.stack([
+            output[name].argmax(dim=1).cpu().numpy()
+            for name in BINARY_ACTION_COLUMNS
+        ], axis=1)
+        binary_probabilities = np.stack([
+            torch.softmax(output[name], dim=1)[:, 1].cpu().numpy()
+            for name in BINARY_ACTION_COLUMNS
+        ], axis=1)
+        for name, threshold in (
+            ("jump", self.jump_threshold), ("move_w", self.move_w_threshold)
+        ):
+            if threshold is not None:
+                index = BINARY_ACTION_COLUMNS.index(name)
+                predicted_binary[:, index] = binary_probabilities[:, index] >= threshold
+
+        mouse_probabilities = None
+        if self.mouse_bins is not None:
+            mouse_probabilities = [
+                torch.softmax(output[key], dim=1).cpu().numpy()
+                for key in ("mouse_dx_logits", "mouse_dy_logits")
+            ]
+            predicted_mouse = np.stack([
+                np.rint(np.asarray(self.mouse_bins.representatives(axis_index))[
+                    output[key].argmax(dim=1).cpu().numpy()
+                ])
+                for axis_index, key in enumerate(("mouse_dx_logits", "mouse_dy_logits"))
+            ], axis=1)
+        else:
+            predicted_mouse = np.rint(
+                output["mouse_mean"].cpu().numpy() * self.mouse_scale
+            )
+        return np.concatenate((predicted_binary, predicted_mouse), axis=1), binary_probabilities, mouse_probabilities
 
     def apply(self, controller: Any, frame_bgr: np.ndarray | None = None) -> dict[str, int]:
         """Predict and send state transitions through Portal2Controller.apply_action()."""

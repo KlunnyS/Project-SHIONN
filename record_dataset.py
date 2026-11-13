@@ -12,51 +12,13 @@ import argparse
 import os
 import re
 import time
-from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
 # Project modules at the repository root: capture and Portal 2 control.
+from episode_events import EpisodeEvent, EpisodeEventStream
 from recorder import EpisodeRecorder
 from wrapper import Portal2Controller, is_game_running, launch_game
-
-
-EVENT_PATTERN = re.compile(
-    r"EVT\|(chamber_ready|goal_reached|episode_failed)\|([^\r\n]*)"
-)
-
-
-@dataclass(frozen=True)
-class EpisodeEvent:
-    name: str
-    value: str
-
-
-class EpisodeEventStream:
-    """Turn arbitrarily chunked netconsole text into SHIONN events."""
-
-    def __init__(self) -> None:
-        self._partial_line = ""
-        self._events: deque[EpisodeEvent] = deque()
-
-    def clear(self) -> None:
-        self._partial_line = ""
-        self._events.clear()
-
-    def feed(self, text: str) -> None:
-        if not text:
-            return
-        lines = (self._partial_line + text).splitlines(keepends=True)
-        self._partial_line = ""
-        if lines and not lines[-1].endswith(("\n", "\r")):
-            self._partial_line = lines.pop()
-        for line in lines:
-            match = EVENT_PATTERN.search(line)
-            if match:
-                self._events.append(EpisodeEvent(match.group(1), match.group(2).strip()))
-
-    def pop(self) -> EpisodeEvent | None:
-        return self._events.popleft() if self._events else None
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

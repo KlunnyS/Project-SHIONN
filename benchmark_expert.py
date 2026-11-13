@@ -10,6 +10,7 @@ from __future__ import annotations
 # Python standard library: CLI, reports, and grouped results.
 import argparse
 import csv
+import hashlib
 import json
 from collections import defaultdict
 from datetime import datetime
@@ -26,6 +27,17 @@ from models.imitation.dataset import (
     EpisodeManifest, discover_cached_episodes,
 )
 from models.imitation.inference import PolicyInference
+from models.imitation.recurrent import RecurrentBinnedPolicy
+
+
+def sha256_file(path: Path) -> str | None:
+    if not path.is_file():
+        return None
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 class ActionMetrics:
@@ -104,20 +116,64 @@ def select_manifests(
     return selected
 
 
+def recurrent_prediction_batches(inference, dataset, score_starts):
+    """Yield live-path GRU predictions in episode order, resetting per episode."""
+    offset = 0
+    for episode_index, (frames, _) in enumerate(dataset.episodes):
+        inference.reset()
+        for frame_idx in range(len(frames)):
+            stacked, target = dataset[offset]
+            action, diagnostics = inference.predict_stacked_tensor(
+                stacked, history_frames=min(frame_idx + 1, dataset.frame_stack)
+            )
+            if frame_idx >= score_starts[episode_index]:
+                predicted = np.asarray(
+                    [[action[name] for name in ACTION_COLUMNS]], dtype=np.float32
+                )
+                probabilities = np.asarray(
+                    [[diagnostics["binary_probabilities"][name]
+                      for name in BINARY_ACTION_COLUMNS]], dtype=np.float32
+                )
+                bin_diagnostics = diagnostics.get("mouse_bin_probabilities")
+                mouse_probabilities = (
+                    [
+                        np.asarray([bin_diagnostics[axis]], dtype=np.float32)
+                        for axis in ("dx", "dy")
+                    ]
+                    if bin_diagnostics is not None else None
+                )
+                yield (
+                    [(episode_index, frame_idx)], target[None], predicted,
+                    probabilities, mouse_probabilities,
+                )
+            offset += 1
+
+
 def score_checkpoint(
     checkpoint: Path, cache_dir: Path, output_dir: Path, *,
     subset: str = "validation", maps: list[str] | None = None,
     batch_size: int = 8, device: str = "auto", final_frames: int = 24,
+    jump_threshold: float | None = None, move_w_threshold: float | None = None,
 ) -> dict:
     if batch_size <= 0 or final_frames <= 0:
         raise ValueError("batch size and final-frame window must be positive")
-    inference = PolicyInference(checkpoint, device=device)
+    inference = PolicyInference(
+        checkpoint, device=device, jump_threshold=jump_threshold,
+        move_w_threshold=move_w_threshold,
+    )
     mouse_bins = getattr(inference, "mouse_bins", None)
     manifests = select_manifests(
         discover_cached_episodes(cache_dir), inference.config, subset, maps
     )
-    dataset = BehaviorCloningDataset(manifests)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    recurrent = isinstance(inference.policy, RecurrentBinnedPolicy)
+    dataset = BehaviorCloningDataset(manifests, trim_leading_idle=not recurrent)
+    score_starts = (
+        [dataset._first_action_frame(actions) for _, actions in dataset.episodes]
+        if recurrent else None
+    )
+    loader = None if recurrent else DataLoader(
+        dataset, batch_size=batch_size, shuffle=False, num_workers=0
+    )
     output_dir.mkdir(parents=True, exist_ok=False)
     rows_path = output_dir / "action_comparison.csv"
     metrics = defaultdict(lambda: {"all": ActionMetrics(), "final_frames": ActionMetrics()})
@@ -130,69 +186,61 @@ def score_checkpoint(
     if mouse_bins is not None:
         fieldnames.extend(("mouse_dx_bin_probabilities", "mouse_dy_bin_probabilities"))
 
-    offset = 0
-    with rows_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
+    def prediction_batches():
+        if recurrent:
+            yield from recurrent_prediction_batches(inference, dataset, score_starts)
+            return
+        offset = 0
         with torch.no_grad():
             for frames, targets in loader:
                 output = inference.policy(
                     frames.to(inference.device, dtype=torch.float32).div_(255.0)
                 )
-                predicted_binary = np.stack([
-                    output[name].argmax(dim=1).cpu().numpy()
-                    for name in BINARY_ACTION_COLUMNS
-                ], axis=1)
-                probabilities = np.stack([
-                    torch.softmax(output[name], dim=1)[:, 1].cpu().numpy()
-                    for name in BINARY_ACTION_COLUMNS
-                ], axis=1)
-                if mouse_bins is not None:
-                    mouse_probabilities = [
-                        torch.softmax(output[key], dim=1).cpu().numpy()
-                        for key in ("mouse_dx_logits", "mouse_dy_logits")
-                    ]
-                    predicted_mouse = np.stack([
-                        np.rint(np.asarray(mouse_bins.representatives(axis_index))[
-                            output[key].argmax(dim=1).cpu().numpy()
-                        ])
-                        for axis_index, key in enumerate(("mouse_dx_logits", "mouse_dy_logits"))
-                    ], axis=1)
-                else:
-                    predicted_mouse = np.rint(
-                        output["mouse_mean"].cpu().numpy() * inference.mouse_scale
-                    )
-                predicted = np.concatenate((predicted_binary, predicted_mouse), axis=1)
-                expected = targets.numpy()
-                for batch_index in range(len(expected)):
-                    episode_index, frame_idx = dataset.index[offset + batch_index]
-                    manifest = manifests[episode_index]
-                    is_final = frame_idx >= manifest.frame_count - final_frames
-                    row = {
-                        "episode": manifest.name, "map": manifest.map_name,
-                        "frame_idx": frame_idx, "final_frames": int(is_final),
-                    }
-                    for action_index, name in enumerate(BINARY_ACTION_COLUMNS):
-                        row[f"expected_{name}"] = int(expected[batch_index, action_index])
-                        row[f"predicted_{name}"] = int(predicted[batch_index, action_index])
-                        row[f"prob_{name}"] = float(probabilities[batch_index, action_index])
-                    for action_index, name in enumerate(ACTION_COLUMNS[8:], start=8):
-                        row[f"expected_{name}"] = float(expected[batch_index, action_index])
-                        row[f"predicted_{name}"] = int(predicted[batch_index, action_index])
-                    if mouse_bins is not None:
-                        row["mouse_dx_bin_probabilities"] = json.dumps(mouse_probabilities[0][batch_index].tolist())
-                        row["mouse_dy_bin_probabilities"] = json.dumps(mouse_probabilities[1][batch_index].tolist())
-                    writer.writerow(row)
-                    for key in ("overall", manifest.map_name):
-                        metrics[key]["all"].add(expected[batch_index], predicted[batch_index])
-                        if is_final:
-                            metrics[key]["final_frames"].add(
-                                expected[batch_index], predicted[batch_index]
-                            )
-                offset += len(expected)
+                predicted, probabilities, mouse_probabilities = inference.decode_outputs(output)
+                indices = dataset.index[offset:offset + len(targets)]
+                yield indices, targets.numpy(), predicted, probabilities, mouse_probabilities
+                offset += len(targets)
+
+    with rows_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for indices, expected, predicted, probabilities, mouse_probabilities in prediction_batches():
+            for batch_index, (episode_index, frame_idx) in enumerate(indices):
+                manifest = manifests[episode_index]
+                is_final = frame_idx >= manifest.frame_count - final_frames
+                row = {
+                    "episode": manifest.name, "map": manifest.map_name,
+                    "frame_idx": frame_idx, "final_frames": int(is_final),
+                }
+                for action_index, name in enumerate(BINARY_ACTION_COLUMNS):
+                    row[f"expected_{name}"] = int(expected[batch_index, action_index])
+                    row[f"predicted_{name}"] = int(predicted[batch_index, action_index])
+                    row[f"prob_{name}"] = float(probabilities[batch_index, action_index])
+                for action_index, name in enumerate(ACTION_COLUMNS[8:], start=8):
+                    row[f"expected_{name}"] = float(expected[batch_index, action_index])
+                    row[f"predicted_{name}"] = int(predicted[batch_index, action_index])
+                if mouse_bins is not None and mouse_probabilities is not None:
+                    row["mouse_dx_bin_probabilities"] = json.dumps(mouse_probabilities[0][batch_index].tolist())
+                    row["mouse_dy_bin_probabilities"] = json.dumps(mouse_probabilities[1][batch_index].tolist())
+                writer.writerow(row)
+                for key in ("overall", manifest.map_name):
+                    metrics[key]["all"].add(expected[batch_index], predicted[batch_index])
+                    if is_final:
+                        metrics[key]["final_frames"].add(
+                            expected[batch_index], predicted[batch_index]
+                        )
 
     report = {
         "checkpoint": str(checkpoint.resolve()),
+        "checkpoint_sha256": sha256_file(checkpoint),
+        "architecture": inference.config.get("architecture"),
+        "scoring_mode": "episode_sequential_step" if recurrent else "feedforward_batched",
+        "action_decode": {
+            "mouse": "binned_argmax" if mouse_bins is not None else "gaussian_mean",
+            "jump_threshold": getattr(inference, "jump_threshold", None),
+            "move_w_threshold": getattr(inference, "move_w_threshold", None),
+        },
+        "preprocessing": inference.config.get("preprocessing"),
         "cache_dir": str(cache_dir.resolve()),
         "subset": subset,
         "episodes": len(manifests),
@@ -232,6 +280,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--final-frames", type=int, default=24)
+    parser.add_argument("--jump-threshold", type=float)
+    parser.add_argument("--move-w-threshold", type=float)
     parser.add_argument("--output-dir", type=Path)
     args = parser.parse_args(argv)
     output_dir = args.output_dir or (
@@ -240,7 +290,8 @@ def main(argv: list[str] | None = None) -> None:
     score_checkpoint(
         args.checkpoint, args.cache_dir, output_dir, subset=args.subset,
         maps=args.maps, batch_size=args.batch_size, device=args.device,
-        final_frames=args.final_frames,
+        final_frames=args.final_frames, jump_threshold=args.jump_threshold,
+        move_w_threshold=args.move_w_threshold,
     )
 
 
