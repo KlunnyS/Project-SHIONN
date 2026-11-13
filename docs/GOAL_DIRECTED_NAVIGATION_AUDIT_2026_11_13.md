@@ -10,8 +10,8 @@ verify summarized claims against code; they cannot check the reviewer's full
 evidence or page-level context. The review itself was static-only and did not
 run tests, training, or gameplay. At the first inspection the cache mount
 appeared empty; it is now populated with 1,300 manifests, including all 200
-validation episodes saved in the GRU checkpoint. The real-cohort score is
-therefore being run and its outcome will replace the initial cache limitation.
+validation episodes saved in the GRU checkpoint. The completed real-cohort
+scores and their limits are documented below.
 
 ## Review issue status
 
