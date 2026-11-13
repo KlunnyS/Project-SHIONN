@@ -2,6 +2,7 @@
 
 # Python standard library: fixtures, temporary files, and mocks.
 import csv
+import hashlib
 import json
 import tempfile
 import unittest
@@ -35,13 +36,16 @@ class FakePolicy(torch.nn.Module):
 class FakeInference:
     decode_outputs = PolicyInference.decode_outputs
 
-    def __init__(self, checkpoint, device="auto", jump_threshold=None, move_w_threshold=None):
+    def __init__(self, checkpoint, device="auto", jump_threshold=None, move_w_threshold=None,
+                 mouse_decode="argmax", mouse_move_threshold=0.5):
         self.device = torch.device("cpu")
         self.config = {"training": {"validation_episodes": ["episode_valid"]}}
         self.mouse_scale = np.ones(2, dtype=np.float32)
         self.mouse_bins = None
         self.jump_threshold = jump_threshold
         self.move_w_threshold = move_w_threshold
+        self.mouse_decode = mouse_decode
+        self.mouse_move_threshold = mouse_move_threshold
         self.policy = FakePolicy()
 
 
@@ -81,7 +85,8 @@ class FakeRecurrentInference:
     decode_outputs = PolicyInference.decode_outputs
     reset = PolicyInference.reset
 
-    def __init__(self, checkpoint, device="auto", jump_threshold=None, move_w_threshold=None):
+    def __init__(self, checkpoint, device="auto", jump_threshold=None, move_w_threshold=None,
+                 mouse_decode="argmax", mouse_move_threshold=0.5):
         self.device = torch.device("cpu")
         self.config = {
             "architecture": "shionn_imitation_v5_gru_binned",
@@ -92,6 +97,8 @@ class FakeRecurrentInference:
         self.mouse_bins = FakeMouseBins()
         self.jump_threshold = jump_threshold
         self.move_w_threshold = move_w_threshold
+        self.mouse_decode = mouse_decode
+        self.mouse_move_threshold = mouse_move_threshold
         self.frames = []
         self.hidden = None
         self.policy = FakeRecurrentPolicy()
@@ -117,6 +124,8 @@ class ExpertBenchmarkTest(unittest.TestCase):
             root = Path(temporary_directory)
             cache = root / "cache"
             cache.mkdir()
+            checkpoint = root / "model.pt"
+            checkpoint.write_bytes(b"fake-checkpoint-identity")
             np.save(cache / "episode_valid.npy", np.zeros((3, 180, 320, 3), dtype=np.uint8))
             actions = np.zeros((3, len(ACTION_COLUMNS)), dtype=np.float32)
             actions[:2, 0] = 1
@@ -127,10 +136,14 @@ class ExpertBenchmarkTest(unittest.TestCase):
             }))
 
             report = score_checkpoint(
-                root / "model.pt", cache, root / "output", batch_size=2, final_frames=1
+                checkpoint, cache, root / "output", batch_size=2, final_frames=1
             )
 
             self.assertEqual(report["episodes"], 1)
+            self.assertEqual(
+                report["checkpoint_sha256"],
+                hashlib.sha256(b"fake-checkpoint-identity").hexdigest(),
+            )
             action = report["by_map"]["evaluation2"]["all"]["actions"]["move_w"]
             self.assertEqual((action["true_positive"], action["false_positive"]), (2, 1))
             self.assertEqual(report["by_map"]["evaluation2"]["final_frames"]["frames"], 1)
@@ -194,14 +207,15 @@ class ExpertBenchmarkTest(unittest.TestCase):
 
             with patch("benchmark_expert.PolicyInference", side_effect=make_inference):
                 report = score_checkpoint(
-                    root / "model.pt", cache, root / "output", final_frames=1
+                    root / "model.pt", cache, root / "output", final_frames=1,
+                    mouse_decode="expected",
                 )
 
             self.assertEqual(report["episodes"], 2)
             self.assertEqual(report["overall"]["all"]["frames"], 4)
             self.assertEqual(report["architecture"], "shionn_imitation_v5_gru_binned")
             self.assertEqual(report["scoring_mode"], "episode_sequential_step")
-            self.assertEqual(report["action_decode"]["mouse"], "binned_argmax")
+            self.assertEqual(report["action_decode"]["mouse"], "expected")
             self.assertEqual(
                 instances[0].policy.seen,
                 [(10, True), (11, False), (12, False),

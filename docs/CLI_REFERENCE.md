@@ -232,6 +232,8 @@ Example: `.venv/bin/python run_imitation.py --checkpoint models/imitation/checkp
 | `--device auto\|cuda\|cpu` | `auto` | Device for policy inference. |
 | `--jump-threshold FLOAT` | binary argmax | Use a validation-selected threshold between 0 and 1 for the jump action. |
 | `--move-w-threshold FLOAT` | binary argmax | Override the forward action threshold between 0 and 1 for calibration tests. |
+| `--mouse-decode argmax\|hierarchical\|expected` | `argmax` | Binned mouse decoder. `expected` uses the probability-weighted representative; `hierarchical` first gates zero using the next threshold. Argmax preserves current behavior. |
+| `--mouse-move-threshold FLOAT` | `0.5` | For hierarchical decoding, output zero when its probability is at least this threshold. |
 | `--mouse-max-abs N` | none | Experimental positive cap applied independently to mouse dx/dy. Raw and applied actions are both retained in JSONL. |
 | `--port N` | `8020` | Portal 2 netconsole port. |
 | `--fps FLOAT` | `24` | Observation/input tick rate; screen capture/video FPS use a rounded positive integer. |
@@ -282,6 +284,8 @@ The runner makes a full checkpoint × chamber matrix. By default, each repeat vi
 | `--device auto\|cuda\|cpu` | `auto` | Policy inference device. |
 | `--jump-threshold FLOAT` | binary argmax | Pass a validation-selected jump threshold to every live attempt. |
 | `--move-w-threshold FLOAT` | binary argmax | Pass a forward action threshold to every live attempt. |
+| `--mouse-decode argmax\|hierarchical\|expected` | `argmax` | Pass the selected binned mouse decoder to every live attempt. |
+| `--mouse-move-threshold FLOAT` | `0.5` | Pass the zero-bin gate threshold when using hierarchical decoding. |
 | `--mouse-max-abs N` | none | Pass the experimental mouse-delta cap to every live attempt. |
 | `--port N` | `8020` | Portal 2 netconsole port. |
 | `--fps FLOAT` | `24` | Observation/input/capture rate. |
@@ -308,7 +312,7 @@ Every job gets a separate `attempt_*.jsonl` and, unless `--no-video` is used, MP
 
 See [the benchmark workflow](BENCHMARKING.md) for complete commands and how to keep evaluation recordings outside the training cache.
 
-`.venv/bin/python benchmark_expert.py --checkpoint PATH` scores held-out expert frames named by the checkpoint's training split. `--cache-dir PATH` selects a cache, `--map NAME` limits maps, `--subset all` scores every episode in a separate evaluation cache, `--final-frames N` changes the final-frame segment, and `--output-dir PATH` chooses where `summary.json` and `action_comparison.csv` are written. The default output is a timestamped folder under `model_attempts/benchmarks/`.
+`.venv/bin/python benchmark_expert.py --checkpoint PATH` scores validation expert frames named by the checkpoint's training split. `--cache-dir PATH` selects a cache, `--map NAME` limits maps, `--subset all` scores every episode in a separate evaluation cache, `--final-frames N` changes the final-frame segment, and `--output-dir PATH` chooses where `summary.json` and `action_comparison.csv` are written. `--mouse-decode` and `--mouse-move-threshold` select and record an opt-in binned mouse decoder; argmax remains the default. The default output is a timestamped folder under `model_attempts/benchmarks/`.
 
 `.venv/bin/python benchmark_sequence.py PATH` summarizes a `run_model_sequence.py` directory or its `sequence.jsonl`. It writes `benchmark_summary.json` beside the manifest by default; `--output PATH` changes the report path.
 

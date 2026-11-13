@@ -32,18 +32,73 @@ from .recurrent import RECURRENT_ARCHITECTURE_VERSION, RecurrentBinnedPolicy
 from .preprocess import PREPROCESSING_CONFIG, preprocess_bgr_frame
 
 
+def decode_mouse_probabilities(
+    probabilities: np.ndarray, representatives: list[float] | np.ndarray, *,
+    mode: str = "argmax", move_threshold: float = 0.5,
+) -> np.ndarray:
+    """Decode batched per-axis mouse distributions without changing the policy."""
+    probabilities = np.asarray(probabilities, dtype=np.float64)
+    representatives = np.asarray(representatives, dtype=np.float64)
+    if probabilities.ndim != 2 or probabilities.shape[1] != len(representatives):
+        raise ValueError("Mouse probabilities must have shape [batch, number of bins]")
+    if len(representatives) < 3 or len(representatives) % 2 != 1:
+        raise ValueError("Mouse decoding requires an odd number of at least three bins")
+    if not np.all(np.isfinite(representatives)) or representatives[len(representatives) // 2] != 0:
+        raise ValueError("Mouse bins must have finite representatives and a centered zero class")
+    if mode not in ("argmax", "hierarchical", "expected"):
+        raise ValueError(f"Unsupported mouse decoder: {mode!r}")
+    if not 0.0 < move_threshold < 1.0:
+        raise ValueError("Mouse move threshold must be between 0 and 1")
+    if mode != "hierarchical" and move_threshold != 0.5:
+        raise ValueError("Mouse move threshold only applies to hierarchical decoding")
+    if not np.all(np.isfinite(probabilities)) or np.any(probabilities < 0):
+        raise ValueError("Mouse probabilities must be finite and nonnegative")
+    if not np.allclose(probabilities.sum(axis=1), 1.0, rtol=1e-4, atol=1e-5):
+        raise ValueError("Each mouse probability row must sum to one")
+
+    if mode == "argmax":
+        return np.rint(representatives[probabilities.argmax(axis=1)]).astype(np.int64)
+    if mode == "expected":
+        return np.rint(probabilities @ representatives).astype(np.int64)
+
+    zero_index = len(representatives) // 2
+    decoded = np.zeros(len(probabilities), dtype=np.int64)
+    moving_rows = np.flatnonzero(probabilities[:, zero_index] < move_threshold)
+    for row_index in moving_rows:
+        row = probabilities[row_index]
+        left_mass = row[:zero_index].sum()
+        right_mass = row[zero_index + 1:].sum()
+        if right_mass > left_mass:
+            side_indices = np.arange(zero_index + 1, len(representatives))
+        else:
+            # Exact direction ties choose left, matching the stable class order.
+            side_indices = np.arange(zero_index)
+        class_index = side_indices[np.argmax(row[side_indices])]
+        decoded[row_index] = int(np.rint(representatives[class_index]))
+    return decoded
+
+
 class PolicyInference:
     """Maintains the required four-frame history and predicts one factored action."""
     def __init__(
         self, checkpoint_path: Path, device: str = "auto", jump_threshold: float | None = None,
-        move_w_threshold: float | None = None,
+        move_w_threshold: float | None = None, mouse_decode: str = "argmax",
+        mouse_move_threshold: float = 0.5,
     ):
         if jump_threshold is not None and not 0 < jump_threshold < 1:
             raise ValueError("jump threshold must be between 0 and 1")
         if move_w_threshold is not None and not 0 < move_w_threshold < 1:
             raise ValueError("move-w threshold must be between 0 and 1")
+        if mouse_decode not in ("argmax", "hierarchical", "expected"):
+            raise ValueError(f"Unsupported mouse decoder: {mouse_decode!r}")
+        if not 0 < mouse_move_threshold < 1:
+            raise ValueError("Mouse move threshold must be between 0 and 1")
+        if mouse_decode != "hierarchical" and mouse_move_threshold != 0.5:
+            raise ValueError("Mouse move threshold only applies to hierarchical decoding")
         self.jump_threshold = jump_threshold
         self.move_w_threshold = move_w_threshold
+        self.mouse_decode = mouse_decode
+        self.mouse_move_threshold = mouse_move_threshold
         self.device = torch.device("cuda" if device == "auto" and torch.cuda.is_available() else "cpu" if device == "auto" else device)
         if self.device.type == "cuda" and not torch.cuda.is_available():
             raise RuntimeError("CUDA was requested for inference but is unavailable")
@@ -68,6 +123,8 @@ class PolicyInference:
                 RECURRENT_ARCHITECTURE_VERSION, GATED_BINNED_ARCHITECTURE_VERSION, V4_BINNED_ARCHITECTURE_VERSION, BINNED_ARCHITECTURE_VERSION
             ) else None
         )
+        if self.mouse_bins is None and mouse_decode != "argmax":
+            raise ValueError("Non-argmax mouse decoding requires a binned-mouse checkpoint")
         self.mouse_scale = None
         if self.mouse_bins is not None:
             policy_class = (
@@ -169,6 +226,10 @@ class PolicyInference:
                 axis: mouse_probabilities[index][0].tolist()
                 for index, axis in enumerate(("dx", "dy"))
             }
+            diagnostics["mouse_decode"] = self.mouse_decode
+            diagnostics["mouse_move_threshold"] = (
+                self.mouse_move_threshold if self.mouse_decode == "hierarchical" else None
+            )
         else:
             normalized_mouse = output["mouse_mean"].squeeze(0).cpu().numpy()
             mouse = normalized_mouse * self.mouse_scale
@@ -206,10 +267,12 @@ class PolicyInference:
                 for key in ("mouse_dx_logits", "mouse_dy_logits")
             ]
             predicted_mouse = np.stack([
-                np.rint(np.asarray(self.mouse_bins.representatives(axis_index))[
-                    output[key].argmax(dim=1).cpu().numpy()
-                ])
-                for axis_index, key in enumerate(("mouse_dx_logits", "mouse_dy_logits"))
+                decode_mouse_probabilities(
+                    mouse_probabilities[axis_index],
+                    self.mouse_bins.representatives(axis_index),
+                    mode=self.mouse_decode, move_threshold=self.mouse_move_threshold,
+                )
+                for axis_index in range(2)
             ], axis=1)
         else:
             predicted_mouse = np.rint(

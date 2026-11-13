@@ -12,7 +12,7 @@ import torch
 
 # Project package modules under models/imitation.
 from models.imitation.checkpoint import save_checkpoint
-from models.imitation.inference import PolicyInference
+from models.imitation.inference import PolicyInference, decode_mouse_probabilities
 from models.imitation.mouse_bins import MouseBins
 from models.imitation.network import BINNED_ARCHITECTURE_VERSION, BinnedImitationPolicy
 from models.imitation.preprocess import PREPROCESSING_CONFIG
@@ -23,6 +23,36 @@ from analyze_mouse_validation import analyze_validation
 
 
 class MouseBinsTest(unittest.TestCase):
+    def test_opt_in_mouse_decoders_and_hierarchical_threshold(self):
+        probabilities = np.asarray([
+            [0.35, 0.05, 0.40, 0.10, 0.10],
+            [0.30, 0.10, 0.10, 0.15, 0.35],
+        ])
+        representatives = [-8, -4, 0, 4, 8]
+
+        argmax = decode_mouse_probabilities(probabilities, representatives)
+        expected = decode_mouse_probabilities(probabilities, representatives, mode="expected")
+        hierarchical = decode_mouse_probabilities(
+            probabilities, representatives, mode="hierarchical", move_threshold=0.5
+        )
+        gated = decode_mouse_probabilities(
+            probabilities, representatives, mode="hierarchical", move_threshold=0.3
+        )
+
+        np.testing.assert_array_equal(argmax, [0, 8])
+        np.testing.assert_array_equal(expected, [-2, 1])
+        np.testing.assert_array_equal(hierarchical, [-8, 8])
+        np.testing.assert_array_equal(gated, [0, 8])
+
+    def test_mouse_decoder_rejects_invalid_threshold_and_modes(self):
+        probabilities = np.asarray([[0.2, 0.6, 0.2]])
+        with self.assertRaisesRegex(ValueError, "threshold"):
+            decode_mouse_probabilities(
+                probabilities, [-1, 0, 1], mode="hierarchical", move_threshold=1.0
+            )
+        with self.assertRaisesRegex(ValueError, "Unsupported mouse decoder"):
+            decode_mouse_probabilities(probabilities, [-1, 0, 1], mode="unknown")
+
     def test_fit_keeps_zero_and_opposite_turns_in_distinct_classes(self):
         values = np.array([
             [-100, -10], [-25, -3], [-5, -1], [0, 0],

@@ -154,12 +154,14 @@ def score_checkpoint(
     subset: str = "validation", maps: list[str] | None = None,
     batch_size: int = 8, device: str = "auto", final_frames: int = 24,
     jump_threshold: float | None = None, move_w_threshold: float | None = None,
+    mouse_decode: str = "argmax", mouse_move_threshold: float = 0.5,
 ) -> dict:
     if batch_size <= 0 or final_frames <= 0:
         raise ValueError("batch size and final-frame window must be positive")
     inference = PolicyInference(
         checkpoint, device=device, jump_threshold=jump_threshold,
-        move_w_threshold=move_w_threshold,
+        move_w_threshold=move_w_threshold, mouse_decode=mouse_decode,
+        mouse_move_threshold=mouse_move_threshold,
     )
     mouse_bins = getattr(inference, "mouse_bins", None)
     manifests = select_manifests(
@@ -236,7 +238,12 @@ def score_checkpoint(
         "architecture": inference.config.get("architecture"),
         "scoring_mode": "episode_sequential_step" if recurrent else "feedforward_batched",
         "action_decode": {
-            "mouse": "binned_argmax" if mouse_bins is not None else "gaussian_mean",
+            "mouse": inference.mouse_decode if mouse_bins is not None else "gaussian_mean",
+            "mouse_move_threshold": (
+                inference.mouse_move_threshold
+                if mouse_bins is not None and inference.mouse_decode == "hierarchical"
+                else None
+            ),
             "jump_threshold": getattr(inference, "jump_threshold", None),
             "move_w_threshold": getattr(inference, "move_w_threshold", None),
         },
@@ -282,6 +289,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--final-frames", type=int, default=24)
     parser.add_argument("--jump-threshold", type=float)
     parser.add_argument("--move-w-threshold", type=float)
+    parser.add_argument("--mouse-decode", choices=("argmax", "hierarchical", "expected"), default="argmax")
+    parser.add_argument("--mouse-move-threshold", type=float, default=0.5)
     parser.add_argument("--output-dir", type=Path)
     args = parser.parse_args(argv)
     output_dir = args.output_dir or (
@@ -291,7 +300,8 @@ def main(argv: list[str] | None = None) -> None:
         args.checkpoint, args.cache_dir, output_dir, subset=args.subset,
         maps=args.maps, batch_size=args.batch_size, device=args.device,
         final_frames=args.final_frames, jump_threshold=args.jump_threshold,
-        move_w_threshold=args.move_w_threshold,
+        move_w_threshold=args.move_w_threshold, mouse_decode=args.mouse_decode,
+        mouse_move_threshold=args.mouse_move_threshold,
     )
 
 

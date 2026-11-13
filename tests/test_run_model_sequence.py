@@ -120,6 +120,7 @@ class ModelSequenceTest(unittest.TestCase):
                 "--checkpoint", f"candidate={checkpoint}", "--map", "dataset_test1",
                 "--no-video", "--keep-focused", "--output", "DP-1",
                 "--move-w-threshold", "0.2",
+                "--mouse-decode", "expected",
                 "--mouse-max-abs", "28",
                 "--hyprland-focus-guard",
             ])
@@ -137,6 +138,7 @@ class ModelSequenceTest(unittest.TestCase):
             self.assertIn("--hyprland-focus-guard", command)
             self.assertEqual(command[command.index("--telemetry-hz") + 1], "15.0")
             self.assertEqual(command[command.index("--move-w-threshold") + 1], "0.2")
+            self.assertEqual(command[command.index("--mouse-decode") + 1], "expected")
             self.assertEqual(command[command.index("--mouse-max-abs") + 1], "28")
             self.assertNotIn("--record-video", command)
 

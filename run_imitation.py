@@ -207,6 +207,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Override the binary jump decision threshold for live runs")
     parser.add_argument("--move-w-threshold", type=float,
                         help="Override the forward decision threshold for a live calibration test")
+    parser.add_argument("--mouse-decode", choices=("argmax", "hierarchical", "expected"),
+                        default="argmax", help="Opt-in decoder for binned mouse heads; argmax preserves current behavior")
+    parser.add_argument("--mouse-move-threshold", type=float, default=0.5,
+                        help="Hierarchical decoder emits zero when P(zero) is at least this threshold")
     parser.add_argument(
         "--mouse-max-abs", type=int,
         help="Clamp applied mouse dx/dy to +/- this value while preserving raw predictions in JSONL",
@@ -1146,6 +1150,10 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
         raise ValueError("--mouse-preflight requires --map and --keep-focused, without --dry-run or --recovery-handoff")
     if args.mouse_max_abs is not None and args.mouse_max_abs <= 0:
         raise ValueError("--mouse-max-abs must be greater than zero")
+    if not 0 < args.mouse_move_threshold < 1:
+        raise ValueError("--mouse-move-threshold must be between 0 and 1")
+    if args.mouse_decode != "hierarchical" and args.mouse_move_threshold != 0.5:
+        raise ValueError("--mouse-move-threshold only applies with --mouse-decode hierarchical")
     if not args.checkpoint.is_file():
         raise FileNotFoundError(f"Checkpoint not found: {args.checkpoint}")
 
@@ -1154,6 +1162,7 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
         if (args.fps!=24 or model_interval!=1 or not args.no_launch or not args.keep_focused
                 or not args.mouse_preflight or not args.hyprland_focus_guard or not args.hyprland_confine_pointer
                 or args.mouse_max_abs is not None or args.jump_threshold is not None or args.move_w_threshold is not None
+                or args.mouse_decode != "argmax" or args.mouse_move_threshold != 0.5
                 or args.continue_after_event or args.recovery_handoff or args.dry_run or args.post_preflight_settle!=3.
                 or not args.disable_chamber_timeout or not 0<args.max_seconds<=65 or not 0<=args.countdown<=5):
             raise ValueError('Oracle replay requires24Hz,3s settle, all focus/preflight safeguards, no launch or action overrides')
@@ -1166,7 +1175,8 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
         print("Loading policy checkpoint and initializing inference; console connection follows...", flush=True)
         policy = PolicyInference(
             args.checkpoint, device=args.device, jump_threshold=args.jump_threshold,
-            move_w_threshold=args.move_w_threshold,
+            move_w_threshold=args.move_w_threshold, mouse_decode=args.mouse_decode,
+            mouse_move_threshold=args.mouse_move_threshold,
         )
 
     if model_interval > 1:
@@ -1320,6 +1330,10 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                 visual_state=visual_state,
                 jump_threshold=args.jump_threshold,
                 move_w_threshold=args.move_w_threshold,
+                mouse_decode=args.mouse_decode,
+                mouse_move_threshold=(
+                    args.mouse_move_threshold if args.mouse_decode == "hierarchical" else None
+                ),
                 mouse_max_abs=args.mouse_max_abs,
                 telemetry_hz=args.telemetry_hz,
                 mouse_preflight=args.mouse_preflight,

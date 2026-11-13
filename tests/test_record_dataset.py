@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 # Project recording modules at the repository root.
+from episode_events import MAX_EVENT_LINE_CHARS
 from record_dataset import (
     EpisodeEvent, EpisodeEventStream, RecordingProgress, event_outcome,
     parse_args, record_episodes, validate_args,
@@ -147,6 +148,14 @@ class EpisodeEventStreamTest(unittest.TestCase):
         failure = stream.pop()
         self.assertEqual(event_outcome(goal), "goal_reached")
         self.assertEqual(event_outcome(failure), "out_of_bounds")
+
+    def test_discards_overlong_partial_line_and_resynchronizes(self):
+        stream = EpisodeEventStream()
+        stream.feed("x" * (MAX_EVENT_LINE_CHARS + 1))
+        self.assertFalse(stream.has_partial_line)
+        stream.feed("remaining discarded text\nEVT|goal_reached|1\n")
+        self.assertEqual(stream.pop(), EpisodeEvent("goal_reached", "1"))
+        self.assertIsNone(stream.pop())
 
     def test_sanitizes_failure_reason_for_episode_directory(self):
         event = EpisodeEvent("episode_failed", "bad reason/with spaces")

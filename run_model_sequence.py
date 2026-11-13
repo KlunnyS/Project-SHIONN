@@ -142,6 +142,10 @@ def runner_command(job: Job, run_dir: Path, args: argparse.Namespace) -> list[st
         command.extend(("--jump-threshold", str(args.jump_threshold)))
     if args.move_w_threshold is not None:
         command.extend(("--move-w-threshold", str(args.move_w_threshold)))
+    if args.mouse_decode != "argmax":
+        command.extend(("--mouse-decode", args.mouse_decode))
+    if args.mouse_decode == "hierarchical":
+        command.extend(("--mouse-move-threshold", str(args.mouse_move_threshold)))
     if args.mouse_max_abs is not None:
         command.extend(("--mouse-max-abs", str(args.mouse_max_abs)))
     if args.no_launch:
@@ -203,6 +207,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Override the binary jump decision threshold for every live attempt")
     parser.add_argument("--move-w-threshold", type=float,
                         help="Override the forward decision threshold for every live attempt")
+    parser.add_argument("--mouse-decode", choices=("argmax", "hierarchical", "expected"), default="argmax",
+                        help="Opt-in decoder for binned mouse heads; argmax preserves current behavior")
+    parser.add_argument("--mouse-move-threshold", type=float, default=0.5,
+                        help="Hierarchical decoder emits zero when P(zero) is at least this threshold")
     parser.add_argument("--mouse-max-abs", type=int,
                         help="Clamp applied mouse dx/dy for every live attempt")
     parser.add_argument("--port", type=int, default=8020)
@@ -253,6 +261,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--jump-threshold must be between 0 and 1")
     if args.move_w_threshold is not None and not 0 < args.move_w_threshold < 1:
         parser.error("--move-w-threshold must be between 0 and 1")
+    if not 0 < args.mouse_move_threshold < 1:
+        parser.error("--mouse-move-threshold must be between 0 and 1")
+    if args.mouse_decode != "hierarchical" and args.mouse_move_threshold != 0.5:
+        parser.error("--mouse-move-threshold only applies with --mouse-decode hierarchical")
     if args.mouse_max_abs is not None and args.mouse_max_abs <= 0:
         parser.error("--mouse-max-abs must be greater than zero")
     if not 1 <= args.telemetry_hz <= 20:
