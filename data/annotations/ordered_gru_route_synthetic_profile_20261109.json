@@ -1,0 +1,125 @@
+{
+  "scope": "Synthetic pixels/labels and scratch weights only; no dataset, source checkpoint, gameplay or saved model.",
+  "torch": "2.14.0+cu130",
+  "gpu": "NVIDIA GeForce RTX 4060",
+  "sequence_length": 32,
+  "batch_episode_streams": 1,
+  "precision": "float32",
+  "benchmark_script_sha256": "d70ac6d3f557d177214e041cdef5dad102f7cd01d76be73bd030c715ba21c2dd",
+  "runner_sha256": "829eed75132f18f34c66323eb67caaf3225c4d180a4efe26a33063a574a19cc0",
+  "results": {
+    "feedforward": {
+      "synthetic_updates": 4,
+      "timed_warm_updates": 3,
+      "mean_update_seconds": 0.24327867333340691,
+      "median_update_seconds": 0.2416025990023627,
+      "peak_allocated_mib": 2717.83984375,
+      "peak_reserved_mib": 3322.0,
+      "synthetic_eval_frames": 512,
+      "synthetic_eval_frames_per_second": 429.4731142040197,
+      "encoder_changed": true,
+      "cuda_native_inference_parity": {
+        "observations_per_mode": 512,
+        "modes": {
+          "runtime_defaults": {
+            "different_action_rows": 0,
+            "max_logit_absolute_error": 0.00032842159271240234,
+            "max_state_absolute_error": null,
+            "conv_allow_tf32": true,
+            "matmul_allow_tf32": false
+          },
+          "ieee_float32_check": {
+            "different_action_rows": 0,
+            "max_logit_absolute_error": 1.430511474609375e-06,
+            "max_state_absolute_error": null,
+            "conv_allow_tf32": false,
+            "matmul_allow_tf32": false
+          }
+        },
+        "ieee_numeric_tolerances": {
+          "rtol": 0.0001,
+          "atol": 1e-05
+        },
+        "runtime_numeric_error_reported_not_hidden": true
+      }
+    },
+    "gru": {
+      "synthetic_updates": 4,
+      "timed_warm_updates": 3,
+      "mean_update_seconds": 0.2556630320007874,
+      "median_update_seconds": 0.25475699300295673,
+      "peak_allocated_mib": 2744.90087890625,
+      "peak_reserved_mib": 3406.0,
+      "synthetic_eval_frames": 512,
+      "synthetic_eval_frames_per_second": 422.09682031635646,
+      "encoder_changed": true,
+      "cuda_native_inference_parity": {
+        "observations_per_mode": 512,
+        "modes": {
+          "runtime_defaults": {
+            "different_action_rows": 0,
+            "max_logit_absolute_error": 3.8504600524902344e-05,
+            "max_state_absolute_error": 7.542222738265991e-05,
+            "conv_allow_tf32": true,
+            "matmul_allow_tf32": false
+          },
+          "ieee_float32_check": {
+            "different_action_rows": 0,
+            "max_logit_absolute_error": 1.9073486328125e-06,
+            "max_state_absolute_error": 4.3213367462158203e-07,
+            "conv_allow_tf32": false,
+            "matmul_allow_tf32": false
+          }
+        },
+        "ieee_numeric_tolerances": {
+          "rtol": 0.0001,
+          "atol": 1e-05
+        },
+        "runtime_numeric_error_reported_not_hidden": true
+      }
+    },
+    "gru_reset": {
+      "synthetic_updates": 4,
+      "timed_warm_updates": 3,
+      "mean_update_seconds": 0.24596167166843466,
+      "median_update_seconds": 0.2448748759998125,
+      "peak_allocated_mib": 2747.2353515625,
+      "peak_reserved_mib": 3406.0,
+      "synthetic_eval_frames": 512,
+      "synthetic_eval_frames_per_second": 426.69467134988764,
+      "encoder_changed": true,
+      "cuda_native_inference_parity": {
+        "observations_per_mode": 512,
+        "modes": {
+          "runtime_defaults": {
+            "different_action_rows": 0,
+            "max_logit_absolute_error": 0.00010967254638671875,
+            "max_state_absolute_error": null,
+            "conv_allow_tf32": true,
+            "matmul_allow_tf32": false
+          },
+          "ieee_float32_check": {
+            "different_action_rows": 0,
+            "max_logit_absolute_error": 7.152557373046875e-07,
+            "max_state_absolute_error": null,
+            "conv_allow_tf32": false,
+            "matmul_allow_tf32": false
+          }
+        },
+        "ieee_numeric_tolerances": {
+          "rtol": 0.0001,
+          "atol": 1e-05
+        },
+        "runtime_numeric_error_reported_not_hidden": true
+      }
+    }
+  },
+  "limitations": [
+    "Three warm timed updates per arm are a small model-only sample.",
+    "Real loading, full action metrics and episode scheduling are excluded.",
+    "Exact action parity is checked in both modes; tight numeric parity is checked separately with TF32 disabled. Runtime defaults are restored, not changed by the runner.",
+    "No gameplay or demonstration convergence evidence."
+  ],
+  "precision_probe_note": "TF32-disabled verification emitted recoverable cuDNN workspace-allocation retry warnings; checks completed. Peak memory fields describe normal training before that precision probe, not total probe peak.",
+  "synthetic_stream_note": "512 observations repeat one32-frame synthetic image sequence16times; not512 distinct images or proof for arbitrary trained policies."
+}

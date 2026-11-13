@@ -23,6 +23,7 @@ import subprocess
 import re
 from collections import deque
 from datetime import datetime
+from typing import NamedTuple
 
 # Installed dependencies: NumPy frames and Linux evdev input devices.
 import numpy as np
@@ -358,6 +359,13 @@ def get_default_output():
         pass
     return None
 
+class FrameSample(NamedTuple):
+    """A complete pipe frame and its local receive time, not exposure time."""
+    frame: np.ndarray | None
+    frame_id: int | None
+    received_monotonic: float | None
+
+
 class WaylandCamera:
     def __init__(self, width=1920, height=1080, fps=24, output_name=None):
         self.width = width
@@ -366,6 +374,9 @@ class WaylandCamera:
         self.output_name = output_name
         self.frame_size = width * height * 3 
         self.latest_frame = None
+        self._frame_lock = threading.Lock()
+        self._latest_sample = FrameSample(None, None, None)
+        self._next_frame_id = 0
         self.running = False
         self.proc = None
         self.thread = None
@@ -417,20 +428,34 @@ class WaylandCamera:
         while self.running:
             raw = self.proc.stdout.read(self.frame_size)
             if len(raw) == self.frame_size:
+                received = time.monotonic()
                 frame = np.frombuffer(raw, dtype=np.uint8).reshape((self.height, self.width, 3))
-                self.latest_frame = frame.copy()
+                frame = frame.copy()
+                with self._frame_lock:
+                    self._next_frame_id += 1
+                    self._latest_sample = FrameSample(frame, self._next_frame_id, received)
+                    self.latest_frame = frame
             elif len(raw) == 0:
                 break 
 
     def get_latest_frame(self):
-        return self.latest_frame
+        return self.get_latest_frame_sample().frame
+
+    def get_latest_frame_sample(self):
+        """Read coherent image/id/time without waiting for a new frame."""
+        with self._frame_lock:
+            return self._latest_sample
 
     def stop(self):
         self.running = False
         if self.proc:
             if self.proc.poll() is None:
                 self.proc.terminate()
-            self.proc.wait()
+            try:
+                self.proc.wait(timeout=3.0)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self.proc.wait(timeout=3.0)
         if self.stderr_thread:
             self.stderr_thread.join(timeout=1.0)
 
@@ -550,7 +575,11 @@ class EpisodeRecorder:
         self.ep_dir = os.path.join(self.in_progress_root, self.episode_name)
         os.makedirs(self.ep_dir, exist_ok=True)
         with open(os.path.join(self.ep_dir, "metadata.json"), "w", encoding="utf-8") as metadata_file:
-            json.dump({"map": map_name, **(metadata_extra or {})}, metadata_file, indent=2)
+            json.dump({"map": map_name, **(metadata_extra or {}), "frame_timing": {
+                "version": 1, "clock": "time.monotonic",
+                "frame_timestamp": "complete_raw_frame_received_in_python",
+                "input_timestamp": "snapshot_call_brackets_not_individual_event_times",
+            }}, metadata_file, indent=2)
             metadata_file.write("\n")
         
         # Open CSV
@@ -559,7 +588,11 @@ class EpisodeRecorder:
         self.csv_writer = csv.writer(self.csv_file)
         self.csv_writer.writerow([
             'timestamp', 'frame_idx', 'move_w', 'move_a', 'move_s', 'move_d',
-            'jump', 'crouch', 'use', 'fire_left', 'fire_right', 'mouse_dx', 'mouse_dy'
+            'jump', 'crouch', 'use', 'fire_left', 'fire_right', 'mouse_dx', 'mouse_dy',
+            'input_snapshot_started_monotonic', 'input_snapshot_finished_monotonic',
+            'frame_id',
+            'frame_received_monotonic', 'frame_sampled_monotonic',
+            'frame_age_seconds', 'frame_reused', 'input_discard_count'
         ])
         
         # Stream directly to H.264; CRF 20 is visually near-lossless while manageable on disk.
@@ -567,6 +600,7 @@ class EpisodeRecorder:
         self.video_writer = FFmpegVideoWriter(vid_path, self.width, self.height, self.fps, self.video_crf)
         
         self.frame_idx = 0
+        self.input_discard_count = 0
         self.paused = False
         self.resume_deadline = None
         self.sync_lock = threading.Lock()
@@ -596,7 +630,7 @@ class EpisodeRecorder:
             else:
                 self.paused = False
                 message = "Recording resumed."
-            self.tracker.get_snapshot_and_reset()
+            self._discard_pending_input()
         print(message)
         return self.paused
 
@@ -606,8 +640,13 @@ class EpisodeRecorder:
         if self.paused and deadline is not None and now >= deadline:
             self.resume_deadline = None
             self.paused = False
-            self.tracker.get_snapshot_and_reset()
+            self._discard_pending_input()
             print("Recording resumed.")
+
+    def _discard_pending_input(self):
+        """Mark input-window discontinuities caused by menus/resume grace."""
+        self.tracker.get_snapshot_and_reset()
+        self.input_discard_count = getattr(self, "input_discard_count", 0) + 1
         
     def stop_recording(self, outcome="unknown"):
         if not self.recording:
@@ -638,6 +677,7 @@ class EpisodeRecorder:
     def _sync_loop(self):
         tick_duration = 1.0 / self.fps
         next_tick = time.monotonic()
+        previous_frame_id = None
         
         while self.recording:
             with self.sync_lock:
@@ -647,11 +687,15 @@ class EpisodeRecorder:
                 paused = self.paused or self.tracker.pause_is_pending()
                 if paused:
                     # Drop menu input and reset the tick clock; no catch-up frames.
-                    self.tracker.get_snapshot_and_reset()
+                    self._discard_pending_input()
                     next_tick = time.monotonic()
                 else:
+                    input_started = time.monotonic()
                     actions = self.tracker.get_snapshot_and_reset()
-                    frame = self.camera.get_latest_frame()
+                    input_finished = time.monotonic()
+                    sample = self.camera.get_latest_frame_sample()
+                    sampled = time.monotonic()
+                    frame = sample.frame
                     if frame is not None:
                         self.video_writer.write(frame)
                     else:
@@ -661,10 +705,16 @@ class EpisodeRecorder:
                         actions['move_w'], actions['move_a'], actions['move_s'], actions['move_d'],
                         actions['jump'], actions['crouch'], actions['use'],
                         actions['fire_left'], actions['fire_right'],
-                        actions['mouse_dx'], actions['mouse_dy']
+                        actions['mouse_dx'], actions['mouse_dy'],
+                        input_started, input_finished,
+                        sample.frame_id, sample.received_monotonic, sampled,
+                        sampled - sample.received_monotonic if sample.received_monotonic is not None else None,
+                        sample.frame_id == previous_frame_id if sample.frame_id is not None and previous_frame_id is not None else None,
+                        getattr(self, 'input_discard_count', 0)
                     ])
                     self.csv_file.flush()
                     self.frame_idx += 1
+                    previous_frame_id = sample.frame_id
                     next_tick += tick_duration
 
             sleep_time = (min(0.05, tick_duration) if paused

@@ -1,0 +1,1329 @@
+{
+  "report": "models/imitation/checkpoints/runs/reviewed_turn_rehearsal_20261112/report.json",
+  "report_sha256": "5278eaf6601d7d2a4de87a139570b5bcf4324343e70e1fe8a7eca5fe04102e29",
+  "checkpoint": "models/imitation/checkpoints/runs/reviewed_turn_rehearsal_20261112/endpoint.pt",
+  "checkpoint_sha256": "f2ef4b246112bd5c51f5e2b71ba4eed097a2ff4777d51284bca8b99d106f8b32",
+  "artifacts_verified": true,
+  "status": "eligible_for_limited_gameplay_screen_no_promotion",
+  "elapsed_seconds": 311.4029510400005,
+  "navigation_screen": {
+    "checks": {
+      "binary_exact": true,
+      "mouse_dx_mae": true,
+      "mouse_dy_mae": true,
+      "opening_idle": true
+    },
+    "passed": true,
+    "meaning": "Navigation imitation guard versus warm-start source; not a game success or promotion gate"
+  },
+  "first8_train_fit": {
+    "complete": true,
+    "episodes": 5,
+    "records": [
+      {
+        "episode": "episode_20261112_135338_796624",
+        "map": "dataset_test9",
+        "window": [
+          22,
+          30
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            87.25,
+            15.0
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 6,
+            "sign_accuracy": 0.75,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          },
+          "dy": {
+            "significant_frames": 8,
+            "sign_correct": 8,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            24.0,
+            10.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            41.0,
+            22.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            34.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            129.0,
+            53.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            170.0,
+            47.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            220.0,
+            48.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            240.0,
+            38.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            266.0,
+            24.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ]
+        ]
+      },
+      {
+        "episode": "episode_20261112_135423_667677",
+        "map": "dataset_test1",
+        "window": [
+          19,
+          27
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 0.875,
+          "mouse_mae": [
+            62.375,
+            18.75
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 8,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          },
+          "dy": {
+            "significant_frames": 7,
+            "sign_correct": 7,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            5.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            43.0,
+            13.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            88.0,
+            38.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            180.0,
+            60.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            232.0,
+            53.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            237.0,
+            33.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            229.0,
+            13.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            185.0,
+            7.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ]
+        ]
+      },
+      {
+        "episode": "episode_20261112_135500_680664",
+        "map": "dataset_test9",
+        "window": [
+          15,
+          23
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            107.75,
+            13.0
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 8,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          },
+          "dy": {
+            "significant_frames": 7,
+            "sign_correct": 6,
+            "sign_accuracy": 0.8571428571428571,
+            "expert_nonzero_frames": 7,
+            "nonzero_predicted_zero": 0
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -63.0,
+            16.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -189.0,
+            31.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -239.0,
+            35.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -295.0,
+            27.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -334.0,
+            4.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -267.0,
+            -10.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -213.0,
+            -6.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -192.0,
+            0.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -4.0
+          ]
+        ]
+      },
+      {
+        "episode": "episode_20261112_135549_610461",
+        "map": "dataset_test1",
+        "window": [
+          17,
+          25
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            45.0,
+            9.125
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 8,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          },
+          "dy": {
+            "significant_frames": 8,
+            "sign_correct": 8,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            28.0,
+            5.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            56.0,
+            10.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            35.0,
+            5.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            47.0,
+            3.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            81.0,
+            16.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            123.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            185.0,
+            33.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            213.0,
+            36.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            10.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            10.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ]
+        ]
+      },
+      {
+        "episode": "episode_20261112_134935_742233",
+        "map": "dataset_test1",
+        "window": [
+          28,
+          36
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            154.25,
+            13.875
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 8,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          },
+          "dy": {
+            "significant_frames": 6,
+            "sign_correct": 4,
+            "sign_accuracy": 0.6666666666666666,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 3
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -21.0,
+            2.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -91.0,
+            2.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -171.0,
+            -5.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -274.0,
+            -21.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -336.0,
+            -24.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -373.0,
+            -31.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -371.0,
+            -48.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -357.0,
+            -47.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ]
+        ]
+      }
+    ],
+    "aggregate": {
+      "episodes": 5,
+      "frames": 40,
+      "episode_mean": {
+        "idle_fraction": 0.0,
+        "longest_idle_seconds": 0.0,
+        "binary_exact": 0.975
+      },
+      "episode_mouse_mae": [
+        91.325,
+        13.95
+      ],
+      "frame_weighted": {
+        "idle_fraction": 0.0,
+        "binary_exact": 0.975,
+        "mouse_mae": [
+          91.325,
+          13.95
+        ]
+      },
+      "backward_tp": 0,
+      "backward_expected": 0,
+      "backward_recall": null,
+      "false_backward": 0,
+      "episode_backward_recall": null,
+      "backward_supported_episodes": 0,
+      "dx": {
+        "significant_frames": 40,
+        "sign_correct": 38,
+        "frame_sign_accuracy": 0.95,
+        "episode_sign_accuracy": 0.95,
+        "supported_episodes": 5,
+        "expert_nonzero_frames": 40,
+        "nonzero_predicted_zero": 0,
+        "nonzero_zero_rate": 0.0
+      },
+      "dy": {
+        "significant_frames": 36,
+        "sign_correct": 33,
+        "frame_sign_accuracy": 0.9166666666666666,
+        "episode_sign_accuracy": 0.9047619047619048,
+        "supported_episodes": 5,
+        "expert_nonzero_frames": 39,
+        "nonzero_predicted_zero": 3,
+        "nonzero_zero_rate": 0.07692307692307693
+      }
+    },
+    "by_map": {
+      "dataset_test1": {
+        "episodes": 3,
+        "frames": 24,
+        "episode_mean": {
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 0.9583333333333334
+        },
+        "episode_mouse_mae": [
+          87.20833333333333,
+          13.916666666666666
+        ],
+        "frame_weighted": {
+          "idle_fraction": 0.0,
+          "binary_exact": 0.9583333333333334,
+          "mouse_mae": [
+            87.20833333333333,
+            13.916666666666666
+          ]
+        },
+        "backward_tp": 0,
+        "backward_expected": 0,
+        "backward_recall": null,
+        "false_backward": 0,
+        "episode_backward_recall": null,
+        "backward_supported_episodes": 0,
+        "dx": {
+          "significant_frames": 24,
+          "sign_correct": 24,
+          "frame_sign_accuracy": 1.0,
+          "episode_sign_accuracy": 1.0,
+          "supported_episodes": 3,
+          "expert_nonzero_frames": 24,
+          "nonzero_predicted_zero": 0,
+          "nonzero_zero_rate": 0.0
+        },
+        "dy": {
+          "significant_frames": 21,
+          "sign_correct": 19,
+          "frame_sign_accuracy": 0.9047619047619048,
+          "episode_sign_accuracy": 0.8888888888888888,
+          "supported_episodes": 3,
+          "expert_nonzero_frames": 24,
+          "nonzero_predicted_zero": 3,
+          "nonzero_zero_rate": 0.125
+        }
+      },
+      "dataset_test9": {
+        "episodes": 2,
+        "frames": 16,
+        "episode_mean": {
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 1.0
+        },
+        "episode_mouse_mae": [
+          97.5,
+          14.0
+        ],
+        "frame_weighted": {
+          "idle_fraction": 0.0,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            97.5,
+            14.0
+          ]
+        },
+        "backward_tp": 0,
+        "backward_expected": 0,
+        "backward_recall": null,
+        "false_backward": 0,
+        "episode_backward_recall": null,
+        "backward_supported_episodes": 0,
+        "dx": {
+          "significant_frames": 16,
+          "sign_correct": 14,
+          "frame_sign_accuracy": 0.875,
+          "episode_sign_accuracy": 0.875,
+          "supported_episodes": 2,
+          "expert_nonzero_frames": 16,
+          "nonzero_predicted_zero": 0,
+          "nonzero_zero_rate": 0.0
+        },
+        "dy": {
+          "significant_frames": 15,
+          "sign_correct": 14,
+          "frame_sign_accuracy": 0.9333333333333333,
+          "episode_sign_accuracy": 0.9285714285714286,
+          "supported_episodes": 2,
+          "expert_nonzero_frames": 15,
+          "nonzero_predicted_zero": 0,
+          "nonzero_zero_rate": 0.0
+        }
+      }
+    }
+  },
+  "limits": [
+    "TRAIN fitting only",
+    "Development results from two previously inspected episodes",
+    "Held-out mouse magnitude error worsened",
+    "No gameplay improvement claimed"
+  ]
+}

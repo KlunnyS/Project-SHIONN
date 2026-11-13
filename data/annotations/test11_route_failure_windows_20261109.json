@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "role": "validation_diagnostic_only_never_training",
+  "map": "dataset_test11",
+  "sequence": "model_attempts/sequences/startup_settle_validation_20261109/sequence_20261109_125621_643215",
+  "expert_actions_available": false,
+  "records": [
+    {
+      "job": 1,
+      "log": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/startup_settle_validation_20261109/sequence_20261109_125621_643215/001_deployed_settled_dataset_test11_r1/attempt_20261109_125631_054551.jsonl",
+      "video": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/startup_settle_validation_20261109/sequence_20261109_125621_643215/001_deployed_settled_dataset_test11_r1/attempt_20261109_125631_054551.mp4",
+      "outcome": "time_limit",
+      "capture_valid": true,
+      "log_sha256": "dcbd8f4c27ca57d08f59a60ccbdda5d58efdfe9b23df7efb7ebb24060e3513be",
+      "video_sha256": "2c7fed28a28affd1f2c1ff0b1fd8b4350a4072d84c663eefa35ed9730ffac979",
+      "first_five_forward_actions": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "idle_window_unique_received_frame_ids": 75,
+      "visual_review": "Lower room reached; wall-facing around6\u20138video seconds; upper stairs/unmarked door revisited; signed exit visible around32video seconds without completion.",
+      "review_resolution": "Sparse visual samples spanning complete video,2\u20136seconds apart; qualitative windows are approximate video times, not exact collision/path annotations."
+    },
+    {
+      "job": 3,
+      "log": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/startup_settle_validation_20261109/sequence_20261109_125621_643215/003_deployed_settled_dataset_test11_r2/attempt_20261109_125815_623178.jsonl",
+      "video": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/startup_settle_validation_20261109/sequence_20261109_125621_643215/003_deployed_settled_dataset_test11_r2/attempt_20261109_125815_623178.mp4",
+      "outcome": "time_limit",
+      "capture_valid": true,
+      "log_sha256": "e86e0dc747058fe8ef4f76af234a40d7ca8d1a9c9dfe6c09166ed9f3068942b9",
+      "video_sha256": "ac4c11a64fe39e3d9f9f879bfdaa38e6195db539161458a7150c280e8f810634",
+      "first_five_forward_actions": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "idle_window_unique_received_frame_ids": 20,
+      "visual_review": "Lower room reached; wall-facing around6\u20138video seconds; repeated returns toward upper stairs/unmarked door; no goal.",
+      "review_resolution": "Sparse visual samples spanning complete video,2\u20136seconds apart; qualitative windows are approximate video times, not exact collision/path annotations."
+    },
+    {
+      "job": 5,
+      "log": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/startup_settle_validation_20261109/sequence_20261109_125621_643215/005_deployed_settled_dataset_test11_r3/attempt_20261109_130000_019829.jsonl",
+      "video": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/startup_settle_validation_20261109/sequence_20261109_125621_643215/005_deployed_settled_dataset_test11_r3/attempt_20261109_130000_019829.mp4",
+      "outcome": "time_limit",
+      "capture_valid": true,
+      "log_sha256": "b2c5ca3863bcbc2e4e6e41e3f63b2fbb2f833879467af51988af9339b2433fcc",
+      "video_sha256": "b94d060960045c0f215c3b046f5ea8170904f62154dbafad72f2ad2088887942",
+      "first_five_forward_actions": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "idle_window_unique_received_frame_ids": 888,
+      "visual_review": "Lower room reached; dark corner/upper stair region explored; idle policy output from21.94to59.97elapsed seconds.",
+      "review_resolution": "Sparse visual samples spanning complete video,2\u20136seconds apart; qualitative windows are approximate video times, not exact collision/path annotations."
+    }
+  ]
+}

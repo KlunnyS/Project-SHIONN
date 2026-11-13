@@ -1,0 +1,665 @@
+{
+  "sequence": "model_attempts/sequences/opening_rehearsal_screen_20261109/sequence_20261109_194633_332161",
+  "attempts": [
+    {
+      "job": 1,
+      "model": "deployed",
+      "map": "dataset_test1",
+      "repeat": 1,
+      "outcome": "time_limit",
+      "policy_duration_seconds": 59.998009536997415,
+      "ticks": 1429,
+      "video_frames": 1429,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [
+        [
+          23.379,
+          59.998
+        ]
+      ],
+      "first_w_probability": 0.9305253624916077,
+      "diagnostic_counts": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "140d9b184ad8accbcfb957b96e6ff2feb90161d2619313ae588654cc693ec069",
+      "video_sha256": "d7d0863b4fd71b2457878efff7196d7fd90fb2bdec2ccedb241b7144fe4d8fb9",
+      "visual_note": "Leaves starting area, later remains wall-facing during long all-zero action interval.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 2,
+      "model": "opening",
+      "map": "dataset_test1",
+      "repeat": 1,
+      "outcome": "time_limit",
+      "policy_duration_seconds": 60.02676160899864,
+      "ticks": 1438,
+      "video_frames": 1438,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [],
+      "first_w_probability": 0.9270234107971191,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "9d6a71dee429c00bff29560f52e977858f076ec872673f2dcbc005ea68d3d81e",
+      "video_sha256": "e59f6ecd2eb0eee2df2c406e3ed44e16fa92a64ff7b88b998c31d4abae7d532e",
+      "visual_note": "Continues turning/moving without long all-zero interval but wanders; exit visible in late sampled view, no exit crossing.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 3,
+      "model": "deployed",
+      "map": "dataset_test11",
+      "repeat": 1,
+      "outcome": "time_limit",
+      "policy_duration_seconds": 60.00141704199632,
+      "ticks": 1440,
+      "video_frames": 1440,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [
+        [
+          19.929,
+          60.001
+        ]
+      ],
+      "first_w_probability": 0.9230334162712097,
+      "diagnostic_counts": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "8d08bcace2ac1e47a0fbbf2666ee7898705474eb140306c936012ac4e1d5e307",
+      "video_sha256": "abde55d4978aa789fe7d0097b75c24856e3fa15ee94712a3c2e7202713c1daa2",
+      "visual_note": "Lower-room wall-facing state, then long all-zero action interval.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 4,
+      "model": "opening",
+      "map": "dataset_test11",
+      "repeat": 1,
+      "outcome": "time_limit",
+      "policy_duration_seconds": 59.99836080300156,
+      "ticks": 1440,
+      "video_frames": 1440,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [],
+      "first_w_probability": 0.9167952537536621,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "7112cdf9a07bdc7efcb078bcc2a849cd6e6bb7f2bb45751cf9a74e13950dd038",
+      "video_sha256": "baf46c595a16d66726f6d1a0e59b5ea67cf12cb5337b7fb27d195433a870294b",
+      "visual_note": "Repeated wall/ramp/room views; continues actions without completing intended route.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 5,
+      "model": "deployed",
+      "map": "dataset_test12",
+      "repeat": 1,
+      "outcome": "goal_reached",
+      "policy_duration_seconds": 6.196652509999694,
+      "ticks": 149,
+      "video_frames": 149,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [],
+      "first_w_probability": 0.8575394749641418,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "0eb8ff655f8018bfa60afa9fb999aae35922a169568a99cd2ed181d98c304210",
+      "video_sha256": "4749c3fd48285a043391d89529cb4a9d8f649ab5a2e95a692c32d1362dc33bfe",
+      "visual_note": "Sampled start/final views show exit corridor; console goal confirms completion.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 6,
+      "model": "opening",
+      "map": "dataset_test12",
+      "repeat": 1,
+      "outcome": "goal_reached",
+      "policy_duration_seconds": 6.153819316998124,
+      "ticks": 148,
+      "video_frames": 148,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [],
+      "first_w_probability": 0.8323603272438049,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "cfb9ab40054d99fa6f68f8cbac8330cc4fcd84cb57b447e25199be540786384b",
+      "video_sha256": "292f51b86e487b775c291309039fc117e5f1e5532f7712d509c8a464103126b9",
+      "visual_note": "Sampled start/final views show exit corridor; console goal confirms completion.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 7,
+      "model": "deployed",
+      "map": "dataset_test1",
+      "repeat": 2,
+      "outcome": "time_limit",
+      "policy_duration_seconds": 60.01132955500361,
+      "ticks": 1440,
+      "video_frames": 1440,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [
+        [
+          39.554,
+          60.011
+        ]
+      ],
+      "first_w_probability": 0.9305710792541504,
+      "diagnostic_counts": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "39c57722ecfbe1e7123dfde381b400b0433eb33c1ce95113333466919ff000a6",
+      "video_sha256": "07ec23387e8f614b81111b4cbec6746667402025f02b7e6a3f670a61bf16e153",
+      "visual_note": "Traverses stairs/upper area, returns wall-facing and becomes idle.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 8,
+      "model": "opening",
+      "map": "dataset_test1",
+      "repeat": 2,
+      "outcome": "time_limit",
+      "policy_duration_seconds": 60.01186391800002,
+      "ticks": 1440,
+      "video_frames": 1440,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [
+        [
+          46.011,
+          60.012
+        ]
+      ],
+      "first_w_probability": 0.9265280365943909,
+      "diagnostic_counts": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "f219e1fbafcf3236f39ce1ac0a162218cec380ebccdfa39c9e5dded05155e8b5",
+      "video_sha256": "fbf124f16ff77d79d44a47484b8bfefcef958c0fb36bfc17df7a672e79d716f9",
+      "visual_note": "Exit visible near15s but route not completed; later wall-facing and idle from46s.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 9,
+      "model": "deployed",
+      "map": "dataset_test11",
+      "repeat": 2,
+      "outcome": "time_limit",
+      "policy_duration_seconds": 59.98856449300365,
+      "ticks": 1440,
+      "video_frames": 1440,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [
+        [
+          52.95,
+          59.989
+        ]
+      ],
+      "first_w_probability": 0.922482967376709,
+      "diagnostic_counts": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "c8c0aa497361dc2d3758da097834691e41b53c8404ab9f9ec68c44a8f00ecbf2",
+      "video_sha256": "590eadbdf7726f9868303b9f8aac89588d5ead3e1052bf3e06d55cb5e9db7a39",
+      "visual_note": "Exit visible in sampled30s view, later off-route/wall-facing; idle near53s.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 10,
+      "model": "opening",
+      "map": "dataset_test11",
+      "repeat": 2,
+      "outcome": "time_limit",
+      "policy_duration_seconds": 59.991496433001885,
+      "ticks": 1440,
+      "video_frames": 1440,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [
+        [
+          33.79,
+          59.991
+        ]
+      ],
+      "first_w_probability": 0.9171469211578369,
+      "diagnostic_counts": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "8ff18844cad62bf06d9b8b50ad362eabdc3453086474616eb3482679513c15a6",
+      "video_sha256": "9bc9a4adc0a78d331164b151216d72c4004a8c4f879651a80cf0dd45e45c0a02",
+      "visual_note": "Moves through lower-room/stair views, then dark-wall-facing idle near34s.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 11,
+      "model": "deployed",
+      "map": "dataset_test12",
+      "repeat": 2,
+      "outcome": "goal_reached",
+      "policy_duration_seconds": 6.150845822005067,
+      "ticks": 148,
+      "video_frames": 148,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [],
+      "first_w_probability": 0.8572323322296143,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "eb81cb3c73182a1d10517e5b3f4af5732cf4e0dd7540baa43ba4aa3ec166a75a",
+      "video_sha256": "d8b230c3933737fb6636e68cba4893f3e2e5956334159f4f56df7cbe71ca2e40",
+      "visual_note": "Sampled start/final views show exit corridor; console goal confirms completion.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 12,
+      "model": "opening",
+      "map": "dataset_test12",
+      "repeat": 2,
+      "outcome": "goal_reached",
+      "policy_duration_seconds": 6.163729385996703,
+      "ticks": 148,
+      "video_frames": 148,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [],
+      "first_w_probability": 0.8325878381729126,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "fec2f035c41eabaf90de8303c7a01bf3147a282cef3ba2ca5a3dbc5d2ba76620",
+      "video_sha256": "dd2f7056ccd6d3599a9f1c16b33ba86e6857bda68c642dbc0eb2e76efbb40dd7",
+      "visual_note": "Sampled start/final views show exit corridor; console goal confirms completion.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 13,
+      "model": "deployed",
+      "map": "dataset_test1",
+      "repeat": 3,
+      "outcome": "time_limit",
+      "policy_duration_seconds": 59.987827363002,
+      "ticks": 1440,
+      "video_frames": 1440,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [
+        [
+          9.199,
+          59.988
+        ]
+      ],
+      "first_w_probability": 0.9298800826072693,
+      "diagnostic_counts": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "62018227c4cf9d6e09b5e359a4f18cead6797656d1fbe8e943181e3a5cddbba4",
+      "video_sha256": "bedeaba135e3de959e32cd1f95a361a054305dd94f5e93311581aee7a9969abb",
+      "visual_note": "Dark wall-facing view by10s, stays idle through timeout.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 14,
+      "model": "opening",
+      "map": "dataset_test1",
+      "repeat": 3,
+      "outcome": "goal_reached",
+      "policy_duration_seconds": 20.866365424000833,
+      "ticks": 501,
+      "video_frames": 501,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [],
+      "first_w_probability": 0.9265855550765991,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "f5ffd1c2db8976e622c91ef4e3829a4c9a37ef4dbfeddf82d6eb47212b452151",
+      "video_sha256": "4962ea47926e21ec725bf25a1b80c6476341142e150d544c97b4898d7b86c6e8",
+      "visual_note": "Dense1s samples: wall approach around6\u20138s, turns away by9s, revisits wall around13\u201315s, returns toward stairs/exit17\u201320s, crosses into exit corridor by20.87s; console goal confirms completion.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 15,
+      "model": "deployed",
+      "map": "dataset_test11",
+      "repeat": 3,
+      "outcome": "time_limit",
+      "policy_duration_seconds": 60.02183383200463,
+      "ticks": 1440,
+      "video_frames": 1440,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [],
+      "first_w_probability": 0.9227213263511658,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "d79845cbddb59b5d164c549c76139e436df7b3c66a1e5f7cc8231b675d602b21",
+      "video_sha256": "ccd09fbea7b066188e41fdeda2c10a1922f7deaec01af2cf83c8ec9d7e769ded",
+      "visual_note": "Repeated stair/upper-door views; actions continue but no exit crossing.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 16,
+      "model": "opening",
+      "map": "dataset_test11",
+      "repeat": 3,
+      "outcome": "time_limit",
+      "policy_duration_seconds": 59.97969117000321,
+      "ticks": 1439,
+      "video_frames": 1439,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [],
+      "first_w_probability": 0.9168342351913452,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "410d41509dea1cb1465e892febde5c93eac5a2de2caef0e2acb42ac0cc90aaa9",
+      "video_sha256": "b98857ad57a793fc216d9d754a1d64aca6673d63e41e4c5501d711fe0734275d",
+      "visual_note": "Repeated stair/wall views; actions continue but no exit crossing.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 17,
+      "model": "deployed",
+      "map": "dataset_test12",
+      "repeat": 3,
+      "outcome": "goal_reached",
+      "policy_duration_seconds": 6.187925267993705,
+      "ticks": 149,
+      "video_frames": 149,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [],
+      "first_w_probability": 0.8573449850082397,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "9e2a551c8a5effd11b3db5cfd79f6ed8b130f7d4d5e9d6cd3bf7e7e43c1559e3",
+      "video_sha256": "0abd627a2d7ca88b7df040ffe066bba18f330027b81ad4cb9bf51c150b70a425",
+      "visual_note": "Sampled start/final views show exit corridor; console goal confirms completion.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    },
+    {
+      "job": 18,
+      "model": "opening",
+      "map": "dataset_test12",
+      "repeat": 3,
+      "outcome": "goal_reached",
+      "policy_duration_seconds": 6.196026001001883,
+      "ticks": 149,
+      "video_frames": 149,
+      "video_fps": 24.0,
+      "checks": {
+        "mouse_preflight": true,
+        "focus_clean": true,
+        "cursor_clean": true,
+        "injection_clean": true,
+        "timing_v2": true,
+        "settle_completed": true,
+        "video_tick_count": true
+      },
+      "idle_intervals_over_1s": [],
+      "first_w_probability": 0.8316630721092224,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      },
+      "log_sha256": "35c2b55b1be274faffd6e76f6ec45367b9859ccb733c2f8fd89d3f9fe86e7f86",
+      "video_sha256": "42c188bbaec621e8f9b56f2639b8ba7187ba7bd26af9b4eca9053dfe0c4bfe4c",
+      "visual_note": "Sampled start/final views show exit corridor; console goal confirms completion.",
+      "visual_review_method": "Six timestamp samples over full span for test1/test11; start/end for test12; successful test1 additionally sampled every1s. Not frame-perfect collision classification."
+    }
+  ],
+  "summary": {
+    "deployed": {
+      "dataset_test1": {
+        "valid_attempts": 3,
+        "goals": 0,
+        "timeouts": 3,
+        "median_goal_seconds": null,
+        "attempts_with_all_zero_action_interval_over_1s": 3,
+        "long_idle_seconds": 107.86500000000001
+      },
+      "dataset_test11": {
+        "valid_attempts": 3,
+        "goals": 0,
+        "timeouts": 3,
+        "median_goal_seconds": null,
+        "attempts_with_all_zero_action_interval_over_1s": 2,
+        "long_idle_seconds": 47.111
+      },
+      "dataset_test12": {
+        "valid_attempts": 3,
+        "goals": 3,
+        "timeouts": 0,
+        "median_goal_seconds": 6.187925267993705,
+        "attempts_with_all_zero_action_interval_over_1s": 0,
+        "long_idle_seconds": 0
+      }
+    },
+    "opening": {
+      "dataset_test1": {
+        "valid_attempts": 3,
+        "goals": 1,
+        "timeouts": 2,
+        "median_goal_seconds": 20.866365424000833,
+        "attempts_with_all_zero_action_interval_over_1s": 1,
+        "long_idle_seconds": 14.000999999999998
+      },
+      "dataset_test11": {
+        "valid_attempts": 3,
+        "goals": 0,
+        "timeouts": 3,
+        "median_goal_seconds": null,
+        "attempts_with_all_zero_action_interval_over_1s": 1,
+        "long_idle_seconds": 26.201
+      },
+      "dataset_test12": {
+        "valid_attempts": 3,
+        "goals": 3,
+        "timeouts": 0,
+        "median_goal_seconds": 6.163729385996703,
+        "attempts_with_all_zero_action_interval_over_1s": 0,
+        "long_idle_seconds": 0
+      }
+    }
+  },
+  "decision": "Promising stage1 screen; run predeclared reverse-order confirmation before promotion.",
+  "stage": 1,
+  "checkpoint_sha256": {
+    "deployed": "2ac674293279370b3fd37aadae7914abc2ede84f2941298ded24c054701c2483",
+    "opening": "3d735bdb8eba1ffffdbb374d87d29f4159ef9e166e39045cab1d30ebdccbeef4"
+  },
+  "limitations": [
+    "Only one additional test1 goal; small cohort and deployed-first order.",
+    "All-zero action intervals are policy inactivity, not an automatic physical wall-stall classifier.",
+    "No startup freeze improvement claimed: long observed inactivity occurs later.",
+    "Wall contact/wandering persists; test11 remains0/3 for both.",
+    "No autonomous frames become expert correction targets."
+  ]
+}

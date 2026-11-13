@@ -86,6 +86,8 @@ def load_checkpoint(
         raise ValueError(f"Checkpoint and JSON configuration differ for {checkpoint_path}")
     if metadata.get("training_state", {}) != payload.get("training_state", {}):
         raise ValueError(f"Checkpoint and JSON training state differ for {checkpoint_path}")
+    if optimizer is not None and payload["config"].get("training", {}).get("recovery_probe", {}).get("generic_resume_supported") is False:
+        raise ValueError("Bounded recovery probe endpoints cannot resume through the full trainer; use inference or an explicit fresh warm start")
     if model is not None:
         model.load_state_dict(payload["model_state_dict"])
     if optimizer is not None:

@@ -1,0 +1,72 @@
+{
+  "stages": [
+    "model_attempts/sequences/opening_rehearsal_screen_20261109/sequence_20261109_194633_332161",
+    "model_attempts/sequences/opening_rehearsal_confirmation_20261109/sequence_20261109_201622_516140"
+  ],
+  "attempts": 36,
+  "invalid_capture_attempts": 0,
+  "summary": {
+    "deployed": {
+      "dataset_test1": {
+        "attempts": 6,
+        "goals": 0,
+        "timeouts": 6,
+        "median_goal_seconds": null,
+        "attempts_with_long_idle": 6,
+        "long_idle_seconds": 223.288
+      },
+      "dataset_test11": {
+        "attempts": 6,
+        "goals": 0,
+        "timeouts": 6,
+        "median_goal_seconds": null,
+        "attempts_with_long_idle": 5,
+        "long_idle_seconds": 152.59799999999998
+      },
+      "dataset_test12": {
+        "attempts": 6,
+        "goals": 6,
+        "timeouts": 0,
+        "median_goal_seconds": 6.156499617503869,
+        "attempts_with_long_idle": 0,
+        "long_idle_seconds": 0
+      }
+    },
+    "opening": {
+      "dataset_test1": {
+        "attempts": 6,
+        "goals": 1,
+        "timeouts": 5,
+        "median_goal_seconds": 20.866365424000833,
+        "attempts_with_long_idle": 2,
+        "long_idle_seconds": 18.447
+      },
+      "dataset_test11": {
+        "attempts": 6,
+        "goals": 1,
+        "timeouts": 5,
+        "median_goal_seconds": 19.28519153000525,
+        "attempts_with_long_idle": 3,
+        "long_idle_seconds": 125.537
+      },
+      "dataset_test12": {
+        "attempts": 6,
+        "goals": 6,
+        "timeouts": 0,
+        "median_goal_seconds": 6.161662112997874,
+        "attempts_with_long_idle": 0,
+        "long_idle_seconds": 0
+      }
+    }
+  },
+  "decision": "No promotion: test1 improvement did not repeat in confirmation; retain experimental checkpoint for research.",
+  "no_additional_sampling_family_training": true,
+  "next_steps": [
+    "Review correction trajectory coverage against persistent route failures; do not label scored model actions as human expert.",
+    "Prepare separate sequence/GRU comparison plan with fixed data membership and matched target exposure; no general recurrent training starts automatically."
+  ],
+  "review_files": {
+    "data/annotations/opening_rehearsal_gameplay_screen_20261109.json": "d710a9957d6762eb47ab659d9f1fbfe02d3c388a265221924be4f70e30f42954",
+    "data/annotations/opening_rehearsal_gameplay_confirmation_20261109.json": "e2538932bf27748fdab91880848890dff119df9b807b76c00171981bd9919e2c"
+  }
+}

@@ -1,0 +1,387 @@
+{
+  "version": 1,
+  "created_date": "2026-11-01",
+  "split_id": "frozen-2026-10-18-v3",
+  "split_sha256": "2680429b46e154c23ae0a8c651575c6704cbf8a860c049059eb017e8abaaee4e",
+  "role": "validation_only_never_training",
+  "sampling": "Every tenth episode from sorted frozen test11 validation IDs; ten sampled, two excluded by visual boundary uncertainty before prediction scoring. All eight retained turns are left turns.",
+  "frame_indexing": "zero_based_matching_actions_csv",
+  "review_method": "Main-turn mouse bursts cross-checked against sampled cached RGB route context; three early-adjustment candidates replaced. No exact collision/temporal acquisition guarantee.",
+  "annotations": [
+    {
+      "episode": "episode_20260920_140231_897826",
+      "map": "dataset_test11",
+      "role": "validation",
+      "direction": "left",
+      "turn_start_frame": 133,
+      "turn_end_candidate_frame_exclusive": 163,
+      "context_start_frame": 121,
+      "frames": 277,
+      "dx_sum": -3453.0,
+      "reviewed_frames": [
+        121,
+        133,
+        139,
+        145,
+        157,
+        163
+      ],
+      "review_status": "main_turn_window_reviewed_in_sampled_images",
+      "included_in_scoring": true,
+      "turn_end_status": "provisional_not_used_for_scoring",
+      "scoring_windows": {
+        "approach": [
+          -12,
+          0
+        ],
+        "onset": [
+          0,
+          6
+        ],
+        "early_turn": [
+          0,
+          24
+        ]
+      },
+      "source_actions_sha256": "b66632c26558dc7710714696ed7cf509263bcd25ab85c295c434d560c8a87a91"
+    },
+    {
+      "episode": "episode_20260920_142240_894039",
+      "map": "dataset_test11",
+      "role": "validation",
+      "direction": "left",
+      "turn_start_frame": 134,
+      "turn_end_candidate_frame_exclusive": 160,
+      "context_start_frame": 122,
+      "frames": 259,
+      "dx_sum": -631.0,
+      "reviewed_frames": [
+        122,
+        134,
+        140,
+        146,
+        158,
+        160
+      ],
+      "note": "Earlier smaller left burst excluded after visual route-context review.",
+      "review_status": "main_turn_window_reviewed_in_sampled_images",
+      "included_in_scoring": true,
+      "turn_end_status": "provisional_not_used_for_scoring",
+      "scoring_windows": {
+        "approach": [
+          -12,
+          0
+        ],
+        "onset": [
+          0,
+          6
+        ],
+        "early_turn": [
+          0,
+          24
+        ]
+      },
+      "source_actions_sha256": "ee746e64d479e8d2d444177cbbc08daef56c0be86d51aca2e665d6208a2faea7"
+    },
+    {
+      "episode": "episode_20260920_144310_722962",
+      "map": "dataset_test11",
+      "role": "validation",
+      "direction": "left",
+      "turn_start_frame": 141,
+      "turn_end_candidate_frame_exclusive": 178,
+      "context_start_frame": 129,
+      "frames": 317,
+      "dx_sum": -2260.0,
+      "reviewed_frames": [
+        129,
+        141,
+        147,
+        153,
+        165,
+        178
+      ],
+      "review_status": "main_turn_window_reviewed_in_sampled_images",
+      "included_in_scoring": true,
+      "turn_end_status": "provisional_not_used_for_scoring",
+      "scoring_windows": {
+        "approach": [
+          -12,
+          0
+        ],
+        "onset": [
+          0,
+          6
+        ],
+        "early_turn": [
+          0,
+          24
+        ]
+      },
+      "source_actions_sha256": "431567eaae87417e25091c5070adc3dc70a5338e24f1410494b291e0064d1e9a"
+    },
+    {
+      "episode": "episode_20260920_150425_277595",
+      "map": "dataset_test11",
+      "role": "validation",
+      "direction": "left",
+      "turn_start_frame": 123,
+      "turn_end_candidate_frame_exclusive": 170,
+      "context_start_frame": 111,
+      "frames": 268,
+      "dx_sum": -2187.0,
+      "reviewed_frames": [
+        111,
+        123,
+        129,
+        135,
+        147,
+        170
+      ],
+      "review_status": "main_turn_window_reviewed_in_sampled_images",
+      "included_in_scoring": true,
+      "turn_end_status": "provisional_not_used_for_scoring",
+      "scoring_windows": {
+        "approach": [
+          -12,
+          0
+        ],
+        "onset": [
+          0,
+          6
+        ],
+        "early_turn": [
+          0,
+          24
+        ]
+      },
+      "source_actions_sha256": "b859f1ebeced9fa11000c4199d3eb0588e6cfb5fda700ecbe2ee3617ec836e38"
+    },
+    {
+      "episode": "episode_20260920_152447_645857",
+      "map": "dataset_test11",
+      "role": "validation",
+      "direction": "left",
+      "turn_start_frame": 138,
+      "turn_end_candidate_frame_exclusive": 169,
+      "context_start_frame": 126,
+      "frames": 279,
+      "dx_sum": -2239.0,
+      "reviewed_frames": [
+        126,
+        138,
+        144,
+        150,
+        162,
+        169
+      ],
+      "review_status": "main_turn_window_reviewed_in_sampled_images",
+      "included_in_scoring": true,
+      "turn_end_status": "provisional_not_used_for_scoring",
+      "scoring_windows": {
+        "approach": [
+          -12,
+          0
+        ],
+        "onset": [
+          0,
+          6
+        ],
+        "early_turn": [
+          0,
+          24
+        ]
+      },
+      "source_actions_sha256": "8b8b49fe976d47b5ffb309c237e0791a4677f4cca94c0bfe6e30cf059b8aa8bb"
+    },
+    {
+      "episode": "episode_20261004_150503_405273",
+      "map": "dataset_test11",
+      "role": "validation",
+      "direction": "left",
+      "turn_start_frame": 153,
+      "turn_end_candidate_frame_exclusive": 215,
+      "context_start_frame": 141,
+      "frames": 348,
+      "dx_sum": -2082.0,
+      "reviewed_frames": [
+        141,
+        153,
+        159,
+        165,
+        177,
+        215
+      ],
+      "review_status": "excluded_boundary_uncertain",
+      "included_in_scoring": false,
+      "note": "Downward view makes route-decision onset uncertain in sampled images.",
+      "turn_end_status": "provisional_not_used_for_scoring",
+      "scoring_windows": {
+        "approach": [
+          -12,
+          0
+        ],
+        "onset": [
+          0,
+          6
+        ],
+        "early_turn": [
+          0,
+          24
+        ]
+      },
+      "source_actions_sha256": "78fd660c0359cfea8cc8f69c9af5d8eac62560a97247cc583683482708c60f69"
+    },
+    {
+      "episode": "episode_20261004_153225_821305",
+      "map": "dataset_test11",
+      "role": "validation",
+      "direction": "left",
+      "turn_start_frame": 158,
+      "turn_end_candidate_frame_exclusive": 203,
+      "context_start_frame": 146,
+      "frames": 289,
+      "dx_sum": -602.0,
+      "reviewed_frames": [
+        146,
+        158,
+        164,
+        170,
+        182,
+        203
+      ],
+      "note": "Earlier smaller left burst excluded after visual route-context review.",
+      "review_status": "main_turn_window_reviewed_in_sampled_images",
+      "included_in_scoring": true,
+      "turn_end_status": "provisional_not_used_for_scoring",
+      "scoring_windows": {
+        "approach": [
+          -12,
+          0
+        ],
+        "onset": [
+          0,
+          6
+        ],
+        "early_turn": [
+          0,
+          24
+        ]
+      },
+      "source_actions_sha256": "bdad7e7e24f205d18a28a6b9638fd4e3a394bb7e6bd2e1c462855110a585d5b4"
+    },
+    {
+      "episode": "episode_20261004_161620_532490",
+      "map": "dataset_test11",
+      "role": "validation",
+      "direction": "left",
+      "turn_start_frame": 123,
+      "turn_end_candidate_frame_exclusive": 167,
+      "context_start_frame": 111,
+      "frames": 273,
+      "dx_sum": -522.0,
+      "reviewed_frames": [
+        111,
+        123,
+        129,
+        135,
+        147,
+        167
+      ],
+      "note": "Earlier smaller left burst excluded after visual route-context review.",
+      "review_status": "main_turn_window_reviewed_in_sampled_images",
+      "included_in_scoring": true,
+      "turn_end_status": "provisional_not_used_for_scoring",
+      "scoring_windows": {
+        "approach": [
+          -12,
+          0
+        ],
+        "onset": [
+          0,
+          6
+        ],
+        "early_turn": [
+          0,
+          24
+        ]
+      },
+      "source_actions_sha256": "be80cb77743583e373f3b5dcd806c85d67cb10d896668a86437bc5f18da17711"
+    },
+    {
+      "episode": "episode_20261004_164000_267087",
+      "map": "dataset_test11",
+      "role": "validation",
+      "direction": "left",
+      "turn_start_frame": 135,
+      "turn_end_candidate_frame_exclusive": 165,
+      "context_start_frame": 123,
+      "frames": 260,
+      "dx_sum": -1226.0,
+      "reviewed_frames": [
+        123,
+        135,
+        141,
+        147,
+        159,
+        165
+      ],
+      "review_status": "main_turn_window_reviewed_in_sampled_images",
+      "included_in_scoring": true,
+      "turn_end_status": "provisional_not_used_for_scoring",
+      "scoring_windows": {
+        "approach": [
+          -12,
+          0
+        ],
+        "onset": [
+          0,
+          6
+        ],
+        "early_turn": [
+          0,
+          24
+        ]
+      },
+      "source_actions_sha256": "c3972f8e3a163e9d7a80218c91041b8904ea07f1e7b3d6aff9a99e63c6eb9065"
+    },
+    {
+      "episode": "episode_20261004_173601_193739",
+      "map": "dataset_test11",
+      "role": "validation",
+      "direction": "left",
+      "turn_start_frame": 95,
+      "turn_end_candidate_frame_exclusive": 123,
+      "context_start_frame": 83,
+      "frames": 284,
+      "dx_sum": -1013.0,
+      "reviewed_frames": [
+        83,
+        95,
+        101,
+        107,
+        119,
+        123
+      ],
+      "review_status": "excluded_boundary_uncertain",
+      "included_in_scoring": false,
+      "note": "Multi-stage gradual left motion; main route-turn boundary not settled from sampled images.",
+      "turn_end_status": "provisional_not_used_for_scoring",
+      "scoring_windows": {
+        "approach": [
+          -12,
+          0
+        ],
+        "onset": [
+          0,
+          6
+        ],
+        "early_turn": [
+          0,
+          24
+        ]
+      },
+      "source_actions_sha256": "db12d3ca17639cfcde262b0ca8df32a170e4273aa7f3b19a56ce859604248493"
+    }
+  ]
+}

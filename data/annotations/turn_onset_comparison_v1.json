@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "experiment_id": "turn-onset-comparison-v1",
+  "recovery_protocol": "data/annotations/recovery_transfer_development_v1.json",
+  "recovery_protocol_sha256": "f68d0d9f3d17a4169a7ed5cb2c384f7ea8af922bfe4154cde1ae8876fc72d75d",
+  "onset_annotations": "data/annotations/proactive_turn_onsets_v1.json",
+  "onset_annotations_sha256": "ef335906bf61cea9e0a31420bcf625016e1d11e5dd1989fa069d076913418dfe",
+  "train_proactive_episodes": [
+    "episode_20261018_150123_255345",
+    "episode_20261018_150204_896098",
+    "episode_20261018_150226_984735",
+    "episode_20261018_150313_871894",
+    "episode_20261018_150351_623526",
+    "episode_20261018_150409_776314",
+    "episode_20261018_150522_041108",
+    "episode_20261018_150610_200181",
+    "episode_20261018_150633_718452",
+    "episode_20261018_150711_512844",
+    "episode_20261018_150755_421418",
+    "episode_20261018_150816_693808"
+  ],
+  "validation_proactive_episodes": [
+    "episode_20261018_150147_272932",
+    "episode_20261018_150251_911974",
+    "episode_20261018_150334_989936",
+    "episode_20261018_150437_239955",
+    "episode_20261018_150545_198162",
+    "episode_20261018_150652_516399",
+    "episode_20261018_150734_457910",
+    "episode_20261018_150836_686985"
+  ],
+  "window_rule": "[max(context_start_frame, first_active_frame), turn_start_frame+8); exclusive end",
+  "training_batches": {
+    "base": 5,
+    "stationary_recovery": 2,
+    "proactive": 1
+  },
+  "arms": [
+    "whole_episode",
+    "onset_window"
+  ],
+  "only_changed_factor": "Proactive draw frame pool; source, episode order, branch counts, base/recovery draws and optimizer settings identical",
+  "created": "2026-11-03"
+}

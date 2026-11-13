@@ -17,6 +17,7 @@ Python entry point; the defaults below reflect the current code. See the
 | Report dataset outcomes and chambers | `.venv/bin/python dataset_stats.py` |
 | Cache successful demonstrations | `.venv/bin/python -m models.imitation.preprocess --recordings-dir episodes/goal_reached` |
 | Train a new candidate | `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/imitation/checkpoints/runs/candidate` |
+| Plan the capped recovery fine-tune | `.venv/bin/python run_recovery_probe.py` (no training; see the runbook for the bounded execution command) |
 | Run a configured model | `./run_model.sh --checkpoint PATH` |
 | Run a configured model from an Arch/Niri session | `./run_model_niri.sh --checkpoint PATH` |
 | Collect supervised recovery clips | `.venv/bin/python run_recovery_session.py --checkpoint PATH --target-corrections 30` |
@@ -89,6 +90,9 @@ K stops the session, and Ctrl+C is an emergency stop.
 | `--crf N` | `20` | H.264 encoder CRF passed to FFmpeg. |
 | `--episodes-root PATH` | `episodes` | Recording root; proactive-turn mode defaults to `episodes/corrections/proactive_turns`. |
 | `--proactive-turn` | off | Wait for physical P after manual positioning; save under a separate proactive-turn root. |
+| `--oracle-source` | off | One diagnostic test1 demonstration with pose, map and camera-setting fingerprints; requires one episode,24Hz, explicit output and no-launch. See [expert replay](EXPERT_ACTION_REPLAY_2026_11_12.md). |
+| `--oracle-map-file PATH` | none | Actual installed test1 BSP to fingerprint for oracle capture. |
+| `--oracle-checkpoint PATH` | deployed recovery checkpoint | Reference checkpoint/sidecar for oracle mouse-bin provenance. |
 | `--turn-direction {left,right}` | required in proactive mode | Store the intended turn direction in episode metadata. |
 | `--output NAME` | first detected output | Wayland monitor name from `wf-recorder -L`. |
 | `--mouse-device PATH_OR_NAME` | auto-detected pointer | Exact `/dev/input/event*` path or case-insensitive fragment of a device name. |
@@ -131,6 +135,7 @@ Example: `.venv/bin/python -m models.imitation.train_bc --checkpoint-dir models/
 | `--split-manifest PATH` | `data/splits/frozen_v1.json` | Enforce the versioned episode split, including validation and evaluation exclusions. |
 | `--unfrozen-split` | off | Explicitly bypass the frozen manifest for experimental training only. |
 | `--correction-sampling-fraction FLOAT` | `0` | Expected fraction of optimizer draws from the extra caches, such as `0.10`; requires extra cached episodes. |
+| `--correction-group-fraction GROUP=FRACTION` | none | Repeat for every selected extra cache group, e.g. `proactive_turn=0.05` and `recovery=0.05`. Base receives the remainder. Each fraction must be positive and their sum below 1; cannot combine with a nonzero combined correction fraction. Frozen manifests identify groups even if a cache directory is moved. |
 | `--start-window-frames N` | `8` | Usable frames after each episode's first action eligible for opening sampling boost. |
 | `--start-sampling-boost FLOAT` | `1` | Multiply opening-frame sampling weight; `5` gives openings more training exposure. |
 | `--map NAME` | all cached maps | Repeat to train on only the named chambers. An unknown or duplicate name is an error. |
@@ -184,6 +189,39 @@ For the 450-episode cutdown experiment (`dataset_test2` and `dataset_test5` thro
   --checkpoint-every 0
 ```
 
+## `run_recovery_probe.py`
+
+Default is read-only planning. It verifies frozen train/validation membership,
+excludes the six assessment episodes, and reports expected exposure without
+constructing a GPU model or creating an output directory. Only `--execute`
+starts training. Use [the runbook's service command](TRAINING_RUNBOOK.md) for
+the outer20-minute runtime limit; the Python deadline cannot interrupt blocked
+GPU/I/O calls. No game interaction occurs in either mode.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--execute` | off | Run both short warm-start arms, sequentially. |
+| `--source PATH` | `models/imitation/checkpoints/runs/v5_recovery_proactive_v3/best.pt` | Supported V5 binned checkpoint; target contract is preserved. |
+| `--output PATH` | `models/imitation/checkpoints/runs/recovery_onset_probe_v1` | Must be absent when execution begins; never overwrite an old experiment. |
+| `--steps INT` | `1000` | Per-arm optimizer updates,1–1000. |
+| `--time-budget-seconds FLOAT` | `1080` | Shared soft budget across setup, baseline, both arms and all evaluation; at most 1080. |
+| `--window-frames INT` | `24` | Usable opening frames of recovery episodes to emphasize. |
+| `--boost FLOAT` | `8` | Finite multiplier >1 for recovery openings; control uses1. Total recovery share remains5%. |
+| `--learning-rate FLOAT` | `0.00001` | Same fresh-optimizer learning rate for both arms. |
+| `--batch-size INT` / `--validation-batch-size INT` | `8` / `32` | Training/evaluation batches. Training/evaluation are float32. |
+| `--seed INT` | `0` | Reset identically before each arm. |
+| `--device cpu\|cuda` | `cuda` | No automatic CPU fallback. |
+| `--split-manifest PATH` | `data/splits/frozen_v3.json` | Must match source split digest and exact episode membership. |
+| `--base-cache PATH` | `data/datasets/cached_frames` | Frozen base cache. |
+| `--recovery-cache PATH` | `data/datasets/recovery_cached_frames` | Frozen recovery training cache. |
+| `--proactive-cache PATH` | `data/datasets/proactive_turn_cached_frames` | Frozen proactive training cache. |
+| `--assessment-cache PATH` | `model_attempts/recovery_assessment_20261101/cache` | Exactly six fresh episodes; never sampled for gradients or endpoint selection. |
+
+Read `report.json` and require `paired_complete: true` before comparing arms.
+There is no automatic winner or promotion. Endpoints load for inference or a
+fresh warm start; generic optimizer resume is rejected. The probe does not
+claim a full dataset epoch from its capped updates.
+
 ## `run_imitation.py`
 
 Example: `.venv/bin/python run_imitation.py --checkpoint models/imitation/checkpoints_v3/best.pt --map dataset_test3 --dry-run --max-seconds 10`
@@ -196,7 +234,10 @@ Example: `.venv/bin/python run_imitation.py --checkpoint models/imitation/checkp
 | `--move-w-threshold FLOAT` | binary argmax | Override the forward action threshold between 0 and 1 for calibration tests. |
 | `--mouse-max-abs N` | none | Experimental positive cap applied independently to mouse dx/dy. Raw and applied actions are both retained in JSONL. |
 | `--port N` | `8020` | Portal 2 netconsole port. |
-| `--fps FLOAT` | `24` | Prediction tick rate; screen capture/video FPS use a rounded positive integer. |
+| `--fps FLOAT` | `24` | Observation/input tick rate; screen capture/video FPS use a rounded positive integer. |
+| `--model-fps FLOAT` | same as `--fps` | Optional decision rate, an integer divisor of `--fps`; holds commands between decisions while updating frame history. See [experiment semantics](MODEL_DECISION_RATE.md). |
+| `--expert-replay PATH` | off | Diagnostic action source; bypasses neural inference. Use `run_expert_replay.py` to enforce the matching safety/timing profile. |
+| `--replay-encoding raw\|binned` | `raw` | Replay original camera labels or source-bin encode/decode labels. |
 | `--width N` | `1920` | Capture/video frame width. |
 | `--height N` | `1080` | Capture/video frame height. |
 | `--output NAME` | first detected output | Wayland monitor from `wf-recorder -L`. |
@@ -243,7 +284,8 @@ The runner makes a full checkpoint × chamber matrix. By default, each repeat vi
 | `--move-w-threshold FLOAT` | binary argmax | Pass a forward action threshold to every live attempt. |
 | `--mouse-max-abs N` | none | Pass the experimental mouse-delta cap to every live attempt. |
 | `--port N` | `8020` | Portal 2 netconsole port. |
-| `--fps FLOAT` | `24` | Prediction/capture rate. |
+| `--fps FLOAT` | `24` | Observation/input/capture rate. |
+| `--model-fps FLOAT` | same as `--fps` | Forward the optional lower decision rate to each attempt. |
 | `--width N`, `--height N` | `1920`, `1080` | Screen/video size. |
 | `--status-every SECONDS` | `1` | Status printing interval passed to each run. |
 | `--telemetry-hz FLOAT` | `15` | Desktop/camera sampling target (1–20 Hz). |
@@ -288,7 +330,120 @@ Every supervised handoff now writes `handoff_diagnostics.jsonl` beside its `reco
 
 When Portal 2 is launched inside fullscreen Gamescope with `--force-grab-cursor`, the runner recognizes a `gamescope` window titled `PORTAL 2 - ...` and focuses that exact window. The direct XWayland path still uses an XTEST click; the Gamescope handoff briefly switches to an empty workspace and back to refresh its intermittent mouse grab, then verifies the original game window is focused. The Gamescope path uses no synthetic click or host pointer warp. This happens before recovery recording starts and is also used for a weak-input retry. The workspace refresh passed a live no-save test and a real saved pilot on 2026-10-13. See [`handoff.md`](../handoff.md) for the pilot path and remaining collection plan.
 
+## Matched turn-onset comparison
+
+`run_turn_onset_comparison.py` is plan-only by default; `--execute` runs two
+matched arms from the pinned clean source. The only factor is the proactive
+frame pool (whole usable episode versus reviewed approach/onset window).
+
+| Option | Default / limits |
+|---|---|
+| `--protocol` | `data/annotations/turn_onset_comparison_v1.json` |
+| `--output` | `models/imitation/checkpoints/runs/turn_onset_comparison_v1`; must not exist. |
+| `--steps` | `1500` per arm, positive and at most 1500. |
+| `--learning-rate` | `5e-5`, positive finite and at most 5e-5. |
+| `--seed` | `0`, bounded nonnegative integer. |
+| `--time-budget-seconds` | `1080`, positive finite and at most 1080. |
+| `--device` | `cuda`, no fallback; `cpu` for synthetic tests. |
+| `--base-cache` / `--recovery-cache` / `--proactive-cache` | Existing frozen cache roots under `data/datasets/`. |
+| `--assessment-cache` | `model_attempts/recovery_assessment_20261101/cache`; diagnostics only. |
+
+Batch size/composition are fixed at 5 base / 2 static-recovery / 1 proactive. Both arm
+endpoints require a complete paired report; no automatic promotion or resume.
+See the [runbook](TRAINING_RUNBOOK.md#prepared-turn-onset-comparison--2026-11-03)
+for 12–18 minute estimate, 20-minute outer limit, clean split, evaluation and
+publication requirements. There is no `--source` override: the experiment uses
+its pinned balanced checkpoint to preserve the development holdout.
+
+For sustained recovery scoring and the additional 22/9/6 development split, see
+`benchmark_recovery_transfer.py --help` and the
+[recovery transfer protocol](RECOVERY_TRANSFER_PROTOCOL_2026_11_03.md).
+This scorer runs offline only; `--validate-only` checks the pinned source and
+partitions without loading a policy. Scoring arbitrary checkpoints explicitly
+reports recorded recovery-validation exposure. Reports refuse existing output
+and stay outside data caches. Histories (`--history normal` / `--history repeated`)
+are reported separately; default is normal, batch 32, CUDA with no fallback.
+
+## Stationary-replay candidate
+
+`.venv/bin/python run_stationary_replay.py` validates and prints a single-candidate
+plan; `--execute` enables the fixed-budget fine-tune and full before/after
+evaluation. Batches are fixed at two stationary TRAIN starts plus six regular
+frames. Assessment data never enters gradients or checkpoint selection.
+
+| Option | Default / limits |
+|---|---|
+| `--execute` | Off; no training without it. |
+| `--source` | `models/imitation/checkpoints/runs/recovery_history_probe_v1/endpoint.pt` |
+| `--output` | `models/imitation/checkpoints/runs/v5_stationary_replay_v1`; existing output refused. |
+| `--steps` | `2000`, positive and at most 2000. |
+| `--learning-rate` | `5e-5`, positive finite and at most 5e-5. |
+| `--seed` | `0`, nonnegative and below 2**63−2. |
+| `--time-budget-seconds` | `720`, positive finite and at most 720. |
+| `--device` | `cuda`, no fallback; `cpu` for synthetic checks. |
+| `--split-manifest` | `data/splits/frozen_v3.json`; source/frozen membership must match. |
+| `--base-cache` | `data/datasets/cached_frames` |
+| `--recovery-cache` | `data/datasets/recovery_cached_frames` |
+| `--proactive-cache` | `data/datasets/proactive_turn_cached_frames` |
+| `--assessment-cache` | `model_attempts/recovery_assessment_20261101/cache`; exactly six disjoint episodes, evaluation only. |
+
+Outputs are `report.json` and, only after complete fixed-endpoint evaluation,
+`candidate.pt` plus its sidecar. A partial `pending.pt` is not a completed
+candidate. See the [runbook](TRAINING_RUNBOOK.md#prepared-stationary-replay-candidate--2026-11-02)
+for the 6–10 minute estimate, 14-minute outer limit, regression screen, cache
+fingerprint limitations and explicit no-promotion policy.
+
+## Recovery-fit diagnostic
+
+`.venv/bin/python run_recovery_fit_probe.py` plans an intentional memorization
+check on 31 frozen recovery TRAIN starts. No assessment/validation data is
+loaded. `--execute` enables 400 fresh-optimizer updates on repeated-current RGB;
+only before/after JSON scores are saved, not a checkpoint.
+
+| Option | Default / limits |
+|---|---|
+| `--execute` | Off; plan only unless explicitly enabled. |
+| `--source` | `models/imitation/checkpoints/runs/recovery_history_probe_v1/endpoint.pt` |
+| `--output` | `model_attempts/diagnostics/recovery_fit_probe_v1`; existing output refused. |
+| `--recovery-cache` | `data/datasets/recovery_cached_frames`; must match 31 frozen TRAIN episodes. |
+| `--split-manifest` | `data/splits/frozen_v3.json`; must match source. |
+| `--steps` / `--batch-size` | `400` / `8`, positive and at most these defaults. |
+| `--learning-rate` / `--seed` | `5e-5` (positive finite, at most 5e-5) / `0` (nonnegative). |
+| `--time-budget-seconds` | `240`, positive finite and at most 240. |
+| `--device` | `cuda`, no CPU fallback; `cpu` supported for synthetic checks. |
+
+See the [runbook](TRAINING_RUNBOOK.md#recovery-fit-sanity-check--2026-11-02)
+for the 1–3 minute estimate, outer 5-minute limit, class-based scoring and limits
+of training-set fit as evidence of navigation.
+
+## Recovery history probe
+
+`.venv/bin/python run_recovery_history_probe.py` validates the existing completed
+control and prints a single-arm plan; training requires `--execute`. It uses the
+same parent, sample order and 1,000-update budget as that control, with current
+RGB repeated across four history slots on selected recovery draws only.
+
+| Option | Default / behavior |
+|---|---|
+| `--execute` | Off; explicitly enables the new arm. |
+| `--reference` | `models/imitation/checkpoints/runs/recovery_onset_probe_v1/report.json`; requires a completed compatible pair. |
+| `--output` | `models/imitation/checkpoints/runs/recovery_history_probe_v1`; existing output refused. |
+| `--split-manifest` | `data/splits/frozen_v3.json`; must match reference. |
+| `--repeat-probability` | `0.5`; finite in `(0, 1]`, recovery samples only. |
+| `--time-budget-seconds` | `600`; positive and at most 600, shared preparation/train/eval budget. |
+| `--device` | `cuda` (no fallback); `cpu` also supported for synthetic checks. |
+
+See the [runbook](TRAINING_RUNBOOK.md#recovery-history-probe--2026-11-02)
+for runtime estimate, the outer 12-minute service limit, reuse limitations and
+completion criteria. Assessment clips never enter training; no model is promoted.
+
 ## Shell, Fish, and direct diagnostics
+
+Recording CSVs now include additive frame receive-time and input-snapshot
+diagnostics; policy JSONL ticks include frame IDs, reuse/skips and inference/
+action receive ages. No new flags or freshness gates are added. See the
+[history/timing audit](HISTORY_TIMING_AUDIT_2026_11_02.md) for field meaning and
+the isolated 20-second user-run calibration command.
 
 | Command | Options/defaults |
 |---|---|
@@ -315,3 +470,12 @@ the intended Wayland/game session; they are not automated tests.
 
 Automated tests run with
 `.venv/bin/python -m unittest discover -s tests -p 'test_*.py'`.
+
+
+## `run_expert_replay.py`
+
+`--episode PATH` selects a reviewed fresh oracle source. Default operation validates
+files and prints commands without touching the game. `--execute` runs raw replay,
+then binned replay only if raw reaches the goal. `--recording-root PATH` changes
+the dedicated diagnostic output root. These outcomes are not model scores or
+expert training targets. See [protocol and interpretation](EXPERT_ACTION_REPLAY_2026_11_12.md).

@@ -1,0 +1,167 @@
+{
+  "report": "models/imitation/checkpoints/runs/ordered_gru_route_v1/report.json",
+  "report_sha256": "25462f57114756b1ce2d6ca2b54baace98d0e59c8196be795b4df86b3fcf40d8",
+  "comparison_complete": true,
+  "elapsed_seconds": 942.378,
+  "summary": {
+    "deployed_reference": {
+      "navigation_binary_exact": 0.8460358570746058,
+      "navigation_mouse_dx_mae": 6.2918604943549,
+      "opening_idle": 175,
+      "held_episode_mean_binary_exact": 0.6947328574518711,
+      "held_backward_tp": 8,
+      "held_false_backward": 2
+    },
+    "feedforward": {
+      "navigation_guard": {
+        "checks": {
+          "binary_exact": false,
+          "mouse_dx_mae": false,
+          "mouse_dy_mae": true,
+          "opening_idle": true
+        },
+        "passed": false,
+        "meaning": "Navigation imitation guard versus warm-start source; not a game success or promotion gate"
+      },
+      "navigation_binary_exact": 0.8406547813623677,
+      "navigation_mouse_dx_mae": 6.7262692046568935,
+      "opening_idle": 150,
+      "held_episode_mean_binary_exact": 0.6327060350421805,
+      "held_backward_tp": 4,
+      "held_false_backward": 0,
+      "encoder_changed": true,
+      "training_seconds": 156.70067163399654,
+      "training_peak_allocated_mib": 2718.22265625,
+      "human_train_categories": {
+        "exit_finalization": {
+          "binary_exact": 0.49122807017543857,
+          "mouse_mae": [
+            40.10526315789474,
+            5.491228070175438
+          ]
+        },
+        "original_recovery": {
+          "binary_exact": 0.8418181818181818,
+          "mouse_mae": [
+            22.243636363636362,
+            5.7672727272727276
+          ]
+        },
+        "route_recovery": {
+          "binary_exact": 0.7989690721649485,
+          "mouse_mae": [
+            10.592783505154639,
+            3.252577319587629
+          ]
+        }
+      }
+    },
+    "gru": {
+      "navigation_guard": {
+        "checks": {
+          "binary_exact": false,
+          "mouse_dx_mae": false,
+          "mouse_dy_mae": true,
+          "opening_idle": true
+        },
+        "passed": false,
+        "meaning": "Navigation imitation guard versus warm-start source; not a game success or promotion gate"
+      },
+      "navigation_binary_exact": 0.8386431642736805,
+      "navigation_mouse_dx_mae": 6.928663028992431,
+      "opening_idle": 90,
+      "held_episode_mean_binary_exact": 0.5995565650010816,
+      "held_backward_tp": 0,
+      "held_false_backward": 0,
+      "encoder_changed": true,
+      "training_seconds": 150.3124421800021,
+      "training_peak_allocated_mib": 2747.31103515625,
+      "human_train_categories": {
+        "exit_finalization": {
+          "binary_exact": 0.5614035087719298,
+          "mouse_mae": [
+            35.280701754385966,
+            6.842105263157895
+          ]
+        },
+        "original_recovery": {
+          "binary_exact": 0.8436363636363636,
+          "mouse_mae": [
+            21.60181818181818,
+            5.794545454545455
+          ]
+        },
+        "route_recovery": {
+          "binary_exact": 0.8195876288659794,
+          "mouse_mae": [
+            11.711340206185566,
+            3.2628865979381443
+          ]
+        }
+      }
+    },
+    "gru_reset": {
+      "navigation_guard": {
+        "checks": {
+          "binary_exact": false,
+          "mouse_dx_mae": false,
+          "mouse_dy_mae": true,
+          "opening_idle": true
+        },
+        "passed": false,
+        "meaning": "Navigation imitation guard versus warm-start source; not a game success or promotion gate"
+      },
+      "navigation_binary_exact": 0.8335386859111368,
+      "navigation_mouse_dx_mae": 6.87128165153763,
+      "opening_idle": 99,
+      "held_episode_mean_binary_exact": 0.6071274064460307,
+      "held_backward_tp": 2,
+      "held_false_backward": 0,
+      "encoder_changed": true,
+      "training_seconds": 140.19011164500262,
+      "training_peak_allocated_mib": 2748.2939453125,
+      "human_train_categories": {
+        "exit_finalization": {
+          "binary_exact": 0.47368421052631576,
+          "mouse_mae": [
+            34.771929824561404,
+            5.684210526315789
+          ]
+        },
+        "original_recovery": {
+          "binary_exact": 0.8618181818181818,
+          "mouse_mae": [
+            21.91090909090909,
+            5.718181818181818
+          ]
+        },
+        "route_recovery": {
+          "binary_exact": 0.8144329896907216,
+          "mouse_mae": [
+            11.95360824742268,
+            3.2577319587628866
+          ]
+        }
+      }
+    }
+  },
+  "development_screen": {
+    "checks": {
+      "navigation": false,
+      "over_feedforward_by_002": false,
+      "over_reset_by_002": false,
+      "source_heldout_agreement": false,
+      "backward_true_positive": false,
+      "backward_false_positive": true
+    },
+    "passed": false,
+    "meaning": "Fixed development eligibility screen; not gameplay performance or automatic promotion"
+  },
+  "decision": "No gameplay eligibility or promotion; retain deployed. Do not automatically extend or retry.",
+  "limits": [
+    "All new arms deliberately reset action heads; source is a pretrained-head reference, not a matched arm.",
+    "One seed and16090 targets; this result does not rule out benefits from memory with other budgets/data/initialization.",
+    "Human TRAIN corrections total801 unique frames; repeated trajectories do not create new coverage.",
+    "No gameplay evaluation performed for these endpoints."
+  ]
+}

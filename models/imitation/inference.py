@@ -16,6 +16,8 @@ from .checkpoint import load_checkpoint
 from .dataset import BINARY_ACTION_COLUMNS
 from .mouse_bins import MouseBins
 from .network import (
+    GATED_BINNED_ARCHITECTURE_VERSION,
+    GatedBinnedImitationPolicy,
     ARCHITECTURE_VERSION,
     BINNED_ARCHITECTURE_VERSION,
     V3_ARCHITECTURE_VERSION,
@@ -26,6 +28,7 @@ from .network import (
     V3ImitationPolicy,
     V4BinnedImitationPolicy,
 )
+from .recurrent import RECURRENT_ARCHITECTURE_VERSION, RecurrentBinnedPolicy
 from .preprocess import PREPROCESSING_CONFIG, preprocess_bgr_frame
 
 
@@ -48,6 +51,8 @@ class PolicyInference:
         config = checkpoint["config"]
         architecture = config.get("architecture")
         if architecture not in (
+            RECURRENT_ARCHITECTURE_VERSION,
+            GATED_BINNED_ARCHITECTURE_VERSION,
             "shionn_imitation_v1", "shionn_imitation_v2", V3_ARCHITECTURE_VERSION,
             V4_BINNED_ARCHITECTURE_VERSION, ARCHITECTURE_VERSION,
             BINNED_ARCHITECTURE_VERSION,
@@ -60,17 +65,25 @@ class PolicyInference:
         self.mouse_bins = (
             MouseBins(target_processing["mouse_bins"])
             if architecture in (
-                V4_BINNED_ARCHITECTURE_VERSION, BINNED_ARCHITECTURE_VERSION
+                RECURRENT_ARCHITECTURE_VERSION, GATED_BINNED_ARCHITECTURE_VERSION, V4_BINNED_ARCHITECTURE_VERSION, BINNED_ARCHITECTURE_VERSION
             ) else None
         )
         self.mouse_scale = None
         if self.mouse_bins is not None:
             policy_class = (
+                GatedBinnedImitationPolicy if architecture == GATED_BINNED_ARCHITECTURE_VERSION else
                 BinnedImitationPolicy
                 if architecture == BINNED_ARCHITECTURE_VERSION
                 else V4BinnedImitationPolicy
             )
-            self.policy = policy_class(*self.mouse_bins.class_counts()).to(self.device)
+            if architecture == RECURRENT_ARCHITECTURE_VERSION:
+                memory = config["memory"]
+                if memory.get("type") != "gru" or not isinstance(memory.get("feature_gate"), bool):
+                    raise ValueError("Invalid recurrent checkpoint configuration")
+                self.policy = RecurrentBinnedPolicy(*self.mouse_bins.class_counts(),
+                    memory["hidden_size"], memory["feature_gate"]).to(self.device)
+            else:
+                self.policy = policy_class(*self.mouse_bins.class_counts()).to(self.device)
         else:
             self.mouse_scale = np.asarray(target_processing.get("mouse_scale", [1.0, 1.0]), dtype=np.float32)
             if self.mouse_scale.shape != (2,) or np.any(self.mouse_scale <= 0):
@@ -86,10 +99,12 @@ class PolicyInference:
         if self.device.type == "cuda":
             self.policy = self.policy.to(memory_format=torch.channels_last)
         self.policy.eval()
+        self.hidden = None
         self.frames: deque[np.ndarray] = deque(maxlen=PREPROCESSING_CONFIG["frame_stack"])
 
     def reset(self) -> None:
         self.frames.clear()
+        self.hidden = None
 
     def add_frame(self, frame_bgr: np.ndarray) -> None:
         """Add one raw BGR observation from the existing Wayland capture path."""
@@ -115,7 +130,11 @@ class PolicyInference:
         if self.device.type == "cuda":
             input_tensor = input_tensor.contiguous(memory_format=torch.channels_last)
         with torch.no_grad():
-            output = self.policy(input_tensor.div_(255.0))
+            if isinstance(self.policy, RecurrentBinnedPolicy):
+                output, self.hidden = self.policy.step(input_tensor.div_(255.0), self.hidden)
+                self.hidden = self.hidden.detach()
+            else:
+                output = self.policy(input_tensor.div_(255.0))
         action = {name: int(output[name].argmax(dim=1).item()) for name in BINARY_ACTION_COLUMNS}
         probabilities = {
             name: float(torch.softmax(output[name], dim=1)[0, 1].item())

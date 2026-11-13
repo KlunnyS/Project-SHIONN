@@ -1,0 +1,22 @@
+{
+  "report": "models/imitation/checkpoints/runs/opening_rehearsal_v1/report.json",
+  "report_sha256": "63ddecd2a05edb34f85a71692c0cf3a04e50601463bf4b0e1e1d7efd753ded06",
+  "checkpoint": "models/imitation/checkpoints/runs/opening_rehearsal_v1/endpoint.pt",
+  "checkpoint_sha256": "3d735bdb8eba1ffffdbb374d87d29f4159ef9e166e39045cab1d30ebdccbeef4",
+  "decision": "eligible_for_user_run_gameplay_screen_not_promotion",
+  "elapsed_seconds": 285.236,
+  "navigation_guard_passed": true,
+  "additional_development_checks_passed": true,
+  "gameplay_evaluated": false,
+  "opening_idle": {
+    "source": 175,
+    "expanded_control": 192,
+    "opening_rehearsal": 185,
+    "maximum": 191
+  },
+  "limitations": [
+    "Held-out recovery accuracy unchanged relative to expanded control and below source.",
+    "New route improvement measured on TRAIN data only.",
+    "No chamber completion benefit established."
+  ]
+}

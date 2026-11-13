@@ -16,7 +16,7 @@ from record_dataset import (
     parse_args, record_episodes, validate_args,
     wait_for_proactive_start, wait_for_terminal_event,
 )
-from recorder import EpisodeRecorder, InputTracker, _pointer_score, find_input_devices
+from recorder import EpisodeRecorder, FrameSample, InputTracker, _pointer_score, find_input_devices
 from record_recovery import (
     HandoffDiagnostics, main as record_recovery, pointer_inside_portal, wait_for_manual_start,
     wait_for_physical_mouse,
@@ -224,6 +224,7 @@ class EpisodeRecorderOutcomeTest(unittest.TestCase):
         recorder.tracker.pause_is_pending.return_value = False
         recorder.camera = Mock()
         recorder.camera.get_latest_frame.return_value = object()
+        recorder.camera.get_latest_frame_sample.return_value = FrameSample(object(), 1, 0.0)
         recorder.video_writer = Mock()
         recorder.csv_writer = Mock()
         recorder.csv_file = Mock()
@@ -247,6 +248,16 @@ class EpisodeRecorderOutcomeTest(unittest.TestCase):
             [call.args[0][1] for call in recorder.csv_writer.writerow.call_args_list],
             [0, 1],
         )
+        rows = [call.args[0] for call in recorder.csv_writer.writerow.call_args_list]
+        self.assertEqual([r[-1] for r in rows], [0, 1])
+        self.assertIsNone(rows[0][-2])
+        self.assertTrue(rows[1][-2])
+        for row in rows:
+            self.assertEqual(len(row), 21)
+            self.assertLessEqual(row[13], row[14])
+            self.assertEqual(row[15], 1)
+            self.assertEqual(row[16], 0.0)
+            self.assertEqual(row[18], row[17] - row[16])
 
     def test_escape_toggles_pause_and_discards_pending_actions(self):
         recorder = EpisodeRecorder.__new__(EpisodeRecorder)

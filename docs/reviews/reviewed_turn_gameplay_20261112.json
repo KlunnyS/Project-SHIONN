@@ -1,0 +1,221 @@
+{
+  "sequence": "model_attempts/sequences/reviewed_turn_rehearsal_20261112_screen/sequence_20261112_145845_838813",
+  "summary": [
+    {
+      "model": "deployed",
+      "map": "dataset_test1",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "deployed",
+      "map": "dataset_test11",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "deployed",
+      "map": "dataset_test12",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 1,
+      "success_rate": 1.0,
+      "median_success_seconds": 6.145173160000013,
+      "outcomes": {
+        "goal_reached": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "turn",
+      "map": "dataset_test1",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "turn",
+      "map": "dataset_test11",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "turn",
+      "map": "dataset_test12",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 1,
+      "success_rate": 1.0,
+      "median_success_seconds": 6.147459488000095,
+      "outcomes": {
+        "goal_reached": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    }
+  ],
+  "attempts": [
+    {
+      "job": 1,
+      "model": "deployed",
+      "map": "dataset_test1",
+      "outcome": "time_limit",
+      "valid": true,
+      "duration_seconds": 60.01039854999999,
+      "capture_review_reasons": [],
+      "ticks": 1434,
+      "all_zero_action_ticks": 1064,
+      "diagnostic_counts": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      }
+    },
+    {
+      "job": 2,
+      "model": "turn",
+      "map": "dataset_test1",
+      "outcome": "time_limit",
+      "valid": true,
+      "duration_seconds": 60.013996284000314,
+      "capture_review_reasons": [],
+      "ticks": 1440,
+      "all_zero_action_ticks": 534,
+      "diagnostic_counts": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 1
+      }
+    },
+    {
+      "job": 3,
+      "model": "deployed",
+      "map": "dataset_test11",
+      "outcome": "time_limit",
+      "valid": true,
+      "duration_seconds": 59.9810617359999,
+      "capture_review_reasons": [],
+      "ticks": 1440,
+      "all_zero_action_ticks": 1147,
+      "diagnostic_counts": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      }
+    },
+    {
+      "job": 4,
+      "model": "turn",
+      "map": "dataset_test11",
+      "outcome": "time_limit",
+      "valid": true,
+      "duration_seconds": 60.01210294700013,
+      "capture_review_reasons": [],
+      "ticks": 1440,
+      "all_zero_action_ticks": 84,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      }
+    },
+    {
+      "job": 5,
+      "model": "deployed",
+      "map": "dataset_test12",
+      "outcome": "goal_reached",
+      "valid": true,
+      "duration_seconds": 6.145173160000013,
+      "capture_review_reasons": [],
+      "ticks": 148,
+      "all_zero_action_ticks": 0,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      }
+    },
+    {
+      "job": 6,
+      "model": "turn",
+      "map": "dataset_test12",
+      "outcome": "goal_reached",
+      "valid": true,
+      "duration_seconds": 6.147459488000095,
+      "capture_review_reasons": [],
+      "ticks": 148,
+      "all_zero_action_ticks": 0,
+      "diagnostic_counts": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      }
+    }
+  ],
+  "limits": "One attempt per checkpoint/map; inactivity difference is descriptive and does not establish reliable completion or generalization.",
+  "decision": "No promotion/completion gain; exploratory matched camera-cap screen using existing runtime option",
+  "camera_saturation": {
+    "deployed_test1": {
+      "max_bin_ticks": 193,
+      "total_ticks": 1434
+    },
+    "turn_test1": {
+      "max_bin_ticks": 454,
+      "total_ticks": 1440,
+      "longest_max_bin_seconds": 0.92
+    },
+    "deployed_test11": {
+      "max_bin_ticks": 25,
+      "total_ticks": 1440
+    },
+    "turn_test11": {
+      "max_bin_ticks": 661,
+      "total_ticks": 1440,
+      "longest_max_bin_seconds": 3.88
+    }
+  }
+}

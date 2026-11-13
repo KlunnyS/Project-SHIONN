@@ -96,10 +96,31 @@ For each episode, the cache contains the map label when present in the source re
 
 The ten training labels are `move_w`, `move_a`, `move_s`, `move_d`, `jump`, `use`, `fire_left`, `fire_right`, `mouse_dx`, and `mouse_dy`. The recorded `crouch` column is retained in the CSV but excluded from this policy. Existing complete caches are skipped; `--overwrite` rebuilds them. [`models/imitation/dataset.py`](../models/imitation/dataset.py) memory-maps cached arrays, stacks four frames into `(12, 180, 320)`, and excludes leading idle frames before the first recorded action. Splits are made by whole episode, not by individual frame.
 
+New recordings append diagnostic CSV columns for input-snapshot call brackets,
+frame ID, frame receive/sample monotonic times, receive age, reuse and cumulative
+input-discard count. Existing action columns are unchanged; preprocessing ignores
+the extra fields. The camera atomically publishes image/ID/time and retains its
+image-only API. Receive time means completion of the raw pipe read in Python,
+not compositor exposure. IDs identify delivered frames even when pixels are
+identical; input-discard count changes identify pause/resume discontinuities.
+Live policy tick logs include the same selected frame identity, receive ages,
+reuse/skipped IDs and inference brackets. These fields do not change control
+or impose freshness checks. See the [timing audit](HISTORY_TIMING_AUDIT_2026_11_02.md).
+
 On this machine, `episodes/` and `data/datasets/cached_frames/` are symlinks into `/mnt/extra/Project-SHIONN/`. The drive must be mounted before recording, preprocessing, or training. The paths used in commands stay the same.
 The checkpoint and backup directories under `models/imitation/` are also symlinks to `/mnt/extra/Project-SHIONN/models/imitation/`. Put future runs under `models/imitation/checkpoints/runs/<name>` so they use the extra drive without another symlink.
 
 ## 5. Network, training, and checkpoints
+
+Recovery development can additionally reserve whole recovery recordings using
+`data/annotations/recovery_transfer_development_v1.json`, without changing the
+historical frozen-v3 roles. `models/imitation/recovery_transfer.py` validates
+the 22/9/6 partition and pinned initial checkpoint, and returns only permitted
+training manifests. Future trainers must use that loader rather than the older
+all 31-recovery probe loader. `benchmark_recovery_transfer.py` scores initial
+48-frame, full-reference and remainder windows offline, with exposure warnings
+for already-trained recordings. These imitation scores do not measure actual
+wall escape. See the [protocol](RECOVERY_TRANSFER_PROTOCOL_2026_11_03.md).
 
 [`models/imitation/network.py`](../models/imitation/network.py) defines the current 13.2M-parameter `shionn_imitation_v5_residual` family. It takes four 320×180 RGB frames as 12 channels. Residual visual stages use GroupNorm, SiLU, squeeze/excitation, dropout, and a 3×5 spatial bottleneck before eight independent binary action heads and either Gaussian or discrete mouse heads. Exact v1/v2, v3, and v4-binned implementations remain available for loading older checkpoints. The model does not read the chamber label or netconsole messages.
 

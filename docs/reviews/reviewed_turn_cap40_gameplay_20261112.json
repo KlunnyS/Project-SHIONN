@@ -1,0 +1,219 @@
+{
+  "sequence": "model_attempts/sequences/reviewed_turn_cap40_20261112_screen/sequence_20261112_152240_816868",
+  "summary": [
+    {
+      "model": "deployed",
+      "map": "dataset_test1",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "deployed",
+      "map": "dataset_test11",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "deployed",
+      "map": "dataset_test12",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 1,
+      "success_rate": 1.0,
+      "median_success_seconds": 6.1929875299993,
+      "outcomes": {
+        "goal_reached": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "turn",
+      "map": "dataset_test1",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "turn",
+      "map": "dataset_test11",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "turn",
+      "map": "dataset_test12",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 1,
+      "success_rate": 1.0,
+      "median_success_seconds": 6.1633841340008075,
+      "outcomes": {
+        "goal_reached": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    }
+  ],
+  "attempts": [
+    {
+      "job": 1,
+      "model": "deployed",
+      "map": "dataset_test1",
+      "outcome": "time_limit",
+      "valid": true,
+      "duration_seconds": 60.01166478199957,
+      "capture_review_reasons": [],
+      "ticks": 1433,
+      "zero_action_ticks": 1215,
+      "limited_ticks": 37,
+      "max_applied_dx": 40,
+      "configured_cap": 40,
+      "diagnostics": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      }
+    },
+    {
+      "job": 2,
+      "model": "turn",
+      "map": "dataset_test1",
+      "outcome": "time_limit",
+      "valid": true,
+      "duration_seconds": 59.985489049000535,
+      "capture_review_reasons": [],
+      "ticks": 1440,
+      "zero_action_ticks": 1117,
+      "limited_ticks": 104,
+      "max_applied_dx": 40,
+      "configured_cap": 40,
+      "diagnostics": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      }
+    },
+    {
+      "job": 3,
+      "model": "deployed",
+      "map": "dataset_test11",
+      "outcome": "time_limit",
+      "valid": true,
+      "duration_seconds": 59.973260284999924,
+      "capture_review_reasons": [],
+      "ticks": 1440,
+      "zero_action_ticks": 1256,
+      "limited_ticks": 12,
+      "max_applied_dx": 40,
+      "configured_cap": 40,
+      "diagnostics": {
+        "policy_freeze": 1,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      }
+    },
+    {
+      "job": 4,
+      "model": "turn",
+      "map": "dataset_test11",
+      "outcome": "time_limit",
+      "valid": true,
+      "duration_seconds": 59.97440975799873,
+      "capture_review_reasons": [],
+      "ticks": 1440,
+      "zero_action_ticks": 913,
+      "limited_ticks": 202,
+      "max_applied_dx": 40,
+      "configured_cap": 40,
+      "diagnostics": {
+        "policy_freeze": 2,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      }
+    },
+    {
+      "job": 5,
+      "model": "deployed",
+      "map": "dataset_test12",
+      "outcome": "goal_reached",
+      "valid": true,
+      "duration_seconds": 6.1929875299993,
+      "capture_review_reasons": [],
+      "ticks": 149,
+      "zero_action_ticks": 0,
+      "limited_ticks": 0,
+      "max_applied_dx": 0,
+      "configured_cap": 40,
+      "diagnostics": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      }
+    },
+    {
+      "job": 6,
+      "model": "turn",
+      "map": "dataset_test12",
+      "outcome": "goal_reached",
+      "valid": true,
+      "duration_seconds": 6.1633841340008075,
+      "capture_review_reasons": [],
+      "ticks": 148,
+      "zero_action_ticks": 0,
+      "limited_ticks": 0,
+      "max_applied_dx": 0,
+      "configured_cap": 40,
+      "diagnostics": {
+        "policy_freeze": 0,
+        "wall_stuck": 0,
+        "turn_loop": 0
+      }
+    }
+  ],
+  "decision": "Reject cap40; no completion gain, no promotion or further runtime parameter sweep",
+  "limits": "One attempt per checkpoint/map and different visited states; no statistical or causal inactivity claim"
+}

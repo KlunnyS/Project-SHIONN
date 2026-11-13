@@ -1,0 +1,43 @@
+{
+  "total_training_targets": 10000,
+  "human_targets": 2000,
+  "new_episodes": [
+    {
+      "episode": "episode_20261112_135338_796624",
+      "usable_frames": 224,
+      "human_targets_drawn": 280,
+      "first8_targets_drawn": 8,
+      "first24_targets_drawn": 27
+    },
+    {
+      "episode": "episode_20261112_135423_667677",
+      "usable_frames": 128,
+      "human_targets_drawn": 161,
+      "first8_targets_drawn": 11,
+      "first24_targets_drawn": 34
+    },
+    {
+      "episode": "episode_20261112_135500_680664",
+      "usable_frames": 202,
+      "human_targets_drawn": 255,
+      "first8_targets_drawn": 11,
+      "first24_targets_drawn": 34
+    },
+    {
+      "episode": "episode_20261112_135549_610461",
+      "usable_frames": 124,
+      "human_targets_drawn": 150,
+      "first8_targets_drawn": 9,
+      "first24_targets_drawn": 27
+    },
+    {
+      "episode": "episode_20261112_134935_742233",
+      "usable_frames": 128,
+      "human_targets_drawn": 159,
+      "first8_targets_drawn": 11,
+      "first24_targets_drawn": 30
+    }
+  ],
+  "first8_new_targets": 50,
+  "limits": "Descriptive exposure audit; insufficient exposure is a hypothesis, not a proven cause."
+}

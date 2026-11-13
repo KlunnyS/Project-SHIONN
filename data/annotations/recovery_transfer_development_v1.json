@@ -1,0 +1,776 @@
+{
+  "version": 1,
+  "experiment_id": "recovery-transfer-development-v1",
+  "status": "protocol_frozen_training_not_prepared",
+  "created": "2026-11-03",
+  "source": "models/imitation/checkpoints/runs/v5_balanced_recovery_v1/best.pt",
+  "source_sha256": "acbcd418099451771bf6b4ed3b544506bcdfdbe7c76c8cdfe5ce66610ffbb900",
+  "source_sidecar_sha256": "cd919b53d82cd99fa4fa195a6e2ea84bceaf79416deef2716c78539cd8e5a7ea",
+  "source_architecture": "shionn_imitation_v5_residual_binned",
+  "source_training_episode_count": 1100,
+  "source_recovery_episode_overlap": [],
+  "parent_frozen_split": "data/splits/frozen_v3.json",
+  "parent_frozen_split_sha256": "2680429b46e154c23ae0a8c651575c6704cbf8a860c049059eb017e8abaaee4e",
+  "reserved_recovery_maps": [
+    "dataset_test2",
+    "dataset_test5",
+    "dataset_test8"
+  ],
+  "train_recovery_episodes": [
+    "episode_20260920_210843_068095",
+    "episode_20261018_130955_814147",
+    "episode_20261018_131249_520358",
+    "episode_20261018_131327_120812",
+    "episode_20261018_131559_078125",
+    "episode_20261018_131816_636852",
+    "episode_20261018_131919_601509",
+    "episode_20261018_132013_322929",
+    "episode_20261018_132204_452775",
+    "episode_20261018_132532_676000",
+    "episode_20261018_132657_402055",
+    "episode_20261018_132947_248803",
+    "episode_20261018_133032_772325",
+    "episode_20261018_133223_072374",
+    "episode_20261018_133340_378769",
+    "episode_20261018_133413_645119",
+    "episode_20261018_133726_604972",
+    "episode_20261018_133832_802839",
+    "episode_20261018_133953_379738",
+    "episode_20261018_134042_081172",
+    "episode_20261018_134352_421441",
+    "episode_20261018_134504_714304"
+  ],
+  "validation_recovery_episodes": [
+    "episode_20261018_131054_267348",
+    "episode_20261018_131409_782389",
+    "episode_20261018_131850_921569",
+    "episode_20261018_132346_524879",
+    "episode_20261018_132758_295463",
+    "episode_20261018_133110_119878",
+    "episode_20261018_133541_343641",
+    "episode_20261018_133917_677548",
+    "episode_20261018_134229_435646"
+  ],
+  "diagnostic_only_episodes": [
+    "episode_20261101_132850_051907",
+    "episode_20261101_141223_833252",
+    "episode_20261101_141247_673721",
+    "episode_20261101_141321_386858",
+    "episode_20261101_141409_108792",
+    "episode_20261101_141451_380795"
+  ],
+  "window_frames": 48,
+  "window_seconds_at24fps": 2,
+  "limitations": [
+    "Development holdout, not untouched final test.",
+    "Source knows base navigation maps; this is not unseen-map generalization.",
+    "Grouped recovery maps reduce same-chamber recovery duplicates; base-data visual overlap is not excluded.",
+    "All later recovery-trained checkpoints are ineligible clean initializations.",
+    "Original frozen_v3 roles remain unchanged; this experiment imposes additional exclusions."
+  ],
+  "records": [
+    {
+      "episode": "episode_20260920_210843_068095",
+      "group": "recovery",
+      "map": "dataset_test9",
+      "frame_count": 247,
+      "first_active_frame": 34,
+      "horizontal_onset_candidate": 38,
+      "reference_window": [
+        34,
+        246
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        34,
+        82
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_130955_814147",
+      "group": "recovery",
+      "map": "dataset_test1",
+      "frame_count": 152,
+      "first_active_frame": 30,
+      "horizontal_onset_candidate": 30,
+      "reference_window": [
+        30,
+        151
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        30,
+        78
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_131054_267348",
+      "group": "recovery",
+      "map": "dataset_test2",
+      "frame_count": 77,
+      "first_active_frame": 23,
+      "horizontal_onset_candidate": 26,
+      "reference_window": [
+        23,
+        76
+      ],
+      "role": "recovery_validation",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        23,
+        71
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_131249_520358",
+      "group": "recovery",
+      "map": "dataset_test3",
+      "frame_count": 137,
+      "first_active_frame": 28,
+      "horizontal_onset_candidate": 27,
+      "reference_window": [
+        28,
+        136
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        28,
+        76
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_131327_120812",
+      "group": "recovery",
+      "map": "dataset_test4",
+      "frame_count": 343,
+      "first_active_frame": 21,
+      "horizontal_onset_candidate": 23,
+      "reference_window": [
+        21,
+        342
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        21,
+        69
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_131409_782389",
+      "group": "recovery",
+      "map": "dataset_test5",
+      "frame_count": 143,
+      "first_active_frame": 31,
+      "horizontal_onset_candidate": 38,
+      "reference_window": [
+        31,
+        142
+      ],
+      "role": "recovery_validation",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        31,
+        79
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_131559_078125",
+      "group": "recovery",
+      "map": "dataset_test6",
+      "frame_count": 149,
+      "first_active_frame": 27,
+      "horizontal_onset_candidate": 30,
+      "reference_window": [
+        27,
+        148
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        27,
+        75
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_131816_636852",
+      "group": "recovery",
+      "map": "dataset_test7",
+      "frame_count": 138,
+      "first_active_frame": 22,
+      "horizontal_onset_candidate": 20,
+      "reference_window": [
+        22,
+        137
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        22,
+        70
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_131850_921569",
+      "group": "recovery",
+      "map": "dataset_test8",
+      "frame_count": 83,
+      "first_active_frame": 20,
+      "horizontal_onset_candidate": 24,
+      "reference_window": [
+        20,
+        82
+      ],
+      "role": "recovery_validation",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        20,
+        68
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_131919_601509",
+      "group": "recovery",
+      "map": "dataset_test9",
+      "frame_count": 252,
+      "first_active_frame": 32,
+      "horizontal_onset_candidate": 30,
+      "reference_window": [
+        32,
+        251
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        32,
+        80
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_132013_322929",
+      "group": "recovery",
+      "map": "dataset_test10",
+      "frame_count": 84,
+      "first_active_frame": 22,
+      "horizontal_onset_candidate": 23,
+      "reference_window": [
+        22,
+        83
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        22,
+        70
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_132204_452775",
+      "group": "recovery",
+      "map": "dataset_test1",
+      "frame_count": 222,
+      "first_active_frame": 51,
+      "horizontal_onset_candidate": 49,
+      "reference_window": [
+        51,
+        221
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        51,
+        99
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_132346_524879",
+      "group": "recovery",
+      "map": "dataset_test2",
+      "frame_count": 114,
+      "first_active_frame": 29,
+      "horizontal_onset_candidate": 28,
+      "reference_window": [
+        29,
+        113
+      ],
+      "role": "recovery_validation",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        29,
+        77
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_132532_676000",
+      "group": "recovery",
+      "map": "dataset_test3",
+      "frame_count": 158,
+      "first_active_frame": 19,
+      "horizontal_onset_candidate": 18,
+      "reference_window": [
+        19,
+        157
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        19,
+        67
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_132657_402055",
+      "group": "recovery",
+      "map": "dataset_test4",
+      "frame_count": 262,
+      "first_active_frame": 21,
+      "horizontal_onset_candidate": 20,
+      "reference_window": [
+        21,
+        261
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        21,
+        69
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_132758_295463",
+      "group": "recovery",
+      "map": "dataset_test5",
+      "frame_count": 161,
+      "first_active_frame": 15,
+      "horizontal_onset_candidate": 13,
+      "reference_window": [
+        15,
+        160
+      ],
+      "role": "recovery_validation",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        15,
+        63
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_132947_248803",
+      "group": "recovery",
+      "map": "dataset_test6",
+      "frame_count": 126,
+      "first_active_frame": 19,
+      "horizontal_onset_candidate": 17,
+      "reference_window": [
+        19,
+        125
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        19,
+        67
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_133032_772325",
+      "group": "recovery",
+      "map": "dataset_test7",
+      "frame_count": 201,
+      "first_active_frame": 19,
+      "horizontal_onset_candidate": 17,
+      "reference_window": [
+        19,
+        200
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        19,
+        67
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_133110_119878",
+      "group": "recovery",
+      "map": "dataset_test8",
+      "frame_count": 90,
+      "first_active_frame": 17,
+      "horizontal_onset_candidate": 15,
+      "reference_window": [
+        17,
+        89
+      ],
+      "role": "recovery_validation",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        17,
+        65
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_133223_072374",
+      "group": "recovery",
+      "map": "dataset_test9",
+      "frame_count": 321,
+      "first_active_frame": 1,
+      "horizontal_onset_candidate": 0,
+      "reference_window": [
+        1,
+        320
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        1,
+        49
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_133340_378769",
+      "group": "recovery",
+      "map": "dataset_test10",
+      "frame_count": 126,
+      "first_active_frame": 24,
+      "horizontal_onset_candidate": 22,
+      "reference_window": [
+        24,
+        125
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        24,
+        72
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_133413_645119",
+      "group": "recovery",
+      "map": "dataset_test1",
+      "frame_count": 181,
+      "first_active_frame": 48,
+      "horizontal_onset_candidate": 46,
+      "reference_window": [
+        48,
+        180
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        48,
+        96
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_133541_343641",
+      "group": "recovery",
+      "map": "dataset_test2",
+      "frame_count": 85,
+      "first_active_frame": 11,
+      "horizontal_onset_candidate": 17,
+      "reference_window": [
+        11,
+        84
+      ],
+      "role": "recovery_validation",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        11,
+        59
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_133726_604972",
+      "group": "recovery",
+      "map": "dataset_test3",
+      "frame_count": 144,
+      "first_active_frame": 27,
+      "horizontal_onset_candidate": 25,
+      "reference_window": [
+        27,
+        143
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        27,
+        75
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_133832_802839",
+      "group": "recovery",
+      "map": "dataset_test4",
+      "frame_count": 366,
+      "first_active_frame": 20,
+      "horizontal_onset_candidate": 18,
+      "reference_window": [
+        20,
+        365
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        20,
+        68
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_133917_677548",
+      "group": "recovery",
+      "map": "dataset_test5",
+      "frame_count": 135,
+      "first_active_frame": 14,
+      "horizontal_onset_candidate": 12,
+      "reference_window": [
+        14,
+        134
+      ],
+      "role": "recovery_validation",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        14,
+        62
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_133953_379738",
+      "group": "recovery",
+      "map": "dataset_test6",
+      "frame_count": 118,
+      "first_active_frame": 17,
+      "horizontal_onset_candidate": 15,
+      "reference_window": [
+        17,
+        117
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        17,
+        65
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_134042_081172",
+      "group": "recovery",
+      "map": "dataset_test7",
+      "frame_count": 79,
+      "first_active_frame": 24,
+      "horizontal_onset_candidate": 22,
+      "reference_window": [
+        24,
+        78
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        24,
+        72
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_134229_435646",
+      "group": "recovery",
+      "map": "dataset_test8",
+      "frame_count": 82,
+      "first_active_frame": 21,
+      "horizontal_onset_candidate": 19,
+      "reference_window": [
+        21,
+        81
+      ],
+      "role": "recovery_validation",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        21,
+        69
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_134352_421441",
+      "group": "recovery",
+      "map": "dataset_test9",
+      "frame_count": 220,
+      "first_active_frame": 20,
+      "horizontal_onset_candidate": 18,
+      "reference_window": [
+        20,
+        219
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        20,
+        68
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261018_134504_714304",
+      "group": "recovery",
+      "map": "dataset_test10",
+      "frame_count": 216,
+      "first_active_frame": 28,
+      "horizontal_onset_candidate": 44,
+      "reference_window": [
+        28,
+        215
+      ],
+      "role": "train",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        28,
+        76
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261101_132850_051907",
+      "group": "assessment",
+      "map": "dataset_test1",
+      "frame_count": 213,
+      "first_active_frame": 53,
+      "horizontal_onset_candidate": 56,
+      "reference_window": [
+        53,
+        212
+      ],
+      "role": "diagnostic_only",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        53,
+        101
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261101_141223_833252",
+      "group": "assessment",
+      "map": "dataset_test1",
+      "frame_count": 182,
+      "first_active_frame": 29,
+      "horizontal_onset_candidate": 27,
+      "reference_window": [
+        29,
+        181
+      ],
+      "role": "diagnostic_only",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        29,
+        77
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261101_141247_673721",
+      "group": "assessment",
+      "map": "dataset_test1",
+      "frame_count": 157,
+      "first_active_frame": 17,
+      "horizontal_onset_candidate": 16,
+      "reference_window": [
+        17,
+        156
+      ],
+      "role": "diagnostic_only",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        17,
+        65
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261101_141321_386858",
+      "group": "assessment",
+      "map": "dataset_test1",
+      "frame_count": 177,
+      "first_active_frame": 18,
+      "horizontal_onset_candidate": 16,
+      "reference_window": [
+        18,
+        176
+      ],
+      "role": "diagnostic_only",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        18,
+        66
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261101_141409_108792",
+      "group": "assessment",
+      "map": "dataset_test1",
+      "frame_count": 166,
+      "first_active_frame": 22,
+      "horizontal_onset_candidate": 20,
+      "reference_window": [
+        22,
+        165
+      ],
+      "role": "diagnostic_only",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        22,
+        70
+      ],
+      "offline_window_end_exclusive": true
+    },
+    {
+      "episode": "episode_20261101_141451_380795",
+      "group": "assessment",
+      "map": "dataset_test1",
+      "frame_count": 154,
+      "first_active_frame": 31,
+      "horizontal_onset_candidate": 29,
+      "reference_window": [
+        31,
+        153
+      ],
+      "role": "diagnostic_only",
+      "window_status": "five sampled frames visually reviewed across full clip; precise escape boundary uncertified",
+      "offline_window": [
+        31,
+        79
+      ],
+      "offline_window_end_exclusive": true
+    }
+  ]
+}

@@ -1,0 +1,149 @@
+{
+  "scope": "Global backward threshold feasibility; no weights/decoder changed. Selection uses TRAIN calibration only; held reviewed diagnostics not selection.",
+  "sample_seed": 8105,
+  "sampled_base_frames": 10000,
+  "models": {
+    "source": {
+      "at_default": {
+        "base_calibration": {
+          "tp": 32,
+          "positive": 60,
+          "fp": 6,
+          "negative": 9940
+        },
+        "new_train": {
+          "tp": 3,
+          "positive": 6,
+          "fp": 1,
+          "negative": 544
+        },
+        "old_backward_train": {
+          "tp": 48,
+          "positive": 94,
+          "fp": 0,
+          "negative": 0
+        },
+        "old_first_backward_train": {
+          "tp": 2,
+          "positive": 11,
+          "fp": 0,
+          "negative": 0
+        },
+        "held": {
+          "tp": 8,
+          "positive": 40,
+          "fp": 2,
+          "negative": 232
+        }
+      },
+      "calibrated": {
+        "threshold": 0.43906375765800476,
+        "base_false_positive_limit": 6,
+        "metrics": {
+          "base_calibration": {
+            "tp": 36,
+            "positive": 60,
+            "fp": 6,
+            "negative": 9940
+          },
+          "new_train": {
+            "tp": 3,
+            "positive": 6,
+            "fp": 1,
+            "negative": 544
+          },
+          "old_backward_train": {
+            "tp": 55,
+            "positive": 94,
+            "fp": 0,
+            "negative": 0
+          },
+          "old_first_backward_train": {
+            "tp": 3,
+            "positive": 11,
+            "fp": 0,
+            "negative": 0
+          },
+          "held": {
+            "tp": 8,
+            "positive": 40,
+            "fp": 2,
+            "negative": 232
+          }
+        }
+      }
+    },
+    "rehearsal": {
+      "at_default": {
+        "base_calibration": {
+          "tp": 48,
+          "positive": 60,
+          "fp": 22,
+          "negative": 9940
+        },
+        "new_train": {
+          "tp": 3,
+          "positive": 6,
+          "fp": 1,
+          "negative": 544
+        },
+        "old_backward_train": {
+          "tp": 80,
+          "positive": 94,
+          "fp": 0,
+          "negative": 0
+        },
+        "old_first_backward_train": {
+          "tp": 10,
+          "positive": 11,
+          "fp": 0,
+          "negative": 0
+        },
+        "held": {
+          "tp": 13,
+          "positive": 40,
+          "fp": 4,
+          "negative": 232
+        }
+      },
+      "calibrated": {
+        "threshold": 0.8967357873916626,
+        "base_false_positive_limit": 6,
+        "metrics": {
+          "base_calibration": {
+            "tp": 30,
+            "positive": 60,
+            "fp": 6,
+            "negative": 9940
+          },
+          "new_train": {
+            "tp": 3,
+            "positive": 6,
+            "fp": 1,
+            "negative": 544
+          },
+          "old_backward_train": {
+            "tp": 45,
+            "positive": 94,
+            "fp": 0,
+            "negative": 0
+          },
+          "old_first_backward_train": {
+            "tp": 2,
+            "positive": 11,
+            "fp": 0,
+            "negative": 0
+          },
+          "held": {
+            "tp": 8,
+            "positive": 40,
+            "fp": 0,
+            "negative": 232
+          }
+        }
+      }
+    }
+  },
+  "rehearsal_report_sha256": "19a0f26b4947b3c1955882e466398a5fe113ae8d34ef36eee3a6472b2a36b5d5",
+  "decision": "No global threshold change. Lower false-positive constraints remove held-out recall gain. No live improvement established."
+}

@@ -180,11 +180,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--port", type=int, default=8020)
     parser.add_argument("--fps", type=float, default=24.0)
+    parser.add_argument('--expert-replay',type=Path,help='Diagnostic oracle episode; no neural policy is used')
+    parser.add_argument('--replay-encoding',choices=('raw','binned'),default='raw')
+    parser.add_argument("--model-fps", type=float, default=None,
+                        help="Decision rate; defaults to --fps and must divide it evenly. Capture/input stay at --fps")
     parser.add_argument("--width", type=int, default=1920)
     parser.add_argument("--height", type=int, default=1080)
     parser.add_argument("--output", help="Wayland output name from `wf-recorder -L`; defaults to the first output")
     parser.add_argument("--map", dest="map_name", help="Optional map to load after connecting, for example puzzlemaker/preview")
     parser.add_argument("--countdown", type=float, default=3.0)
+    parser.add_argument("--post-preflight-settle", type=float,
+                        help="Wait after the final preflight map reload; default max(0.25, countdown), 0.25 reproduces old timing")
     parser.add_argument("--max-seconds", type=float, default=60.0, help="Stop automatically; use 0 to run until Ctrl+C")
     parser.add_argument("--disable-chamber-timeout", action="store_true",
                         help="Require the installed SHIONN VScript to acknowledge timeout suppression")
@@ -212,7 +218,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.hyprland_confine_pointer:
         args.hyprland_focus_guard = True
+    if args.post_preflight_settle is not None:
+        if not args.mouse_preflight:
+            parser.error("--post-preflight-settle requires --mouse-preflight")
+        if not np.isfinite(args.post_preflight_settle) or args.post_preflight_settle < 0:
+            parser.error("--post-preflight-settle must be finite and nonnegative")
     return args
+
+
+def wait_post_preflight(monitor, seconds, log):
+    """Bounded, interruptible settle after the FINAL reload; no game input."""
+    started = time.monotonic()
+    log.write("startup_settle", phase="started", requested_seconds=seconds,
+              started_monotonic=started, startup_timing_version=2)
+    cancelled = monitor.wait(seconds)
+    log.write("startup_settle", phase="cancelled" if cancelled else "complete",
+              requested_seconds=seconds, elapsed_seconds=time.monotonic() - started,
+              startup_timing_version=2)
+    return not cancelled
 
 
 def make_attempt_recording_path(
@@ -1054,9 +1077,15 @@ def mouse_capture_preflight(controller, instance, stop_monitor, log):
 
 def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
     args = parse_args(argv)
+    print("Preparing inference libraries...", flush=True)
+    startup_started = time.monotonic()
     # Project inference module is loaded here, after CLI parsing, for runner startup.
-    from models.imitation.inference import PolicyInference
+    if args.expert_replay is None:
+        from models.imitation.inference import PolicyInference
 
+    from policy_decision_rate import DecisionRatePolicy, decision_interval
+    model_interval = decision_interval(args.fps, args.model_fps)
+    if args.expert_replay is None and args.replay_encoding!='raw':raise ValueError('--replay-encoding requires --expert-replay')
     if args.fps <= 0:
         raise ValueError("--fps must be greater than zero")
     if args.max_seconds < 0:
@@ -1087,11 +1116,30 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
     if not args.checkpoint.is_file():
         raise FileNotFoundError(f"Checkpoint not found: {args.checkpoint}")
 
-    policy = PolicyInference(
-        args.checkpoint, device=args.device, jump_threshold=args.jump_threshold,
-        move_w_threshold=args.move_w_threshold,
-    )
+    if args.expert_replay is not None:
+        from expert_action_replay import ExpertReplay
+        if (args.fps!=24 or model_interval!=1 or not args.no_launch or not args.keep_focused
+                or not args.mouse_preflight or not args.hyprland_focus_guard or not args.hyprland_confine_pointer
+                or args.mouse_max_abs is not None or args.jump_threshold is not None or args.move_w_threshold is not None
+                or args.continue_after_event or args.recovery_handoff or args.dry_run or args.post_preflight_settle!=3.
+                or not args.disable_chamber_timeout or not 0<args.max_seconds<=65 or not 0<=args.countdown<=5):
+            raise ValueError('Oracle replay requires24Hz,3s settle, all focus/preflight safeguards, no launch or action overrides')
+        policy=ExpertReplay(args.expert_replay,args.replay_encoding)
+        source=policy.source['metadata'];capture=source['oracle']['capture']
+        if args.port!=source['oracle']['port'] or args.map_name!=source['map'] or args.checkpoint.resolve()!=Path(source['oracle']['checkpoint']).resolve():raise ValueError('Oracle map/bin reference mismatch')
+        if args.width!=capture['width'] or args.height!=capture['height'] or args.output!=capture['output']:raise ValueError('Oracle capture geometry/output mismatch')
+        print('Recorded expert replay loaded; neural policy is bypassed.',flush=True)
+    else:
+        print("Loading policy checkpoint and initializing inference; console connection follows...", flush=True)
+        policy = PolicyInference(
+            args.checkpoint, device=args.device, jump_threshold=args.jump_threshold,
+            move_w_threshold=args.move_w_threshold,
+        )
 
+    if model_interval > 1:
+        policy = DecisionRatePolicy(policy, model_interval)
+
+    print(f"Policy ready after {time.monotonic() - startup_started:.1f}s; checking game and connecting to console...", flush=True)
     if not is_game_running():
         if args.no_launch:
             raise RuntimeError("Portal 2 is not running")
@@ -1129,6 +1177,7 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
     visual_change_total = 0.0
     visual_change_samples = 0
     previous_frame_sample = None
+    previous_capture_id = None
     input_ready = None
     visual_state = None
     saved_restart_binding = None
@@ -1177,7 +1226,10 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
             "P hands off, R restarts this chamber, K stops the session; Esc/Ctrl+C is emergency stop."
             if args.recovery_handoff else "Esc/Ctrl+C stops the policy."
         )
-        print(f"Starting in {args.countdown:g} seconds. {controls}")
+        if args.mouse_preflight:
+            print(f"Preparing mouse capture in {args.countdown:g} seconds; policy starts after preflight and settling. {controls}")
+        else:
+            print(f"Starting in {args.countdown:g} seconds. {controls}")
         if escape_monitor.wait(max(0.0, args.countdown)):
             print("\nEscape pressed. Cancelling policy run.")
             return
@@ -1211,7 +1263,8 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
             attempt_log = AttemptLog(log_path)
             attempt_log.write(
                 "metadata",
-                checkpoint=str(args.checkpoint),
+                checkpoint=None if args.expert_replay is not None else str(args.checkpoint),
+                **({'policy_kind':'expert_replay','expert_replay':policy.describe(),'expert_targets':False} if args.expert_replay is not None else {}),
                 runner_pid=os.getpid(),
                 shared_virtual_mouse=virtual_mouse is not None,
                 device=str(policy.device),
@@ -1221,6 +1274,11 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                     "width": args.width,
                     "height": args.height,
                     "fps": args.fps,
+                    "model_fps": args.model_fps if args.model_fps is not None else args.fps,
+                    "decision_interval_ticks": model_interval,
+                    "mouse_repeat_semantics": "per_control_tick_delta",
+                    "frame_timestamp": "complete_raw_frame_received_in_python",
+                    "frame_timing_version": 1,
                 },
                 video=str(video_path) if video_path else None,
                 dry_run=args.dry_run,
@@ -1231,6 +1289,10 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                 mouse_max_abs=args.mouse_max_abs,
                 telemetry_hz=args.telemetry_hz,
                 mouse_preflight=args.mouse_preflight,
+                startup_timing={"version": 2, "initial_countdown_seconds": args.countdown,
+                    "post_preflight_settle_seconds": (args.post_preflight_settle
+                        if args.post_preflight_settle is not None else max(0.25, args.countdown))
+                        if args.mouse_preflight else None},
                 focus_guard=focus_guard.describe() if focus_guard else None,
                 chamber_timeout_disabled=args.disable_chamber_timeout,
                 mouse_bins=policy.mouse_bins.config if policy.mouse_bins is not None else None,
@@ -1273,8 +1335,16 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
             focus_status = activate_portal_input(controller, args.hyprland_instance)
             if (focus_status or {}).get("portal_focused") is not True:
                 raise MouseCaptureError("Could not restore focus after preflight")
-            if escape_monitor.wait(0.25):
-                raise InterruptedError("Emergency stop after mouse preflight")
+            settle = args.post_preflight_settle if args.post_preflight_settle is not None else max(0.25, args.countdown)
+            print(f"Chamber reloaded; settling for {settle:g} seconds before policy control.", flush=True)
+            if not wait_post_preflight(escape_monitor, settle, attempt_log):
+                stop_reason = "escape_key"
+                preflight_status = "cancelled"
+                attempt_log.write("stop", reason=stop_reason, phase="post_preflight_settle")
+                return
+            focus_status = query_hyprland_active_window(args.hyprland_instance)
+            if (focus_status or {}).get("portal_focused") is not True:
+                raise MouseCaptureError("Focus lost during post-preflight settling")
             policy.reset()
             preflight_status = "passed"
             attempt_log.write("mouse_preflight", phase="complete", status="passed", map_reloaded=True)
@@ -1318,6 +1388,9 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
             desktop_telemetry.start()
             camera_telemetry = CameraTelemetry(controller, attempt_log, args.telemetry_hz)
 
+        if args.expert_replay is not None:
+            pose_check=policy.begin(controller)
+            if attempt_log is not None:attempt_log.write('expert_replay_start_verified',**pose_check)
         started = time.monotonic()
         next_tick = started
         next_status = started
@@ -1325,6 +1398,10 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
         tick_duration = 1.0 / args.fps
         print("Policy control started. " + controls, flush=True)
         while not args.max_seconds or time.monotonic() - started < args.max_seconds:
+            if args.expert_replay is not None and policy.exhausted:
+                stop_reason='expert_replay_exhausted'
+                if attempt_log is not None:attempt_log.write('stop',reason=stop_reason)
+                break
             if escape_monitor.session_stop_requested:
                 print("\nK pressed. Stopping recovery session.")
                 stop_reason = "session_stop"
@@ -1392,7 +1469,20 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                                       telemetry=desktop_state, tick=tick_count)
             elif focused is True:
                 input_ready = not args.dry_run
-            frame = camera.get_latest_frame()
+            capture_sample = camera.get_latest_frame_sample()
+            frame_sampled = time.monotonic()
+            frame = capture_sample.frame
+            frame_timing = {
+                "frame_id": capture_sample.frame_id,
+                "received_monotonic": capture_sample.received_monotonic,
+                "sampled_monotonic": frame_sampled,
+                "age_at_sample_seconds": frame_sampled - capture_sample.received_monotonic
+                if capture_sample.received_monotonic is not None else None,
+                "reused": capture_sample.frame_id == previous_capture_id
+                if capture_sample.frame_id is not None and previous_capture_id is not None else None,
+                "skipped_frames": max(0, capture_sample.frame_id - previous_capture_id - 1)
+                if capture_sample.frame_id is not None and previous_capture_id is not None else None,
+            }
             action = None
             raw_action = None
             action_applied = False
@@ -1405,7 +1495,31 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                     visual_change_samples += 1
                 if video_writer is not None:
                     video_writer.write(frame)
+                frame_timing["inference_started_monotonic"] = time.monotonic()
+                frame_timing["age_at_inference_seconds"] = frame_timing["inference_started_monotonic"] - capture_sample.received_monotonic \
+                    if capture_sample.received_monotonic is not None else None
                 raw_action, diagnostics = policy.predict_with_diagnostics(frame)
+                frame_timing["inference_finished_monotonic"] = time.monotonic()
+                if args.expert_replay is not None:
+                    frame_timing['action_lookup_started_monotonic']=frame_timing['inference_started_monotonic']
+                    frame_timing['action_lookup_finished_monotonic']=frame_timing['inference_finished_monotonic']
+                    frame_timing['inference_started_monotonic']=None
+                    frame_timing['inference_finished_monotonic']=None
+                    frame_timing['age_at_inference_seconds']=None
+                rate_info = diagnostics.get("decision_rate")
+                if rate_info is not None:
+                    if rate_info["refreshed"]:
+                        decision_source = {
+                            "frame_id": capture_sample.frame_id,
+                            "received_monotonic": capture_sample.received_monotonic,
+                        }
+                    rate_info["source_observation"] = dict(decision_source)
+                    frame_timing["model_decision_refreshed"] = rate_info["refreshed"]
+                    if not rate_info["refreshed"]:
+                        frame_timing["inference_started_monotonic"] = None
+                        frame_timing["inference_finished_monotonic"] = None
+                        frame_timing["age_at_inference_seconds"] = None
+                previous_capture_id = capture_sample.frame_id
                 action = limit_mouse_action(raw_action, args.mouse_max_abs)
                 # Inference may take longer than a telemetry interval. Recheck
                 # immediately before submission rather than trust pre-GPU focus.
@@ -1422,6 +1536,8 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                     diagnostic_tracker.reset()
                     input_ready = False
                 action_started = time.monotonic()
+                frame_timing["age_at_action_seconds"] = action_started - capture_sample.received_monotonic \
+                    if capture_sample.received_monotonic is not None else None
                 if not args.keep_focused or focused is True:
                     action_applied = apply_predicted_action(
                         controller, action, dry_run=args.dry_run, verbose=args.verbose,
@@ -1454,11 +1570,14 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                     action_applied=action_applied,
                     action_started_monotonic=action_started,
                     action_finished_monotonic=action_finished,
+                    frame_timing=frame_timing,
                     injection_result=getattr(controller, "last_action_result", None) if action_applied else None,
                     visual_delta=change, focus=focus_status,
                     desktop_sample=desktop_state, input_ready=input_ready,
                     console_events=console_events,
                 )
+            if args.expert_replay is not None and terminal_received:
+                policy.finish()
             if "EVT|chamber_ready" in console_output:
                 policy.reset()
                 diagnostic_tracker.reset()
@@ -1555,6 +1674,8 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
         raise
     except Exception as error:
         stop_reason = "mouse_capture_failed" if preflight_status == "failed" else "error"
+        if args.expert_replay is not None:
+            stop_reason={'ReplayPoseError':'expert_replay_pose_mismatch','ReplayTimingError':'expert_replay_timing_invalid','ReplayResetError':'expert_replay_reset_invalid'}.get(type(error).__name__,'expert_replay_error')
         if attempt_log is not None:
             attempt_log.write("error", error_type=type(error).__name__, message=str(error))
         raise

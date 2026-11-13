@@ -110,12 +110,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Fail instead of launching Portal 2 when it is not running.",
     )
+    parser.add_argument('--oracle-source',action='store_true',help='One fresh diagnostic demonstration with pose/map fingerprint; excluded from training')
+    parser.add_argument('--oracle-map-file',type=Path)
+    parser.add_argument('--oracle-checkpoint',type=Path,default=Path('models/imitation/checkpoints/runs/v5_recovery_proactive_v3/best.pt'))
     args = parser.parse_args(argv)
     args.map_names = args.map_names or ["dataset_test1"]
     # Keep proactive examples separate by default while retaining the existing
     # normal-recording path and honoring an explicitly supplied root.
     if args.episodes_root is None:
-        args.episodes_root = Path(
+        args.episodes_root = Path('model_attempts/expert_oracle_20261112/sources_pending') if args.oracle_source else Path(
             "episodes/corrections/proactive_turns"
             if args.proactive_turn else "episodes"
         )
@@ -123,6 +126,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def validate_args(args: argparse.Namespace) -> None:
+    if getattr(args,'oracle_source',False):
+        if args.episodes_root.resolve().is_relative_to(Path('episodes').resolve()) or args.episodes_root.resolve().is_relative_to(Path('data/datasets').resolve()):raise ValueError('Oracle sources must stay outside ordinary training roots')
+        if args.proactive_turn or args.episodes!=1 or len(args.map_names)!=1 or args.map_names[0]!='dataset_test1' or args.fps!=24 or not args.no_launch or not args.output or not 0<args.duration<=55 or not 0<=args.focus_delay<=10 or not 0<args.ready_timeout<=60:
+            raise ValueError('Oracle source requires one test1 episode,24FPS, no-launch, duration at most55, without proactive mode')
+        if args.oracle_map_file is None or not args.oracle_map_file.is_file() or args.oracle_map_file.stem!=args.map_names[0] or args.oracle_map_file.suffix.lower()!='.bsp':
+            raise ValueError('Provide the actual installed dataset_test1.bsp with --oracle-map-file')
+        if not args.oracle_checkpoint.is_file() or not args.oracle_checkpoint.with_suffix('.json').is_file():raise ValueError('Oracle bin reference missing')
     if len(set(args.map_names)) != len(args.map_names):
         raise ValueError("--map names must be unique")
     if any(not re.fullmatch(r"[A-Za-z0-9_-]+", name) for name in args.map_names):
@@ -236,10 +246,15 @@ def wait_for_terminal_event(
     duration: float,
     recorder: EpisodeRecorder | None = None,
     reject_new_chamber: bool = False,
+    require_focus: bool = False,
 ) -> str:
     remaining_duration = duration if duration > 0 else None
     previous_tick = time.monotonic()
     while True:
+        if require_focus:
+            from run_imitation import query_hyprland_active_window
+            if not (query_hyprland_active_window('auto') or {}).get('portal_focused'):
+                return 'focus_lost'
         now = time.monotonic()
         if remaining_duration is not None and (recorder is None or not recorder.paused):
             remaining_duration -= now - previous_tick
@@ -254,6 +269,7 @@ def wait_for_terminal_event(
                     print("R pressed; restarting this chamber's model attempt.")
                     return "restart_requested"
                 if control == "pause":
+                    if require_focus:return "oracle_paused"
                     recorder.toggle_pause()
 
         for event in read_events(controller, event_stream):
@@ -351,14 +367,32 @@ def record_episodes(
                 "recording_mode": "proactive_turn",
                 "turn_direction": args.turn_direction,
             }
+        if getattr(args,'oracle_source',False):
+            from expert_action_replay import source_metadata,read_pose,verify_pose,wait_idle_frames
+            metadata_extra=source_metadata(controller,recorder.tracker,map_name,args.oracle_map_file,args.oracle_checkpoint,recorder.camera)
         recorder.start_recording(map_name=map_name, metadata_extra=metadata_extra)
+        if getattr(args,'oracle_source',False):
+            print('ORACLE WAIT: keep all controls released for 3 seconds.',flush=True)
+            time.sleep(3.)
+            wait_idle_frames(recorder)
+            verify_pose(metadata_extra['oracle']['initial_pose'],read_pose(controller))
+            print('ORACLE GO: demonstrate the route through the exit. Do not pause.',flush=True)
+        oracle_options={'reject_new_chamber':True,'require_focus':True} if getattr(args,'oracle_source',False) else {}
         outcome = wait_for_terminal_event(
             controller,
             event_stream,
             args.duration,
             recorder=recorder,
+            **oracle_options,
         )
         recorder.stop_recording(outcome)
+        if getattr(args,'oracle_source',False):
+            from expert_action_replay import finalize_source
+            finalize_source(recorder.ep_dir,outcome)
+            progress.attempts+=1
+            progress.successes+=int(outcome=='goal_reached')
+            print(f'Oracle source saved for review: {recorder.ep_dir}',flush=True)
+            return
         progress.attempts += 1
         if outcome == "interrupted":
             return

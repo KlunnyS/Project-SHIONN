@@ -1,0 +1,10 @@
+{
+  "usable_frames": 806,
+  "dx_abs_over_largest_representative": 63,
+  "dy_abs_over_largest_representative": 44,
+  "target_bin_decode_mae": [
+    12.430521091811414,
+    1.4553349875930521
+  ],
+  "limits": "Target-bin reconstruction error, not minimum possible MAE across all representatives; no causal claim for freezes."
+}

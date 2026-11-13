@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # Python standard library: session arguments, subprocess handoff, and audit log.
 import argparse
+from contextlib import nullcontext
 import json
 import shlex
 import subprocess
@@ -34,6 +35,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="After takeover, check focus and press P to start recovery manually")
     parser.add_argument("--test-mode", action="store_true",
                         help="Exercise handoff and controls without saving model videos or recovery clips")
+    parser.add_argument("--record-context", action="store_true",
+                        help="Opt-in unlabelled observation capture spanning model/human handoff; requires review")
     parser.add_argument("--no-model-video", action="store_true",
                         help="Save real corrections without encoding the preceding model attempt MP4")
     parser.add_argument("--countdown", type=float, default=3.0)
@@ -56,6 +59,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--map values must be unique")
     if not args.checkpoint.is_file():
         parser.error(f"checkpoint not found: {args.checkpoint}")
+    if args.record_context and args.test_mode:
+        parser.error("--record-context writes media and cannot be used with --test-mode")
     if args.target_corrections < 1 or args.max_model_attempts < 1:
         parser.error("targets and maximum attempts must be positive")
     if args.model_seconds <= 0 or args.recovery_seconds < 0 or args.fps <= 0:
@@ -106,6 +111,14 @@ def recovery_command(
     return command
 
 
+def observation_context(args, attempt_dir, map_name):
+    if not args.record_context:
+        return nullcontext(None)
+    from observation_context import ObservationContext
+    return ObservationContext(attempt_dir / 'observation_context', width=args.width,
+        height=args.height, fps=args.fps, output=args.output, requested_map=map_name)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     session_root = args.session_root.resolve()
@@ -129,60 +142,77 @@ def main(argv: list[str] | None = None) -> int:
             "max_model_attempts": args.max_model_attempts,
             "test_mode": args.test_mode,
             "model_video": not (args.test_mode or args.no_model_video),
+            **({"unlabelled_observation_context": True} if args.record_context else {}),
         }) + "\n")
         try:
             for number in range(1, args.max_model_attempts + 1):
                 map_name = args.maps[map_index]
                 attempt_dir = session_dir / f"{number:03d}_{map_name}"
-                command = model_command(args, map_name, attempt_dir)
-                print(f"\n[{number}/{args.max_model_attempts}] Model on {map_name} ({corrections}/{args.target_corrections} corrections)", flush=True)
-                print(shlex.join(command), flush=True)
-                result = subprocess.run(command, cwd=ROOT, check=False)
-                reason, log_path, video_path = inspect_attempt(attempt_dir)
-                manifest.write(json.dumps({
-                    "type": "model_attempt", "number": number, "map": map_name,
-                    "stop_reason": reason, "returncode": result.returncode,
-                    "log": str(log_path) if log_path else None, "video": video_path,
-                }) + "\n")
-                if result.returncode != 0 or reason in ("escape_key", "keyboard_interrupt", "cancelled", "incomplete", "session_stop"):
-                    print(f"Session stopped after model attempt: {reason} (exit {result.returncode}).")
-                    return 1 if result.returncode != 0 else 0 if reason == "session_stop" else 130
-                if reason in ("restart_requested", "time_limit", "goal_reached"):
-                    print(f"Model {reason}; retrying {map_name} from the beginning.")
-                    continue
-                if reason == "recovery_handoff":
-                    if log_path is None:
-                        print("Handoff log is missing; cannot attribute a recovery.")
-                        return 1
-                    result_file = attempt_dir / "recovery_result.json"
-                    command = recovery_command(args, map_name, log_path, result_file)
+                with observation_context(args, attempt_dir, map_name) as context:
+                    command = model_command(args, map_name, attempt_dir)
+                    print(f"\n[{number}/{args.max_model_attempts}] Model on {map_name} ({corrections}/{args.target_corrections} corrections)", flush=True)
                     print(shlex.join(command), flush=True)
-                    recovery = subprocess.run(command, cwd=ROOT, check=False)
-                    if recovery.returncode != 0 or not result_file.is_file():
-                        print("Recovery did not finish cleanly; session stopped without advancing.")
-                        return 1
-                    data = json.loads(result_file.read_text(encoding="utf-8"))
+                    if context is not None:
+                        context.mark("model_subprocess_starting", map=map_name, checkpoint=str(args.checkpoint.resolve()))
+                    result = subprocess.run(command, cwd=ROOT, check=False)
+                    if context is not None:
+                        context.ensure_healthy()
+                    reason, log_path, video_path = inspect_attempt(attempt_dir)
+                    if context is not None:
+                        context.mark("model_subprocess_returned", attempt_log=str(log_path) if log_path else None, outcome=reason)
                     manifest.write(json.dumps({
-                        "type": "recovery", "number": number, "map": map_name,
-                        "source_attempt": str(log_path), **data,
+                        "type": "model_attempt", "number": number, "map": map_name,
+                        "stop_reason": reason, "returncode": result.returncode,
+                        "log": str(log_path) if log_path else None, "video": video_path,
+                        **({"observation_context": str(context.directory)} if context is not None else {}),
                     }) + "\n")
-                    if data["outcome"] == "restart_requested":
-                        print(f"Correction restarted or handoff was invalid; retrying model on {map_name}.")
+                    if result.returncode != 0 or reason in ("escape_key", "keyboard_interrupt", "cancelled", "incomplete", "session_stop"):
+                        print(f"Session stopped after model attempt: {reason} (exit {result.returncode}).")
+                        return 1 if result.returncode != 0 else 0 if reason == "session_stop" else 130
+                    if reason in ("restart_requested", "time_limit", "goal_reached"):
+                        print(f"Model {reason}; retrying {map_name} from the beginning.")
                         continue
-                    if data["outcome"] == "model_chamber_finished":
-                        print(f"Model finished {map_name} before recovery; restarting the same chamber without counting a correction.")
-                        continue
-                    if data["outcome"] != "goal_reached":
-                        print(f"Recovery ended as {data['outcome']}; session stopped for review.")
-                        return 0 if data["outcome"] == "interrupted" else 130
-                    corrections += 1
-                    if corrections >= args.target_corrections:
-                        print(f"Target met: {corrections} successful corrections. Manifest: {manifest_path}")
-                        return 0
-                elif reason != "episode_failed":
-                    print(f"Unexpected model stop reason {reason}; session stopped for review.")
-                    return 1
-                map_index = (map_index + 1) % len(args.maps)
+                    if reason == "recovery_handoff":
+                        if log_path is None:
+                            print("Handoff log is missing; cannot attribute a recovery.")
+                            return 1
+                        result_file = attempt_dir / "recovery_result.json"
+                        command = recovery_command(args, map_name, log_path, result_file)
+                        print(shlex.join(command), flush=True)
+                        if context is not None:
+                            context.mark("human_recorder_starting", source_attempt=str(log_path))
+                        recovery = subprocess.run(command, cwd=ROOT, check=False)
+                        if context is not None:
+                            context.ensure_healthy()
+                        if recovery.returncode != 0 or not result_file.is_file():
+                            print("Recovery did not finish cleanly; session stopped without advancing.")
+                            return 1
+                        data = json.loads(result_file.read_text(encoding="utf-8"))
+                        if context is not None:
+                            context.mark("human_recorder_returned", episode=data.get("episode"), outcome=data["outcome"])
+                            context.close()  # Finalize successfully before counting a correction.
+                        manifest.write(json.dumps({
+                            "type": "recovery", "number": number, "map": map_name,
+                            "source_attempt": str(log_path), **data,
+                            **({"observation_context": str(context.directory)} if context is not None else {}),
+                        }) + "\n")
+                        if data["outcome"] == "restart_requested":
+                            print(f"Correction restarted or handoff was invalid; retrying model on {map_name}.")
+                            continue
+                        if data["outcome"] == "model_chamber_finished":
+                            print(f"Model finished {map_name} before recovery; restarting the same chamber without counting a correction.")
+                            continue
+                        if data["outcome"] != "goal_reached":
+                            print(f"Recovery ended as {data['outcome']}; session stopped for review.")
+                            return 0 if data["outcome"] == "interrupted" else 130
+                        corrections += 1
+                        if corrections >= args.target_corrections:
+                            print(f"Target met: {corrections} successful corrections. Manifest: {manifest_path}")
+                            return 0
+                    elif reason != "episode_failed":
+                        print(f"Unexpected model stop reason {reason}; session stopped for review.")
+                        return 1
+                    map_index = (map_index + 1) % len(args.maps)
         except KeyboardInterrupt:
             print("\nSession interrupted; no further chamber will be loaded.")
             return 130

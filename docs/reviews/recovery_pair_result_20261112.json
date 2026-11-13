@@ -1,0 +1,48 @@
+{
+  "report": "models/imitation/checkpoints/runs/reviewed_recovery_pair_20261112/report.json",
+  "report_sha256": "0454af0f0606af965d370c9c5bf514647209b5b8234e7ccb7d2d5f90fb623361",
+  "elapsed_seconds": 749.613,
+  "paired_complete": true,
+  "artifacts_verified": true,
+  "decision": "Eligible for limited user-operated autonomous screen; no promotion or held-out recovery improvement established",
+  "arms": {
+    "control": {
+      "checkpoint": "models/imitation/checkpoints/runs/reviewed_recovery_pair_20261112/control/endpoint.pt",
+      "sha256": "ca2d59b836360f9e98463ffc1db46c1124189f0e4e8ba2f50413ef5ff2b97559",
+      "steps_completed": 1000,
+      "navigation_screen": {
+        "checks": {
+          "binary_exact": true,
+          "mouse_dx_mae": true,
+          "mouse_dy_mae": true,
+          "opening_idle": true
+        },
+        "passed": true,
+        "meaning": "Navigation imitation guard versus warm-start source; not a game success or promotion gate"
+      },
+      "navigation_binary_exact": 0.8491287183484624,
+      "held_episode_binary_exact": 0.6838632922344798,
+      "held_horizontal_mouse_mae": 20.450897685485614,
+      "new_train_episode_binary_exact": 0.8164914079253547
+    },
+    "correction": {
+      "checkpoint": "models/imitation/checkpoints/runs/reviewed_recovery_pair_20261112/correction/endpoint.pt",
+      "sha256": "c4499eae62cf4fd8afeddf051955cce7c8021881b780b7572039bb30bc6febaa",
+      "steps_completed": 1000,
+      "navigation_screen": {
+        "checks": {
+          "binary_exact": true,
+          "mouse_dx_mae": true,
+          "mouse_dy_mae": true,
+          "opening_idle": true
+        },
+        "passed": true,
+        "meaning": "Navigation imitation guard versus warm-start source; not a game success or promotion gate"
+      },
+      "navigation_binary_exact": 0.8494304609117654,
+      "held_episode_binary_exact": 0.6801319489508977,
+      "held_horizontal_mouse_mae": 20.639952411853777,
+      "new_train_episode_binary_exact": 0.8325125045626682
+    }
+  }
+}

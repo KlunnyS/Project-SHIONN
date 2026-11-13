@@ -10,7 +10,7 @@ provided to the model.
 
 ## Current status
 
-Status last updated on **2026-10-25**:
+Status last updated on **2026-10-31**:
 
 - The recording, preprocessing, training, checkpoint, and live-inference
   pipeline works end to end.
@@ -30,8 +30,11 @@ Status last updated on **2026-10-25**:
   struggled on `dataset_test1` and `dataset_test11`, while the easy `test12`
   was consistently completed. Cursor escape and Gamescope capture may have
   affected results, so they do not provide a clean ranking of checkpoints.
+- The verified local capture profile passed five consecutive confirmation
+  attempts; keyboard assistance was allowed, so these are capture diagnostics
+  rather than autonomous model scores. A clean model comparison remains open.
 - The model still predicts less mouse activity than the expert demonstrations.
-  Fix live input telemetry and test correction-data sampling before deciding
+  Test correction-data sampling before deciding
   whether to build a temporal V6 architecture.
 - Reinforcement learning, reward shaping, recurrence, and portal-mechanics
   curricula remain future work.
@@ -45,6 +48,9 @@ The dated operational record, including exact checkpoint paths and safe
 commands, lives in the [training runbook](docs/TRAINING_RUNBOOK.md). The full
 benchmark evidence and phased model plan are in the
 [model roadmap](docs/MODEL_ROADMAP.md).
+The [March 2027 delivery plan](docs/MARCH_2027_PLAN.md) sets dated milestones
+for button, cube, and basic portal puzzles, with a working demo targeted for
+March 1 and evaluation/submission buffer through March.
 The episode-level training/validation/evaluation assignment is documented in
 the [frozen data split](docs/DATA_SPLIT.md).
 The current private work-session handoff is in the local, git-ignored
@@ -160,6 +166,7 @@ the large recording, cache, and checkpoint paths are symlinks into
 | [Training runbook](docs/TRAINING_RUNBOOK.md) | Current run status, resource limits, monitoring, resume, and checkpoint policy. |
 | [Benchmarking](docs/BENCHMARKING.md) | Offline scoring, live trials, calibration, recovery data, and evaluation isolation. |
 | [Chamber authoring](docs/CHAMBER_AUTHORING.md) | Build, instrument, compile, verify, and pilot a chamber. |
+| [March 2027 plan](docs/MARCH_2027_PLAN.md) | Dated puzzle milestones, success criteria, scope decisions, and weekly work. |
 | [Navigation layouts](docs/NAVIGATION_CHAMBER_LAYOUTS.md) | Geometry and intent of the navigation curriculum chambers. |
 | [Changelog](CHANGELOG.md) | Notable repository behavior and compatibility changes. |
 | [Handoff](handoff.md) | Current recovery status, verified pilot, board state, and next collection command. |
@@ -191,9 +198,9 @@ Project-SHIONN/
 
 1. Make behavior cloning reliable on held-out navigation chambers.
 2. Add targeted recovery demonstrations for policy-induced failure states.
-3. Introduce a Gym-style environment and actor-critic/value head for PPO.
-4. Expand the curriculum to interaction, cubes, portals, momentum, and
-   multi-step chambers.
+3. Teach button/door and cube puzzles through demonstrations and corrections.
+4. Add simple portal puzzles; keep momentum and PPO outside the March critical
+   path unless the core demonstration is already secured.
 5. Add recurrence only when experiments show that the four-frame window is the
    limiting factor.
 

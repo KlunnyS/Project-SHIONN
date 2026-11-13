@@ -1,0 +1,140 @@
+{
+  "reviewed_split": "data/annotations/route_expansion_split_20261109.json",
+  "reviewed_split_sha256": "1eac5fbc81d913bb5144e5d596e84c418a819fbc8568b96797689bf1dfab616f",
+  "episodes": [
+    {
+      "episode": "episode_20261105_161823_785804",
+      "map": "dataset_test1",
+      "role": "train",
+      "usable_frames": 120,
+      "nominal_seconds_at_24fps": 5.0,
+      "category": "short_wall_to_exit_recovery",
+      "path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_161823_785804",
+      "raw_hashes": {
+        "metadata.json": "b978a4d30e96254ce406eb3e0ca0973c90772bb60913982648b8c78c7a296c92",
+        "actions.csv": "e52d2728317e62626309eb7e7bfe1487b18afae791d44d0f1384f8041fc99a61",
+        "video.mp4": "4fd30e766b565e2b73b2d56ea369aae0b38df4d6ae6fcb123a7597ed00d03c3f"
+      }
+    },
+    {
+      "episode": "episode_20261105_161859_257631",
+      "map": "dataset_test1",
+      "role": "train",
+      "usable_frames": 120,
+      "nominal_seconds_at_24fps": 5.0,
+      "category": "short_wall_to_exit_recovery",
+      "path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_161859_257631",
+      "raw_hashes": {
+        "metadata.json": "c65808ffb0dd4133bed901abc1a0317f7af92f5f74028d64bbd88e1fad65f871",
+        "actions.csv": "381385cff4e007f2619ec75a09c8aaaaacf06974b00ed60dc6ff2e5103bcd7b8",
+        "video.mp4": "02e5c8629e7b45604b5adc95aea8206fc40984d7beeb90583205ec1761771b6d"
+      }
+    },
+    {
+      "episode": "episode_20261105_161954_188319",
+      "map": "dataset_test1",
+      "role": "train",
+      "usable_frames": 175,
+      "nominal_seconds_at_24fps": 7.291666666666667,
+      "category": "short_wall_to_exit_recovery",
+      "path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_161954_188319",
+      "raw_hashes": {
+        "metadata.json": "5da7a8bbfdd583038d9224f5631dde4c36afbc4e232fef54438a061578ae2af2",
+        "actions.csv": "6bb4139be061def985bd04be8535cc9568a583f6bd00c37528773e2ceb06ceac",
+        "video.mp4": "8686c114a2334358e6381eef15524155b4f7a6992424fbb2cff7f832587b45f0"
+      }
+    },
+    {
+      "episode": "episode_20261105_162522_556646",
+      "map": "dataset_test1",
+      "role": "development_holdout",
+      "usable_frames": 134,
+      "nominal_seconds_at_24fps": 5.583333333333333,
+      "category": "short_wall_to_exit_recovery",
+      "path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_162522_556646",
+      "raw_hashes": {
+        "metadata.json": "ed45ac09228b013b06b558e5023ae40132891ff59454609560e180012a47eb52",
+        "actions.csv": "3665e5d6d604c874625d92c79a1a374d6fd95f5f832a0d4af5b6171f2fb8fc2e",
+        "video.mp4": "f774c5dea5242c76a511c8d148d6b64a09b8760488f5b1e7a92044c755c11319"
+      }
+    },
+    {
+      "episode": "episode_20261105_162601_434118",
+      "map": "dataset_test1",
+      "role": "development_holdout",
+      "usable_frames": 138,
+      "nominal_seconds_at_24fps": 5.75,
+      "category": "short_wall_to_exit_recovery",
+      "path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_162601_434118",
+      "raw_hashes": {
+        "metadata.json": "58f144ec403ba152ec8c8ba568cd766a8471c0d4beaf34b1fed1936f40e854cd",
+        "actions.csv": "83b203d70aabb7a56f9ac90d3a198b8d2b6e9a5e4c8669211b69cf3b37327fcd",
+        "video.mp4": "5d63925e4ad356a55b4aa4db35e93afd01ca9e73947ab8e900a8d82ebc54c405"
+      }
+    },
+    {
+      "episode": "episode_20261105_162638_835978",
+      "map": "dataset_test1",
+      "role": "train",
+      "usable_frames": 135,
+      "nominal_seconds_at_24fps": 5.625,
+      "category": "short_wall_to_exit_recovery",
+      "path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_162638_835978",
+      "raw_hashes": {
+        "metadata.json": "244a4322a0a43ba8286d23f7bda14f9af8595fae4e263220f8df6970ca94c89d",
+        "actions.csv": "8bf20b043475adcd097faae65c656df0bd2505c5070d8635d0c9c651ef457e11",
+        "video.mp4": "32a4a357c95d14fed3138f37ac77d5caeb9d7b48cc681598d5e708d78cd56d79"
+      }
+    },
+    {
+      "episode": "episode_20261109_184909_352395",
+      "map": "dataset_test1",
+      "role": "train",
+      "usable_frames": 31,
+      "nominal_seconds_at_24fps": 1.2916666666666667,
+      "category": "exit_finalization",
+      "path": "model_attempts/targeted_navigation_20261109/route_episodes_pending/goal_reached/episode_20261109_184909_352395",
+      "raw_hashes": {
+        "actions.csv": "0c9a7288d251ed545e1afc5a58e4e7112fb1bd58b6b1a8669940224dd93f8fc2",
+        "metadata.json": "31c71efbe6c6c6b00c27b180db4976a8631a7f205c888ecf4074ad13bf8de1b2",
+        "video.mp4": "189d8513dc6b51b93989f246d493705fef422838fe0ef287f256ecdde5d1b355"
+      }
+    },
+    {
+      "episode": "episode_20261109_184938_774491",
+      "map": "dataset_test9",
+      "role": "train",
+      "usable_frames": 194,
+      "nominal_seconds_at_24fps": 8.083333333333334,
+      "category": "route_recovery",
+      "path": "model_attempts/targeted_navigation_20261109/route_episodes_pending/goal_reached/episode_20261109_184938_774491",
+      "raw_hashes": {
+        "actions.csv": "eaef68e966cfa7028e61e722b7b982c905804937400532525d56bc987e71be56",
+        "metadata.json": "0917e924bc9fd8c3110d2b17f7d0610a978a0effe14ddcef4e6728d11d660414",
+        "video.mp4": "1b374128aa3385dc2988a59c03a6e050ce699ec7dc7210bbbe2d804276ca85bb"
+      }
+    },
+    {
+      "episode": "episode_20261109_185019_970242",
+      "map": "dataset_test1",
+      "role": "train",
+      "usable_frames": 26,
+      "nominal_seconds_at_24fps": 1.0833333333333333,
+      "category": "exit_finalization",
+      "path": "model_attempts/targeted_navigation_20261109/route_episodes_pending/goal_reached/episode_20261109_185019_970242",
+      "raw_hashes": {
+        "actions.csv": "3a3f14a3535e13ce51d3c757cc9999c246b11a35bdbfb7aebb8f4ede15625fd1",
+        "metadata.json": "7820348ee1d916ca635cbbc5912fe8a9981c5f4b69655b5c5f0c541f8a8ea3f0",
+        "video.mp4": "5fc2666ba2f363d229a9c1d573c49e9e59ed35ca20efb16a6b5ea7ccc34135f4"
+      }
+    }
+  ],
+  "train_frames": 801,
+  "held_out_frames": 272,
+  "scope": "Trajectory-length/category audit, not proof of semantic coverage or that memory is necessary. Nominal durations use24fps, not exact wall-clock exposure.",
+  "constraints": [
+    "Original roles unchanged.",
+    "Autonomous scored runs, including successful test11, are not expert targets.",
+    "Do not concatenate across unrecorded human handoff gap."
+  ]
+}

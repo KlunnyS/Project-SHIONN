@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # Python standard library: build and run the checkpoint-by-chamber job plan.
 import argparse
+import math
 import json
 import os
 import re
@@ -129,6 +130,10 @@ def runner_command(job: Job, run_dir: Path, args: argparse.Namespace) -> list[st
         "--telemetry-hz", str(args.telemetry_hz),
         "--hyprland-instance", args.hyprland_instance,
     ]
+    if getattr(args, "model_fps", None) is not None:
+        command.extend(("--model-fps", str(args.model_fps)))
+    if getattr(args, "post_preflight_settle", None) is not None:
+        command.extend(("--post-preflight-settle", str(args.post_preflight_settle)))
     if not args.no_video:
         command.append("--record-video")
     if args.output:
@@ -189,6 +194,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--recording-root", type=Path, default=Path("model_attempts/sequences"))
     parser.add_argument("--max-seconds", type=float, default=60.0)
     parser.add_argument("--countdown", type=float, default=3.0)
+    parser.add_argument("--post-preflight-settle", type=float,
+                        help="Override final reload settle time; default follows countdown")
     parser.add_argument("--pause-seconds", type=float, default=1.0, help="Delay between attempts")
     parser.add_argument("--output", help="Wayland output name, such as DP-1")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
@@ -200,6 +207,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Clamp applied mouse dx/dy for every live attempt")
     parser.add_argument("--port", type=int, default=8020)
     parser.add_argument("--fps", type=float, default=24.0)
+    parser.add_argument("--model-fps", type=float, default=None,
+                        help="Model decision rate; integer divisor of --fps")
     parser.add_argument("--width", type=int, default=1920)
     parser.add_argument("--height", type=int, default=1080)
     parser.add_argument("--status-every", type=float, default=1.0)
@@ -226,9 +235,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         args.hyprland_focus_guard = True
     if args.repeats < 1:
         parser.error("--repeats must be at least 1")
+    if args.post_preflight_settle is not None:
+        if not args.mouse_preflight or not math.isfinite(args.post_preflight_settle) or args.post_preflight_settle < 0:
+            parser.error("--post-preflight-settle requires mouse preflight and a finite nonnegative value")
     for name in ("max_seconds", "countdown", "pause_seconds"):
         if getattr(args, name) < 0:
             parser.error(f"--{name.replace('_', '-')} must be zero or greater")
+    from policy_decision_rate import decision_interval
+    try:
+        decision_interval(args.fps, args.model_fps)
+    except ValueError as error:
+        parser.error(str(error))
     for name in ("fps", "width", "height", "status_every", "port"):
         if getattr(args, name) <= 0:
             parser.error(f"--{name.replace('_', '-')} must be greater than zero")

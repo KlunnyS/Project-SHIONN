@@ -1,0 +1,240 @@
+{
+  "version": 1,
+  "role": "reviewed_pilot_episode_split",
+  "session": "session_20261105_161705_075500",
+  "episodes": [
+    {
+      "episode": "episode_20261105_161823_785804",
+      "path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_161823_785804",
+      "map": "dataset_test1",
+      "source_attempt": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261105/sessions/session_20261105_161705_075500/003_dataset_test1/attempt_20261105_161805_161393.jsonl",
+      "source_stop_reason": "recovery_handoff",
+      "action_owner": "human",
+      "status": "approved_for_bounded_pilot_with_documented_limits",
+      "stats": {
+        "rows": 145,
+        "duration_seconds": 5.94742751121521,
+        "max_row_gap_seconds": 0.04770922660827637,
+        "nonpositive_row_gaps": 0,
+        "input_brackets_ordered": true,
+        "binary_actions_valid": true,
+        "input_discard_counters": [
+          0.0
+        ],
+        "frame_ids_nondecreasing": true,
+        "reused_frames": 1,
+        "longest_reused_run": 1,
+        "max_frame_age_seconds": 0.0329892849999851,
+        "handoff_gap_seconds": 10.687973747999877
+      },
+      "hashes": {
+        "metadata.json": "b978a4d30e96254ce406eb3e0ca0973c90772bb60913982648b8c78c7a296c92",
+        "actions.csv": "e52d2728317e62626309eb7e7bfe1487b18afae791d44d0f1384f8041fc99a61",
+        "video.mp4": "4fd30e766b565e2b73b2d56ea369aae0b38df4d6ae6fcb123a7597ed00d03c3f"
+      },
+      "visual_note": "First two starts visually similar; third has distinct pitched-down start. Sampled views show wall departure, stairs, exit approach. Full-frame semantic review remains pending.",
+      "view_group": "white_wall",
+      "role": "train",
+      "first_active_frame": 25,
+      "usable_window": [
+        25,
+        145
+      ],
+      "review_method": "All frames decoded/structural audit; complete trajectory time span visually inspected at six-frame intervals (0.25s), with final frame included. Not frame-perfect collision or exposure-time certification.",
+      "review_result": "Wall-facing off-route start followed by purposeful reorientation, stair traversal and exit crossing; source handoff confirmed. No gross visual discontinuity observed in sampled trajectory. Leading human waiting is excluded from targets; raw clip preserved."
+    },
+    {
+      "episode": "episode_20261105_161859_257631",
+      "path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_161859_257631",
+      "map": "dataset_test1",
+      "source_attempt": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261105/sessions/session_20261105_161705_075500/004_dataset_test1/attempt_20261105_161841_258781.jsonl",
+      "source_stop_reason": "recovery_handoff",
+      "action_owner": "human",
+      "status": "approved_for_bounded_pilot_with_documented_limits",
+      "stats": {
+        "rows": 159,
+        "duration_seconds": 6.529080152511597,
+        "max_row_gap_seconds": 0.07119560241699219,
+        "nonpositive_row_gaps": 0,
+        "input_brackets_ordered": true,
+        "binary_actions_valid": true,
+        "input_discard_counters": [
+          0.0
+        ],
+        "frame_ids_nondecreasing": true,
+        "reused_frames": 37,
+        "longest_reused_run": 2,
+        "max_frame_age_seconds": 0.08539140099992437,
+        "handoff_gap_seconds": 10.811540423000224
+      },
+      "hashes": {
+        "metadata.json": "c65808ffb0dd4133bed901abc1a0317f7af92f5f74028d64bbd88e1fad65f871",
+        "actions.csv": "381385cff4e007f2619ec75a09c8aaaaacf06974b00ed60dc6ff2e5103bcd7b8",
+        "video.mp4": "02e5c8629e7b45604b5adc95aea8206fc40984d7beeb90583205ec1761771b6d"
+      },
+      "visual_note": "First two starts visually similar; third has distinct pitched-down start. Sampled views show wall departure, stairs, exit approach. Full-frame semantic review remains pending.",
+      "view_group": "white_wall",
+      "role": "train",
+      "first_active_frame": 39,
+      "usable_window": [
+        39,
+        159
+      ],
+      "review_method": "All frames decoded/structural audit; complete trajectory time span visually inspected at six-frame intervals (0.25s), with final frame included. Not frame-perfect collision or exposure-time certification.",
+      "review_result": "Wall-facing off-route start followed by purposeful reorientation, stair traversal and exit crossing; source handoff confirmed. No gross visual discontinuity observed in sampled trajectory. Leading human waiting is excluded from targets; raw clip preserved."
+    },
+    {
+      "episode": "episode_20261105_161954_188319",
+      "path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_161954_188319",
+      "map": "dataset_test1",
+      "source_attempt": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261105/sessions/session_20261105_161705_075500/005_dataset_test1/attempt_20261105_161917_248714.jsonl",
+      "source_stop_reason": "recovery_handoff",
+      "action_owner": "human",
+      "status": "approved_for_bounded_pilot_with_documented_limits",
+      "stats": {
+        "rows": 209,
+        "duration_seconds": 8.61799144744873,
+        "max_row_gap_seconds": 0.06452512741088867,
+        "nonpositive_row_gaps": 0,
+        "input_brackets_ordered": true,
+        "binary_actions_valid": true,
+        "input_discard_counters": [
+          0.0
+        ],
+        "frame_ids_nondecreasing": true,
+        "reused_frames": 27,
+        "longest_reused_run": 1,
+        "max_frame_age_seconds": 0.06936231100007717,
+        "handoff_gap_seconds": 11.737509622000289
+      },
+      "hashes": {
+        "metadata.json": "5da7a8bbfdd583038d9224f5631dde4c36afbc4e232fef54438a061578ae2af2",
+        "actions.csv": "6bb4139be061def985bd04be8535cc9568a583f6bd00c37528773e2ceb06ceac",
+        "video.mp4": "8686c114a2334358e6381eef15524155b4f7a6992424fbb2cff7f832587b45f0"
+      },
+      "visual_note": "First two starts visually similar; third has distinct pitched-down start. Sampled views show wall departure, stairs, exit approach. Full-frame semantic review remains pending.",
+      "view_group": "pitched_down",
+      "role": "train",
+      "first_active_frame": 34,
+      "usable_window": [
+        34,
+        209
+      ],
+      "review_method": "All frames decoded/structural audit; complete trajectory time span visually inspected at six-frame intervals (0.25s), with final frame included. Not frame-perfect collision or exposure-time certification.",
+      "review_result": "Wall-facing off-route start followed by purposeful reorientation, stair traversal and exit crossing; source handoff confirmed. No gross visual discontinuity observed in sampled trajectory. Leading human waiting is excluded from targets; raw clip preserved."
+    },
+    {
+      "episode": "episode_20261105_162522_556646",
+      "path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_162522_556646",
+      "map": "dataset_test1",
+      "source_attempt": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261105/sessions/session_20261105_162434_117527/001_dataset_test1/attempt_20261105_162444_207344.jsonl",
+      "source_stop_reason": "recovery_handoff",
+      "action_owner": "human",
+      "status": "approved_for_bounded_pilot_with_documented_limits",
+      "stats": {
+        "rows": 167,
+        "decoded_frames": 167,
+        "duration_seconds": 6.865486145019531,
+        "reused_frames": 0,
+        "max_frame_age_seconds": 0.031402820000039355,
+        "max_row_gap_seconds": 0.04851031303405762,
+        "input_discard_counters": [
+          0.0
+        ],
+        "handoff_gap_seconds": 12.378370098000232
+      },
+      "hashes": {
+        "metadata.json": "ed45ac09228b013b06b558e5023ae40132891ff59454609560e180012a47eb52",
+        "actions.csv": "3665e5d6d604c874625d92c79a1a374d6fd95f5f832a0d4af5b6171f2fb8fc2e",
+        "video.mp4": "f774c5dea5242c76a511c8d148d6b64a09b8760488f5b1e7a92044c755c11319"
+      },
+      "visual_note": "Dark-wall start recovering toward stairs and exit",
+      "view_group": "dark_wall",
+      "role": "development_holdout",
+      "first_active_frame": 33,
+      "usable_window": [
+        33,
+        167
+      ],
+      "review_method": "All frames decoded/structural audit; complete trajectory time span visually inspected at six-frame intervals (0.25s), with final frame included. Not frame-perfect collision or exposure-time certification.",
+      "review_result": "Wall-facing off-route start followed by purposeful reorientation, stair traversal and exit crossing; source handoff confirmed. No gross visual discontinuity observed in sampled trajectory. Leading human waiting is excluded from targets; raw clip preserved."
+    },
+    {
+      "episode": "episode_20261105_162601_434118",
+      "path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_162601_434118",
+      "map": "dataset_test1",
+      "source_attempt": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261105/sessions/session_20261105_162434_117527/002_dataset_test1/attempt_20261105_162540_776593.jsonl",
+      "source_stop_reason": "recovery_handoff",
+      "action_owner": "human",
+      "status": "approved_for_bounded_pilot_with_documented_limits",
+      "stats": {
+        "rows": 173,
+        "decoded_frames": 173,
+        "duration_seconds": 7.114091157913208,
+        "reused_frames": 15,
+        "max_frame_age_seconds": 0.04931523699997342,
+        "max_row_gap_seconds": 0.06731057167053223,
+        "input_discard_counters": [
+          0.0
+        ],
+        "handoff_gap_seconds": 11.175119297000037
+      },
+      "hashes": {
+        "metadata.json": "58f144ec403ba152ec8c8ba568cd766a8471c0d4beaf34b1fed1936f40e854cd",
+        "actions.csv": "83b203d70aabb7a56f9ac90d3a198b8d2b6e9a5e4c8669211b69cf3b37327fcd",
+        "video.mp4": "5d63925e4ad356a55b4aa4db35e93afd01ca9e73947ab8e900a8d82ebc54c405"
+      },
+      "visual_note": "Dark-wall start recovering toward stairs and exit",
+      "view_group": "dark_wall",
+      "role": "development_holdout",
+      "first_active_frame": 35,
+      "usable_window": [
+        35,
+        173
+      ],
+      "review_method": "All frames decoded/structural audit; complete trajectory time span visually inspected at six-frame intervals (0.25s), with final frame included. Not frame-perfect collision or exposure-time certification.",
+      "review_result": "Wall-facing off-route start followed by purposeful reorientation, stair traversal and exit crossing; source handoff confirmed. No gross visual discontinuity observed in sampled trajectory. Leading human waiting is excluded from targets; raw clip preserved."
+    },
+    {
+      "episode": "episode_20261105_162638_835978",
+      "path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_162638_835978",
+      "map": "dataset_test1",
+      "source_attempt": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261105/sessions/session_20261105_162434_117527/003_dataset_test1/attempt_20261105_162620_092417.jsonl",
+      "source_stop_reason": "recovery_handoff",
+      "action_owner": "human",
+      "status": "approved_for_bounded_pilot_with_documented_limits",
+      "stats": {
+        "rows": 151,
+        "decoded_frames": 151,
+        "duration_seconds": 6.196852207183838,
+        "reused_frames": 35,
+        "max_frame_age_seconds": 0.09729046800021024,
+        "max_row_gap_seconds": 0.10354208946228027,
+        "input_discard_counters": [
+          0.0
+        ],
+        "handoff_gap_seconds": 11.17201533000025
+      },
+      "hashes": {
+        "metadata.json": "244a4322a0a43ba8286d23f7bda14f9af8595fae4e263220f8df6970ca94c89d",
+        "actions.csv": "8bf20b043475adcd097faae65c656df0bd2505c5070d8635d0c9c651ef457e11",
+        "video.mp4": "32a4a357c95d14fed3138f37ac77d5caeb9d7b48cc681598d5e708d78cd56d79"
+      },
+      "visual_note": "White-wall start similar to first pilot; stairs and exit trajectory retained",
+      "view_group": "white_wall",
+      "role": "train",
+      "first_active_frame": 16,
+      "usable_window": [
+        16,
+        151
+      ],
+      "review_method": "All frames decoded/structural audit; complete trajectory time span visually inspected at six-frame intervals (0.25s), with final frame included. Not frame-perfect collision or exposure-time certification.",
+      "review_result": "Wall-facing off-route start followed by purposeful reorientation, stair traversal and exit crossing; source handoff confirmed. No gross visual discontinuity observed in sampled trajectory. Leading human waiting is excluded from targets; raw clip preserved."
+    }
+  ],
+  "decision": "Lock4 TRAIN/2 development holdout by starting-view group. Both dark-wall episodes excluded from gradients. Approved only for bounded hypothesis test; small same-map cohort, holdout visually reviewed, not untouched final evaluation.",
+  "usable_frames_by_role": {
+    "train": 550,
+    "held_out": 272
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "session": "session_20261109_184654_931770",
+  "review_method": "Complete-span visual samples every six frames including final frame; model/human boundary images; structural CSV audit. Not frame-perfect exposure/action certification.",
+  "training_started": false,
+  "existing_split_unchanged": true,
+  "episodes": [
+    {
+      "episode": "episode_20261109_184909_352395",
+      "path": "model_attempts/targeted_navigation_20261109/route_episodes_pending/goal_reached/episode_20261109_184909_352395",
+      "map": "dataset_test1",
+      "source_attempt": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261109/route_collection_sessions/session_20261109_184654_931770/003_dataset_test1/attempt_20261109_184808_698632.jsonl",
+      "action_owner": "human",
+      "status": "reviewed_valid_not_added_to_training",
+      "category": "exit_finalization",
+      "usable_window": [
+        24,
+        55
+      ],
+      "stats": {
+        "rows": 55,
+        "usable_frames": 31,
+        "backward_frames": 0,
+        "finite_numeric_values": true,
+        "binary_actions_valid": true,
+        "contiguous_frame_indices": true,
+        "input_brackets_ordered": true,
+        "strictly_increasing_timestamps": true,
+        "max_row_gap_seconds": 0.045058488845825195,
+        "max_frame_age_seconds": 0.04811987900029635,
+        "input_discard_counts": [
+          0
+        ],
+        "frame_ids_nondecreasing": true
+      },
+      "hashes": {
+        "actions.csv": "0c9a7288d251ed545e1afc5a58e4e7112fb1bd58b6b1a8669940224dd93f8fc2",
+        "metadata.json": "31c71efbe6c6c6b00c27b180db4976a8631a7f205c888ecf4074ad13bf8de1b2",
+        "video.mp4": "189d8513dc6b51b93989f246d493705fef422838fe0ef287f256ecdde5d1b355"
+      },
+      "handoff_visual_continuity": "Same position/view at model end and human start; approximately 10\u201311 seconds unrecorded.",
+      "visual_review": "Starts immediately beside exit; final alignment and crossing only."
+    },
+    {
+      "episode": "episode_20261109_184938_774491",
+      "path": "model_attempts/targeted_navigation_20261109/route_episodes_pending/goal_reached/episode_20261109_184938_774491",
+      "map": "dataset_test9",
+      "source_attempt": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261109/route_collection_sessions/session_20261109_184654_931770/004_dataset_test9/attempt_20261109_184922_886768.jsonl",
+      "action_owner": "human",
+      "status": "reviewed_valid_not_added_to_training",
+      "category": "route_recovery",
+      "usable_window": [
+        26,
+        220
+      ],
+      "stats": {
+        "rows": 220,
+        "usable_frames": 194,
+        "backward_frames": 5,
+        "finite_numeric_values": true,
+        "binary_actions_valid": true,
+        "contiguous_frame_indices": true,
+        "input_brackets_ordered": true,
+        "strictly_increasing_timestamps": true,
+        "max_row_gap_seconds": 0.04659008979797363,
+        "max_frame_age_seconds": 0.04466159600269748,
+        "input_discard_counts": [
+          0
+        ],
+        "frame_ids_nondecreasing": true
+      },
+      "hashes": {
+        "actions.csv": "eaef68e966cfa7028e61e722b7b982c905804937400532525d56bc987e71be56",
+        "metadata.json": "0917e924bc9fd8c3110d2b17f7d0610a978a0effe14ddcef4e6728d11d660414",
+        "video.mp4": "1b374128aa3385dc2988a59c03a6e050ce699ec7dc7210bbbe2d804276ca85bb"
+      },
+      "handoff_visual_continuity": "Same position/view at model end and human start; approximately 10\u201311 seconds unrecorded.",
+      "visual_review": "Wall-facing start, backs/reorients, follows route and crosses exit."
+    },
+    {
+      "episode": "episode_20261109_185019_970242",
+      "path": "model_attempts/targeted_navigation_20261109/route_episodes_pending/goal_reached/episode_20261109_185019_970242",
+      "map": "dataset_test1",
+      "source_attempt": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261109/route_collection_sessions/session_20261109_184654_931770/005_dataset_test1/attempt_20261109_184959_071758.jsonl",
+      "action_owner": "human",
+      "status": "reviewed_valid_not_added_to_training",
+      "category": "exit_finalization",
+      "usable_window": [
+        34,
+        60
+      ],
+      "stats": {
+        "rows": 60,
+        "usable_frames": 26,
+        "backward_frames": 0,
+        "finite_numeric_values": true,
+        "binary_actions_valid": true,
+        "contiguous_frame_indices": true,
+        "input_brackets_ordered": true,
+        "strictly_increasing_timestamps": true,
+        "max_row_gap_seconds": 0.04526782035827637,
+        "max_frame_age_seconds": 0.04477689600025769,
+        "input_discard_counts": [
+          0
+        ],
+        "frame_ids_nondecreasing": true
+      },
+      "hashes": {
+        "actions.csv": "3a3f14a3535e13ce51d3c757cc9999c246b11a35bdbfb7aebb8f4ede15625fd1",
+        "metadata.json": "7820348ee1d916ca635cbbc5912fe8a9981c5f4b69655b5c5f0c541f8a8ea3f0",
+        "video.mp4": "5fc2666ba2f363d229a9c1d573c49e9e59ed35ca20efb16a6b5ea7ccc34135f4"
+      },
+      "handoff_visual_continuity": "Same position/view at model end and human start; approximately 10\u201311 seconds unrecorded.",
+      "visual_review": "Starts immediately beside exit; final alignment and crossing only."
+    }
+  ],
+  "limitations": [
+    "One substantive route correction and two short exit-finalization clips.",
+    "Five backward frames total.",
+    "Unrecorded handoff gap must not be filled with fabricated expert actions."
+  ],
+  "next_step": "Prepare separate bounded feedforward data-expansion comparison; preserve existing six-episode train/held-out roles and exclude test11/test12 from gradients. No GRU or gating. No automatic training."
+}

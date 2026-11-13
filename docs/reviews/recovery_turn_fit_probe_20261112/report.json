@@ -1,0 +1,2669 @@
+{
+  "status": "complete_diagnostic_only",
+  "complete": true,
+  "purpose": "Fit capability on TRAIN labels only; not a gameplay candidate",
+  "source": "models/imitation/checkpoints/runs/v5_recovery_proactive_v3/best.pt",
+  "input_sha256": {
+    "models/imitation/checkpoints/runs/v5_recovery_proactive_v3/best.pt": "2ac674293279370b3fd37aadae7914abc2ede84f2941298ded24c054701c2483",
+    "models/imitation/checkpoints/runs/v5_recovery_proactive_v3/best.json": "e69148f1cb3a2441843175501ee45fa833cf61e72a9f45e630eaeb37bb791b3b",
+    "docs/reviews/recovery_correction_plan_20261112.json": "dfa059fa3f1821a2a7ec2715177154f986b7f4edd0471498fad57ef769b4ffe8",
+    "docs/reviews/recovery_collection_20261112.json": "27f4a6d43cfe20708ccb97c163f330467a5784a5cab1bab241e8871b3d506057",
+    "/home/user/Documents/GitHub/Project-SHIONN/run_recovery_turn_fit_diagnostic.py": "125f5957a9b135becf4d61571c9633be70f6a8a2476b4aa06e3ecaa552af3475",
+    "run_reviewed_recovery_pair.py": "90cf5ba12bd4e226b595388079b0e61db5827171636a451f2dde38cb27382fb1",
+    "run_route_expansion.py": "45f615f47bb8d848242a0c0fe6c4114bf34a55c6283a6e3f1d168fb1ad9044a3",
+    "run_recovery_probe.py": "647dddead3af1e51e9e978f352b28be84ec356e1265a8b188e4c6337293b211a",
+    "run_turn_onset_comparison.py": "f039d2c11e45309c31cf3f88ebdbddcccad8adfa35a2c2f35d70c1da97440237",
+    "models/imitation/network.py": "96b80ff7d4d3f39630c9b5ef24eac4371dbd1fb1871cf3eea840d2716145b80e",
+    "models/imitation/dataset.py": "5b03b28f364ab2c4d3289356c58c0ccf1df6233976d730cc3a9a8f12b3a32a77",
+    "models/imitation/train_bc.py": "9fa4145166f2df72317f906c9e6731e6c2ec2fcce7094f8a3c5556d4057c20f4",
+    "models/imitation/preprocess.py": "6c822d35472509282e294bac4c39b49ac8839e768799b272061c2dbf0e0b023c",
+    "models/imitation/mouse_bins.py": "a15d3ce28c0715aa6e7ae3dbbc8351ecad3c2fe77548a402ea779e7ec7b1fced",
+    "models/imitation/checkpoint.py": "9d701024c79d7687ef30a38adc8b846aeb6ec7dbb2059f0c45f688f93ef52ae3",
+    "models/imitation/recovery_transfer.py": "aff5c3f140efd1d79c7d7cebf455070d468fbd6bc72b0e8c5fbd25df0b7a76c7",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135338_796624/video.mp4": "71147d9326b268e592b90e9fded4d879c41b8f48d59c866ff1036c9143b1b0b1",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135338_796624/actions.csv": "85c8bc802ba4db87adfd2a0e86ef2bd6ee36112c1a2655d824911f749f97f9e6",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135338_796624/metadata.json": "7ecffb9628f6e61f74cb8a84f38783855c880c937bd58a07a36117d80c7a9bcc",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_sessions/session_20261112_135231_932595/002_dataset_test9/attempt_20261112_135323_736896.jsonl": "e48bf2c3721c5249ca673debb8bc37c9a24a35e6fcfe5143249fa504c060d7b2",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135423_667677/video.mp4": "1d9d754add39401d63838f7695c9fa31e56ce7bfa60fd795cd82bad9a5fc5ca2",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135423_667677/actions.csv": "228f4c10932fbddee5d2120028ad00e8427b1f35adcaa015838fbddfedd9066b",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135423_667677/metadata.json": "69ada81c6459f30bb3e33ea7de97f3cf6b108a804fd662c180e4ac5a3137e2b3",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_sessions/session_20261112_135231_932595/003_dataset_test1/attempt_20261112_135404_426769.jsonl": "96d9a7d0c262b718312d6ff78433874eb079838ae193a5cf9c47b1379c296a7d",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135500_680664/video.mp4": "f5ac86c3fb55ee09e5e7592c009d06c7116e4475292b02935f03d9928d9ca235",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135500_680664/actions.csv": "1dbe8e14eadd2aea1ec3784f02ef9ba7cffbb5c25a515e887220c33ad7d28a8e",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135500_680664/metadata.json": "e0f4ac595300761e839421666e61bcc7d04d04debccd00137068c390de852dd8",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_sessions/session_20261112_135231_932595/004_dataset_test9/attempt_20261112_135444_333463.jsonl": "7c2b26dbd84bdf9c2fd78ea84c0905938a213a4ea1da81ecf0c99ceca2aae00b",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135549_610461/video.mp4": "89a73f9c1cbd48bfa95587dc3c9b1f9fef77945aac91c2d5cfcd91a733d724fc",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135549_610461/actions.csv": "bcba65beee677e8a4fba9d6102fea9e8f01d68424814d3b4c4df2a4945ca0ec4",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135549_610461/metadata.json": "efa61f0c51d955a3570fad6edd6265016d5cd3967c58cf1e63e67fc387f6ca5c",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_sessions/session_20261112_135231_932595/005_dataset_test1/attempt_20261112_135527_430473.jsonl": "436cd8720943852ec194cb09cb5342ed4ee63d389b6489f24954c0fd56579180",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261109/context_calibration_episodes_pending/goal_reached/episode_20261112_134935_742233/video.mp4": "4ad0de59147c3bbe2848187f037cfe018ee673db2fcb2e34680f21ddaf7d4740",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261109/context_calibration_episodes_pending/goal_reached/episode_20261112_134935_742233/actions.csv": "e6e82e65b43d9640d7a83758088068966085f09ad0e88cdd6f1d1c880ea939ca",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261109/context_calibration_episodes_pending/goal_reached/episode_20261112_134935_742233/metadata.json": "7c933d1289940013c17b0b06b63cf3b79189d19e8de0ec1119ff6987a789b2cb",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261109/context_calibration_sessions/session_20261112_134846_503160/001_dataset_test1/attempt_20261112_134859_102140.jsonl": "dcd81a3d67d250b2833e8e6ff39f4641a56e62d48be3543cbc609c41c91f890d"
+  },
+  "learning_rate": 1e-05,
+  "seed": 0,
+  "augmentation": "disabled for this fitting diagnostic; cannot attribute change solely to exposure",
+  "weights_exported": false,
+  "heldout_or_gameplay_evaluation": false,
+  "elapsed_seconds": 15.150858154000161,
+  "before": {
+    "complete": true,
+    "episodes": 5,
+    "records": [
+      {
+        "episode": "episode_20261112_135338_796624",
+        "map": "dataset_test9",
+        "window": [
+          22,
+          30
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.25,
+          "longest_idle_seconds": 0.08333333333333333,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            67.375,
+            20.125
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 6,
+            "sign_accuracy": 0.75,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 2
+          },
+          "dy": {
+            "significant_frames": 8,
+            "sign_correct": 5,
+            "sign_accuracy": 0.625,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 3
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            24.0,
+            10.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            41.0,
+            22.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            34.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            129.0,
+            53.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            170.0,
+            47.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            220.0,
+            48.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            240.0,
+            38.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            266.0,
+            24.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            25.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ]
+        ]
+      },
+      {
+        "episode": "episode_20261112_135423_667677",
+        "map": "dataset_test1",
+        "window": [
+          19,
+          27
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.375,
+          "longest_idle_seconds": 0.125,
+          "binary_exact": 0.625,
+          "mouse_mae": [
+            66.125,
+            19.375
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 5,
+            "sign_accuracy": 0.625,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 3
+          },
+          "dy": {
+            "significant_frames": 7,
+            "sign_correct": 5,
+            "sign_accuracy": 0.7142857142857143,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 3
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            5.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            43.0,
+            13.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            88.0,
+            38.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            180.0,
+            60.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            232.0,
+            53.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            237.0,
+            33.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            229.0,
+            13.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            185.0,
+            7.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ]
+        ]
+      },
+      {
+        "episode": "episode_20261112_135500_680664",
+        "map": "dataset_test9",
+        "window": [
+          15,
+          23
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.25,
+          "longest_idle_seconds": 0.08333333333333333,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            123.5,
+            20.875
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 6,
+            "sign_accuracy": 0.75,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 2
+          },
+          "dy": {
+            "significant_frames": 7,
+            "sign_correct": 3,
+            "sign_accuracy": 0.42857142857142855,
+            "expert_nonzero_frames": 7,
+            "nonzero_predicted_zero": 2
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -63.0,
+            16.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -189.0,
+            31.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -239.0,
+            35.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -295.0,
+            27.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -334.0,
+            4.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -267.0,
+            -10.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -213.0,
+            -6.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -192.0,
+            0.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ]
+        ]
+      },
+      {
+        "episode": "episode_20261112_135549_610461",
+        "map": "dataset_test1",
+        "window": [
+          17,
+          25
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.375,
+          "longest_idle_seconds": 0.125,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            51.0,
+            11.625
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 5,
+            "sign_accuracy": 0.625,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 3
+          },
+          "dy": {
+            "significant_frames": 8,
+            "sign_correct": 4,
+            "sign_accuracy": 0.5,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 4
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            28.0,
+            5.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            56.0,
+            10.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            35.0,
+            5.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            47.0,
+            3.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            81.0,
+            16.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            123.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            185.0,
+            33.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            213.0,
+            36.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ]
+        ]
+      },
+      {
+        "episode": "episode_20261112_134935_742233",
+        "map": "dataset_test1",
+        "window": [
+          28,
+          36
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.5,
+          "longest_idle_seconds": 0.16666666666666666,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            182.25,
+            13.875
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 4,
+            "sign_accuracy": 0.5,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 4
+          },
+          "dy": {
+            "significant_frames": 6,
+            "sign_correct": 3,
+            "sign_accuracy": 0.5,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 5
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -21.0,
+            2.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -91.0,
+            2.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -171.0,
+            -5.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -274.0,
+            -21.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -336.0,
+            -24.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -373.0,
+            -31.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -371.0,
+            -48.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -357.0,
+            -47.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ]
+        ]
+      }
+    ],
+    "aggregate": {
+      "episodes": 5,
+      "frames": 40,
+      "episode_mean": {
+        "idle_fraction": 0.35,
+        "longest_idle_seconds": 0.11666666666666665,
+        "binary_exact": 0.925
+      },
+      "episode_mouse_mae": [
+        98.05,
+        17.175
+      ],
+      "frame_weighted": {
+        "idle_fraction": 0.35,
+        "binary_exact": 0.925,
+        "mouse_mae": [
+          98.05,
+          17.175
+        ]
+      },
+      "backward_tp": 0,
+      "backward_expected": 0,
+      "backward_recall": null,
+      "false_backward": 0,
+      "episode_backward_recall": null,
+      "backward_supported_episodes": 0,
+      "dx": {
+        "significant_frames": 40,
+        "sign_correct": 26,
+        "frame_sign_accuracy": 0.65,
+        "episode_sign_accuracy": 0.65,
+        "supported_episodes": 5,
+        "expert_nonzero_frames": 40,
+        "nonzero_predicted_zero": 14,
+        "nonzero_zero_rate": 0.35
+      },
+      "dy": {
+        "significant_frames": 36,
+        "sign_correct": 20,
+        "frame_sign_accuracy": 0.5555555555555556,
+        "episode_sign_accuracy": 0.5535714285714286,
+        "supported_episodes": 5,
+        "expert_nonzero_frames": 39,
+        "nonzero_predicted_zero": 17,
+        "nonzero_zero_rate": 0.4358974358974359
+      }
+    },
+    "by_map": {
+      "dataset_test1": {
+        "episodes": 3,
+        "frames": 24,
+        "episode_mean": {
+          "idle_fraction": 0.4166666666666667,
+          "longest_idle_seconds": 0.13888888888888887,
+          "binary_exact": 0.875
+        },
+        "episode_mouse_mae": [
+          99.79166666666667,
+          14.958333333333334
+        ],
+        "frame_weighted": {
+          "idle_fraction": 0.4166666666666667,
+          "binary_exact": 0.875,
+          "mouse_mae": [
+            99.79166666666667,
+            14.958333333333334
+          ]
+        },
+        "backward_tp": 0,
+        "backward_expected": 0,
+        "backward_recall": null,
+        "false_backward": 0,
+        "episode_backward_recall": null,
+        "backward_supported_episodes": 0,
+        "dx": {
+          "significant_frames": 24,
+          "sign_correct": 14,
+          "frame_sign_accuracy": 0.5833333333333334,
+          "episode_sign_accuracy": 0.5833333333333334,
+          "supported_episodes": 3,
+          "expert_nonzero_frames": 24,
+          "nonzero_predicted_zero": 10,
+          "nonzero_zero_rate": 0.4166666666666667
+        },
+        "dy": {
+          "significant_frames": 21,
+          "sign_correct": 12,
+          "frame_sign_accuracy": 0.5714285714285714,
+          "episode_sign_accuracy": 0.5714285714285715,
+          "supported_episodes": 3,
+          "expert_nonzero_frames": 24,
+          "nonzero_predicted_zero": 12,
+          "nonzero_zero_rate": 0.5
+        }
+      },
+      "dataset_test9": {
+        "episodes": 2,
+        "frames": 16,
+        "episode_mean": {
+          "idle_fraction": 0.25,
+          "longest_idle_seconds": 0.08333333333333333,
+          "binary_exact": 1.0
+        },
+        "episode_mouse_mae": [
+          95.4375,
+          20.5
+        ],
+        "frame_weighted": {
+          "idle_fraction": 0.25,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            95.4375,
+            20.5
+          ]
+        },
+        "backward_tp": 0,
+        "backward_expected": 0,
+        "backward_recall": null,
+        "false_backward": 0,
+        "episode_backward_recall": null,
+        "backward_supported_episodes": 0,
+        "dx": {
+          "significant_frames": 16,
+          "sign_correct": 12,
+          "frame_sign_accuracy": 0.75,
+          "episode_sign_accuracy": 0.75,
+          "supported_episodes": 2,
+          "expert_nonzero_frames": 16,
+          "nonzero_predicted_zero": 4,
+          "nonzero_zero_rate": 0.25
+        },
+        "dy": {
+          "significant_frames": 15,
+          "sign_correct": 8,
+          "frame_sign_accuracy": 0.5333333333333333,
+          "episode_sign_accuracy": 0.5267857142857143,
+          "supported_episodes": 2,
+          "expert_nonzero_frames": 15,
+          "nonzero_predicted_zero": 5,
+          "nonzero_zero_rate": 0.3333333333333333
+        }
+      }
+    }
+  },
+  "fit": {
+    "steps_completed": 100,
+    "target_exposures": 800,
+    "exposures_per_frame": 20,
+    "draw_sha256": "47b1d11fde7888e5117502f02670f2325885f91863ecd8b1893130ab9dff1e48",
+    "training": {
+      "loss": 4.073899397850036,
+      "samples": 800,
+      "precision": "float32_no_amp_skips"
+    }
+  },
+  "after": {
+    "complete": true,
+    "episodes": 5,
+    "records": [
+      {
+        "episode": "episode_20261112_135338_796624",
+        "map": "dataset_test9",
+        "window": [
+          22,
+          30
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            92.375,
+            15.0
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 6,
+            "sign_accuracy": 0.75,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          },
+          "dy": {
+            "significant_frames": 8,
+            "sign_correct": 8,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            24.0,
+            10.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            41.0,
+            22.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            34.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            129.0,
+            53.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            170.0,
+            47.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            220.0,
+            48.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            240.0,
+            38.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            266.0,
+            24.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            25.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ]
+        ]
+      },
+      {
+        "episode": "episode_20261112_135423_667677",
+        "map": "dataset_test1",
+        "window": [
+          19,
+          27
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 0.625,
+          "mouse_mae": [
+            65.375,
+            18.75
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 8,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          },
+          "dy": {
+            "significant_frames": 7,
+            "sign_correct": 7,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            5.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            43.0,
+            13.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            88.0,
+            38.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            180.0,
+            60.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            232.0,
+            53.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            237.0,
+            33.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            229.0,
+            13.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            185.0,
+            7.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ]
+        ]
+      },
+      {
+        "episode": "episode_20261112_135500_680664",
+        "map": "dataset_test9",
+        "window": [
+          15,
+          23
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            107.75,
+            15.375
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 8,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          },
+          "dy": {
+            "significant_frames": 7,
+            "sign_correct": 6,
+            "sign_accuracy": 0.8571428571428571,
+            "expert_nonzero_frames": 7,
+            "nonzero_predicted_zero": 0
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -63.0,
+            16.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -189.0,
+            31.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -239.0,
+            35.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -295.0,
+            27.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -334.0,
+            4.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -267.0,
+            -10.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -213.0,
+            -6.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -192.0,
+            0.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ]
+        ]
+      },
+      {
+        "episode": "episode_20261112_135549_610461",
+        "map": "dataset_test1",
+        "window": [
+          17,
+          25
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            45.0,
+            12.375
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 8,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          },
+          "dy": {
+            "significant_frames": 8,
+            "sign_correct": 8,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            28.0,
+            5.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            56.0,
+            10.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            35.0,
+            5.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            47.0,
+            3.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            81.0,
+            16.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            123.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            185.0,
+            33.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            213.0,
+            36.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            66.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            134.0,
+            23.0
+          ]
+        ]
+      },
+      {
+        "episode": "episode_20261112_134935_742233",
+        "map": "dataset_test1",
+        "window": [
+          28,
+          36
+        ],
+        "metrics": {
+          "frames": 8,
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            154.25,
+            13.875
+          ],
+          "backward_tp": 0,
+          "backward_expected": 0,
+          "false_backward": 0,
+          "dx": {
+            "significant_frames": 8,
+            "sign_correct": 8,
+            "sign_accuracy": 1.0,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 0
+          },
+          "dy": {
+            "significant_frames": 6,
+            "sign_correct": 4,
+            "sign_accuracy": 0.6666666666666666,
+            "expert_nonzero_frames": 8,
+            "nonzero_predicted_zero": 3
+          }
+        },
+        "targets": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -21.0,
+            2.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -91.0,
+            2.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -171.0,
+            -5.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -274.0,
+            -21.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -336.0,
+            -24.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -373.0,
+            -31.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -371.0,
+            -48.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -357.0,
+            -47.0
+          ]
+        ],
+        "predictions": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -134.0,
+            -23.0
+          ]
+        ]
+      }
+    ],
+    "aggregate": {
+      "episodes": 5,
+      "frames": 40,
+      "episode_mean": {
+        "idle_fraction": 0.0,
+        "longest_idle_seconds": 0.0,
+        "binary_exact": 0.925
+      },
+      "episode_mouse_mae": [
+        92.95,
+        15.075
+      ],
+      "frame_weighted": {
+        "idle_fraction": 0.0,
+        "binary_exact": 0.925,
+        "mouse_mae": [
+          92.95,
+          15.075
+        ]
+      },
+      "backward_tp": 0,
+      "backward_expected": 0,
+      "backward_recall": null,
+      "false_backward": 0,
+      "episode_backward_recall": null,
+      "backward_supported_episodes": 0,
+      "dx": {
+        "significant_frames": 40,
+        "sign_correct": 38,
+        "frame_sign_accuracy": 0.95,
+        "episode_sign_accuracy": 0.95,
+        "supported_episodes": 5,
+        "expert_nonzero_frames": 40,
+        "nonzero_predicted_zero": 0,
+        "nonzero_zero_rate": 0.0
+      },
+      "dy": {
+        "significant_frames": 36,
+        "sign_correct": 33,
+        "frame_sign_accuracy": 0.9166666666666666,
+        "episode_sign_accuracy": 0.9047619047619048,
+        "supported_episodes": 5,
+        "expert_nonzero_frames": 39,
+        "nonzero_predicted_zero": 3,
+        "nonzero_zero_rate": 0.07692307692307693
+      }
+    },
+    "by_map": {
+      "dataset_test1": {
+        "episodes": 3,
+        "frames": 24,
+        "episode_mean": {
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 0.875
+        },
+        "episode_mouse_mae": [
+          88.20833333333333,
+          15.0
+        ],
+        "frame_weighted": {
+          "idle_fraction": 0.0,
+          "binary_exact": 0.875,
+          "mouse_mae": [
+            88.20833333333333,
+            15.0
+          ]
+        },
+        "backward_tp": 0,
+        "backward_expected": 0,
+        "backward_recall": null,
+        "false_backward": 0,
+        "episode_backward_recall": null,
+        "backward_supported_episodes": 0,
+        "dx": {
+          "significant_frames": 24,
+          "sign_correct": 24,
+          "frame_sign_accuracy": 1.0,
+          "episode_sign_accuracy": 1.0,
+          "supported_episodes": 3,
+          "expert_nonzero_frames": 24,
+          "nonzero_predicted_zero": 0,
+          "nonzero_zero_rate": 0.0
+        },
+        "dy": {
+          "significant_frames": 21,
+          "sign_correct": 19,
+          "frame_sign_accuracy": 0.9047619047619048,
+          "episode_sign_accuracy": 0.8888888888888888,
+          "supported_episodes": 3,
+          "expert_nonzero_frames": 24,
+          "nonzero_predicted_zero": 3,
+          "nonzero_zero_rate": 0.125
+        }
+      },
+      "dataset_test9": {
+        "episodes": 2,
+        "frames": 16,
+        "episode_mean": {
+          "idle_fraction": 0.0,
+          "longest_idle_seconds": 0.0,
+          "binary_exact": 1.0
+        },
+        "episode_mouse_mae": [
+          100.0625,
+          15.1875
+        ],
+        "frame_weighted": {
+          "idle_fraction": 0.0,
+          "binary_exact": 1.0,
+          "mouse_mae": [
+            100.0625,
+            15.1875
+          ]
+        },
+        "backward_tp": 0,
+        "backward_expected": 0,
+        "backward_recall": null,
+        "false_backward": 0,
+        "episode_backward_recall": null,
+        "backward_supported_episodes": 0,
+        "dx": {
+          "significant_frames": 16,
+          "sign_correct": 14,
+          "frame_sign_accuracy": 0.875,
+          "episode_sign_accuracy": 0.875,
+          "supported_episodes": 2,
+          "expert_nonzero_frames": 16,
+          "nonzero_predicted_zero": 0,
+          "nonzero_zero_rate": 0.0
+        },
+        "dy": {
+          "significant_frames": 15,
+          "sign_correct": 14,
+          "frame_sign_accuracy": 0.9333333333333333,
+          "episode_sign_accuracy": 0.9285714285714286,
+          "supported_episodes": 2,
+          "expert_nonzero_frames": 15,
+          "nonzero_predicted_zero": 0,
+          "nonzero_zero_rate": 0.0
+        }
+      }
+    }
+  }
+}

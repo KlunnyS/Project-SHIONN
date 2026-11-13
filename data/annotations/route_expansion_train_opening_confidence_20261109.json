@@ -1,0 +1,60 @@
+{
+  "control": {
+    "new_w_misses": [
+      {
+        "episode": "episode_20260920_141427_064342",
+        "age": 0,
+        "source_w_probability": 0.5392531156539917,
+        "candidate_w_probability": 0.460072785615921
+      },
+      {
+        "episode": "episode_20260920_151606_030641",
+        "age": 1,
+        "source_w_probability": 0.5413642525672913,
+        "candidate_w_probability": 0.49031370878219604
+      },
+      {
+        "episode": "episode_20261004_173108_140776",
+        "age": 0,
+        "source_w_probability": 0.5519068837165833,
+        "candidate_w_probability": 0.4524773359298706
+      },
+      {
+        "episode": "episode_20261004_175621_410279",
+        "age": 1,
+        "source_w_probability": 0.5258979797363281,
+        "candidate_w_probability": 0.46530234813690186
+      }
+    ],
+    "mean_w_probability_on_expert_w": 0.9398992158568743
+  },
+  "correction": {
+    "new_w_misses": [
+      {
+        "episode": "episode_20260920_141427_064342",
+        "age": 0,
+        "source_w_probability": 0.5392531156539917,
+        "candidate_w_probability": 0.4536307156085968
+      },
+      {
+        "episode": "episode_20260920_151606_030641",
+        "age": 1,
+        "source_w_probability": 0.5413642525672913,
+        "candidate_w_probability": 0.47015687823295593
+      },
+      {
+        "episode": "episode_20261004_173108_140776",
+        "age": 0,
+        "source_w_probability": 0.5519068837165833,
+        "candidate_w_probability": 0.4481182098388672
+      },
+      {
+        "episode": "episode_20261004_175621_410279",
+        "age": 1,
+        "source_w_probability": 0.5258979797363281,
+        "candidate_w_probability": 0.45062682032585144
+      }
+    ],
+    "mean_w_probability_on_expert_w": 0.9390808997550175
+  }
+}

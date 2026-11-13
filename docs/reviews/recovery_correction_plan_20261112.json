@@ -1,0 +1,54 @@
+{
+  "status": "prepared_configuration_runner_integration_pending_no_training",
+  "source": "models/imitation/checkpoints/runs/v5_recovery_proactive_v3/best.pt",
+  "source_sha256": "2ac674293279370b3fd37aadae7914abc2ede84f2941298ded24c054701c2483",
+  "architecture": "shionn_imitation_v5_residual_binned",
+  "model_fps": 24,
+  "seed": 0,
+  "steps_per_arm": 1000,
+  "batch_size": 10,
+  "learning_rate": 1e-05,
+  "optimizer": "fresh AdamW with existing source-compatible settings",
+  "source_initialization": "both arms freshly initialized from deployed checkpoint",
+  "batch_composition": {
+    "original_train_frames": 7,
+    "original_train_opening_frames": 1,
+    "human_corrections": 2
+  },
+  "control": "previous seven TRAIN corrections",
+  "candidate": "previous seven plus calibration and four substantial new corrections",
+  "new_training_episodes": [
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135338_796624",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135423_667677",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135500_680664",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261112/recovery_episodes_pending/goal_reached/episode_20261112_135549_610461",
+    "/mnt/extra/Project-SHIONN/local_storage/model_attempts/targeted_navigation_20261109/context_calibration_episodes_pending/goal_reached/episode_20261112_134935_742233"
+  ],
+  "new_usable_frames": 806,
+  "candidate_total_usable_frames": 1607,
+  "previous_split": "data/annotations/route_expansion_split_20261109.json",
+  "previous_split_sha256": "1eac5fbc81d913bb5144e5d596e84c418a819fbc8568b96797689bf1dfab616f",
+  "new_review": "docs/reviews/recovery_collection_20261112.json",
+  "new_review_sha256": "27f4a6d43cfe20708ccb97c163f330467a5784a5cab1bab241e8871b3d506057",
+  "calibration_window": [
+    28,
+    156
+  ],
+  "calibration_hashes": {
+    "video.mp4": "4ad0de59147c3bbe2848187f037cfe018ee673db2fcb2e34680f21ddaf7d4740",
+    "actions.csv": "e6e82e65b43d9640d7a83758088068966085f09ad0e88cdd6f1d1c880ea939ca",
+    "metadata.json": "7c933d1289940013c17b0b06b63cf3b79189d19e8de0ec1119ff6987a789b2cb"
+  },
+  "heldout_policy": "Preserve two complete original development holdouts; already used for diagnosis, not untouched generalization tests. New similar-view episodes remain together in TRAIN. No frame-level random split.",
+  "constraints": [
+    "No test11/test12 gradients",
+    "No autonomous/context action targets",
+    "No GRU, new gating, or action-space changes",
+    "Source preprocessing, mouse bins, losses, smoothing and gradient clipping preserved",
+    "Paired original-data/opening draws and equal optimizer budgets",
+    "New isolated outputs; no overwrite, promotion, retry or budget extension"
+  ],
+  "evaluation": "Existing navigation steering/startup guards and whole-episode development recovery; autonomous scored comparison only if eligible",
+  "hard_runtime_cap_minutes": 30,
+  "automatic_training": false
+}

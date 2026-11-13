@@ -1,0 +1,43 @@
+{
+  "report": "models/imitation/checkpoints/runs/route_expansion_v1/report.json",
+  "report_sha256": "fbfdfd47b20045218c429b63478ab00cad3e90839805779ab2db0b198f34adcd",
+  "paired_complete": true,
+  "elapsed_seconds": 726.567,
+  "summary": {
+    "source": {
+      "navigation_binary_exact": 0.8460358570746058,
+      "opening_predicted_idle": 175,
+      "opening_frames": 1600,
+      "heldout_episode_mean_binary_exact": 0.6947328574518711,
+      "heldout_backward_tp": 8,
+      "heldout_false_backward": 2,
+      "new_route_binary_exact": 0.788659793814433,
+      "new_route_mouse_dx_mae": 11.721649484536082,
+      "new_exit_binary_exact": 0.3684210526315789
+    },
+    "control": {
+      "navigation_binary_exact": 0.8499836556111544,
+      "opening_predicted_idle": 193,
+      "opening_frames": 1600,
+      "heldout_episode_mean_binary_exact": 0.691109669046074,
+      "heldout_backward_tp": 10,
+      "heldout_false_backward": 1,
+      "new_route_binary_exact": 0.788659793814433,
+      "new_route_mouse_dx_mae": 11.438144329896907,
+      "new_exit_binary_exact": 0.43859649122807015
+    },
+    "correction": {
+      "navigation_binary_exact": 0.8490784279212452,
+      "opening_predicted_idle": 192,
+      "opening_frames": 1600,
+      "heldout_episode_mean_binary_exact": 0.6838632922344798,
+      "heldout_backward_tp": 9,
+      "heldout_false_backward": 2,
+      "new_route_binary_exact": 0.7989690721649485,
+      "new_route_mouse_dx_mae": 10.628865979381443,
+      "new_exit_binary_exact": 0.47368421052631576
+    }
+  },
+  "decision": "Neither arm eligible for gameplay or promotion: opening-idle guard failed. Expanded data improves training examples but has not demonstrated held-out recovery or gameplay improvement.",
+  "next_step": "Inspect newly introduced opening-idle predictions before preparing further training; retain deployed model."
+}

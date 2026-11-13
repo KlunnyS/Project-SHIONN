@@ -20,7 +20,10 @@ from .checkpoint import load_checkpoint, save_checkpoint
 from .dataset import BINARY_ACTION_COLUMNS, BehaviorCloningDataset, discover_cached_episodes, split_episode_manifests
 from .frozen_split import DEFAULT_SPLIT_PATH, FrozenSplit, load_frozen_split
 from .mouse_bins import MouseBins
-from .network import ARCHITECTURE_VERSION, BINNED_ARCHITECTURE_VERSION, BinnedImitationPolicy, ImitationPolicy
+from .network import (ARCHITECTURE_VERSION, BINNED_ARCHITECTURE_VERSION,
+                      GATED_BINNED_ARCHITECTURE_VERSION, BinnedImitationPolicy,
+                      GatedBinnedImitationPolicy, ImitationPolicy)
+from .recurrent import (RECURRENT_ARCHITECTURE_VERSION, RecurrentBinnedPolicy, SequenceDataset, run_recurrent_epoch)
 from .preprocess import PREPROCESSING_CONFIG
 
 
@@ -228,6 +231,11 @@ def run_epoch(
     horizontal_flip_probability: float = 0.0,
     label_smoothing: float = 0.0, max_grad_norm: float = 0.0,
 ) -> tuple[dict[str, float], int]:
+    if isinstance(model, RecurrentBinnedPolicy):
+        return run_recurrent_epoch(model, loader, optimizer, scaler, device, train,
+            binary_class_weights, mouse_scale, global_step, on_step, skip_batches,
+            log_every, mouse_bins, brightness, contrast, horizontal_flip_probability,
+            label_smoothing, max_grad_norm)
     model.train(train)
     totals: dict[str, float] = {name: 0.0 for name in (*BINARY_ACTION_COLUMNS, "mouse", "total")}
     batches = 0
@@ -294,7 +302,15 @@ def checkpoint_config(
 ) -> dict:
     """The inference-critical contract persisted inside and beside every checkpoint."""
     return {
-        "architecture": BINNED_ARCHITECTURE_VERSION if mouse_bins is not None else ARCHITECTURE_VERSION,
+        "memory": ({"type": "gru", "hidden_size": args.gru_hidden_size,
+                    "feature_gate": args.feature_gate == "observation",
+                    "sequence_length": args.sequence_length, "burn_in": args.burn_in}
+                   if getattr(args, "temporal_memory", "none") == "gru" else None),
+        "architecture": (RECURRENT_ARCHITECTURE_VERSION
+                         if getattr(args, "temporal_memory", "none") == "gru"
+                         else GATED_BINNED_ARCHITECTURE_VERSION
+                         if getattr(args, "feature_gate", "none") == "observation"
+                         else BINNED_ARCHITECTURE_VERSION if mouse_bins is not None else ARCHITECTURE_VERSION),
         "preprocessing": PREPROCESSING_CONFIG,
         "action_columns": list(BINARY_ACTION_COLUMNS) + ["mouse_dx", "mouse_dy"],
         "target_processing": {
@@ -330,6 +346,11 @@ def checkpoint_config(
             "start_window_frames": args.start_window_frames,
             "start_sampling_boost": args.start_sampling_boost,
             "correction_sampling_fraction": args.correction_sampling_fraction,
+            "correction_group_fractions": getattr(args, "correction_group_fractions", {}),
+            "correction_episode_groups": (
+                getattr(args, "correction_episode_groups", {})
+                if getattr(args, "correction_group_fractions", {}) else {}
+            ),
             "augmentation": {
                 "brightness": args.brightness_augmentation,
                 "contrast": args.contrast_augmentation,
@@ -395,17 +416,74 @@ def partition_frozen_training(
     return train, validation
 
 
+def parse_correction_group_fractions(values: list[str]) -> dict[str, float]:
+    """Parse explicit expected draw shares, leaving the remainder for base data."""
+    fractions = {}
+    for value in values:
+        group, separator, amount = value.partition("=")
+        if not separator or not group.strip() or group != group.strip() or group == "base":
+            raise ValueError("Use --correction-group-fraction GROUP=FRACTION; base is implicit")
+        if group in fractions:
+            raise ValueError(f"Duplicate correction group fraction: {group}")
+        fraction = float(amount)
+        if not math.isfinite(fraction) or not 0 < fraction < 1:
+            raise ValueError("Correction group fractions must be finite and in (0, 1)")
+        fractions[group] = fraction
+    if sum(fractions.values()) >= 1:
+        raise ValueError("Correction group fractions must sum to less than one")
+    return fractions
+
+
+def correction_cache_group(additions, extra_dir: Path, frozen_split=None) -> str:
+    """Frozen membership identifies moved caches; unfrozen caches use known paths/names."""
+    if frozen_split is not None:
+        names = {item.name for item in additions}
+        groups = {group for group, name in frozen_split.episodes if name in names}
+        if len(groups) != 1 or "base" in groups:
+            raise ValueError("Extra cache must identify one non-base frozen correction group")
+        return next(iter(groups))
+    known = {
+        Path("data/datasets/recovery_cached_frames").resolve(): "recovery",
+        Path("data/datasets/proactive_turn_cached_frames").resolve(): "proactive_turn",
+    }
+    return known.get(extra_dir.resolve(), extra_dir.name)
+
+
+def validate_resume_group_sampling(previous: dict, current: dict) -> None:
+    """Legacy checkpoints omit these fields; active recipes must match membership too."""
+    for key in ("correction_group_fractions", "correction_episode_groups"):
+        if previous.get(key, {}) != current.get(key, {}):
+            raise ValueError(f"Resume checkpoint {key} differs from this run")
+
+
 def training_sampling_weights(
     dataset: BehaviorCloningDataset, sampling: str, *,
     start_window_frames: int = 8, start_sampling_boost: float = 1.0,
     correction_episode_names: set[str] | None = None,
     correction_sampling_fraction: float = 0.0,
+    correction_episode_groups: dict[str, str] | None = None,
+    correction_group_fractions: dict[str, float] | None = None,
 ) -> np.ndarray:
     """Set expected opening and correction exposure without changing epoch size."""
     if start_window_frames < 1 or start_sampling_boost < 1:
         raise ValueError("Start sampling needs a positive window and boost at least 1")
     if not 0 <= correction_sampling_fraction < 1:
         raise ValueError("Correction sampling fraction must be in [0, 1)")
+    fractions = correction_group_fractions or {}
+    episode_groups = correction_episode_groups or {}
+    if fractions:
+        if correction_sampling_fraction:
+            raise ValueError("Group fractions cannot be combined with --correction-sampling-fraction")
+        if any(not math.isfinite(value) or not 0 < value < 1 for value in fractions.values()):
+            raise ValueError("Each correction group fraction must be finite and between zero and one")
+        if sum(fractions.values()) >= 1:
+            raise ValueError("Correction group fractions must sum to less than one, leaving base draws")
+        if set(episode_groups) != (correction_episode_names or set()):
+            raise ValueError("Every correction episode must have exactly one group")
+        if set(fractions) != set(episode_groups.values()):
+            raise ValueError("Specify a fraction for every selected correction group, and no others")
+        if not set(episode_groups).issubset(dataset.episode_names):
+            raise ValueError("Correction group contains an unknown episode")
     if sampling == "chamber-balanced":
         weights = dataset.chamber_sampling_weights()
     elif sampling == "uniform":
@@ -439,6 +517,21 @@ def training_sampling_weights(
             correction_sampling_fraction / (1 - correction_sampling_fraction)
             * base_mass / correction_mass
         )
+    if fractions:
+        labels = np.asarray([
+            episode_groups.get(dataset.episode_names[episode], "")
+            for episode, _ in dataset.index
+        ], dtype=object)
+        base = labels == ""
+        if not base.any():
+            raise ValueError("Group sampling requires usable base frames")
+        # Preserve relative frame/map/opening weights within each group.
+        weights[base] *= (1 - sum(fractions.values())) / weights[base].sum()
+        for group, fraction in fractions.items():
+            selected = labels == group
+            if not selected.any():
+                raise ValueError(f"Correction group {group!r} has no usable frames")
+            weights[selected] *= fraction / weights[selected].sum()
     weights *= len(dataset) / weights.sum()
     return weights
 
@@ -446,6 +539,7 @@ def training_sampling_weights(
 def make_training_loader(
     dataset, args, pin_memory: bool, epoch: int,
     correction_episode_names: set[str] | None = None,
+    correction_episode_groups: dict[str, str] | None = None,
 ) -> DataLoader:
     """Use deterministic weighted draws for each resumable epoch."""
     generator = torch.Generator()
@@ -453,13 +547,16 @@ def make_training_loader(
     sampler = None
     boost = getattr(args, "start_sampling_boost", 1.0)
     correction_fraction = getattr(args, "correction_sampling_fraction", 0.0)
-    if args.sampling == "chamber-balanced" or boost != 1 or correction_fraction:
+    group_fractions = getattr(args, "correction_group_fractions", {})
+    if args.sampling == "chamber-balanced" or boost != 1 or correction_fraction or group_fractions:
         weights = training_sampling_weights(
             dataset, args.sampling,
             start_window_frames=getattr(args, "start_window_frames", 8),
             start_sampling_boost=boost,
             correction_episode_names=correction_episode_names,
             correction_sampling_fraction=correction_fraction,
+            correction_episode_groups=correction_episode_groups,
+            correction_group_fractions=group_fractions,
         )
         sampler = WeightedRandomSampler(
             torch.from_numpy(weights),
@@ -488,6 +585,8 @@ def main() -> None:
                         help="Add cached correction episodes to training only; repeat as needed")
     parser.add_argument("--correction-sampling-fraction", type=float, default=0.0,
                         help="Expected share of optimizer draws from train-extra caches, for example 0.10")
+    parser.add_argument("--correction-group-fraction", action="append", default=[], metavar="GROUP=FRACTION",
+                        help="Set each extra cache group's expected draw share; repeat for every loaded group")
     parser.add_argument("--start-window-frames", type=int, default=8,
                         help="Number of usable frames after each episode's first action eligible for opening boost")
     parser.add_argument("--start-sampling-boost", type=float, default=1.0,
@@ -547,7 +646,22 @@ def main() -> None:
     parser.add_argument("--early-stop-patience", type=int, default=2, help="Stop after N epochs without improved validation loss; 0 disables early stopping")
     parser.add_argument("--resume", type=Path,
                         help="Checkpoint to resume, including optimizer and stopping state")
+    parser.add_argument("--feature-gate", choices=("none", "observation"), default="none",
+                        help="Optional identity-initialized final visual feature gate (binned mouse only)")
+    parser.add_argument("--temporal-memory", choices=("none", "gru"), default="none")
+    parser.add_argument("--gru-hidden-size", type=int, default=256)
+    parser.add_argument("--sequence-length", type=int, default=8)
+    parser.add_argument("--burn-in", type=int, default=4)
     args = parser.parse_args()
+    if args.gru_hidden_size < 1 or args.sequence_length < 1 or args.burn_in < 0:
+        parser.error("Invalid recurrent dimensions")
+    if args.temporal_memory == "gru" and (args.mouse_head != "binned" or args.sampling != "uniform" or args.start_sampling_boost != 1 or args.correction_sampling_fraction or args.correction_group_fraction):
+        parser.error("GRU requires binned mouse, uniform sampling, start boost 1 and no correction fractions")
+    if args.feature_gate != "none" and args.mouse_head != "binned":
+        parser.error("--feature-gate observation requires --mouse-head binned")
+    args.correction_group_fractions = parse_correction_group_fractions(args.correction_group_fraction)
+    if args.correction_group_fractions and args.correction_sampling_fraction:
+        parser.error("--correction-group-fraction cannot be combined with --correction-sampling-fraction")
     run_started_at = time.perf_counter()
     torch.manual_seed(args.seed)
     all_manifests = discover_cached_episodes(args.cache_dir)
@@ -573,16 +687,13 @@ def main() -> None:
         )
     known_episodes = {item.name for item in all_manifests}
     correction_episode_names: set[str] = set()
+    correction_episode_groups: dict[str, str] = {}
     for extra_dir in args.train_extra_cache_dirs:
         additions = discover_cached_episodes(extra_dir)
         if any(item.map_name in evaluation_maps for item in additions):
             raise ValueError(f"Evaluation chambers cannot enter training from {extra_dir}")
+        group = correction_cache_group(additions, extra_dir, frozen_split)
         if frozen_split is not None:
-            known_extra_groups = {
-                Path("data/datasets/recovery_cached_frames").resolve(): "recovery",
-                Path("data/datasets/proactive_turn_cached_frames").resolve(): "proactive_turn",
-            }
-            group = known_extra_groups.get(extra_dir.resolve(), extra_dir.name)
             frozen_split.verify_cache(additions, group)
         if args.maps:
             additions = [item for item in additions if item.map_name in args.maps]
@@ -599,7 +710,9 @@ def main() -> None:
             raise ValueError("Duplicate cached episode name: " + ", ".join(sorted(duplicate)[:3]))
         known_episodes.update(item.name for item in additions)
         correction_episode_names.update(item.name for item in additions)
+        correction_episode_groups.update({item.name: group for item in additions})
         train_manifests.extend(additions)
+    args.correction_episode_groups = correction_episode_groups
     print("train episodes:", ", ".join(item.name for item in train_manifests))
     print("validation episodes:", ", ".join(item.name for item in validation_manifests))
     if args.workers < 0:
@@ -654,6 +767,8 @@ def main() -> None:
         start_sampling_boost=args.start_sampling_boost,
         correction_episode_names=correction_episode_names,
         correction_sampling_fraction=args.correction_sampling_fraction,
+        correction_episode_groups=correction_episode_groups,
+        correction_group_fractions=args.correction_group_fractions,
     )
     positive_counts, mouse_scale_values = train_dataset.action_statistics(
         weights=sample_weights
@@ -697,6 +812,12 @@ def main() -> None:
             f"correction sampling: {len(correction_episode_names)} episodes, "
             f"expected share {sample_weights[correction_mask].sum() / sample_weights.sum():.1%}"
         )
+        for group in sorted(set(correction_episode_groups.values())):
+            mask = np.fromiter(
+                (correction_episode_groups.get(train_dataset.episode_names[episode]) == group
+                 for episode, _ in train_dataset.index), dtype=bool, count=len(train_dataset),
+            )
+            print(f"correction group {group}: expected share {sample_weights[mask].sum() / sample_weights.sum():.2%}")
     print("usable training frames by map: " + ", ".join(
         f"{name}={count}" for name, count in sorted(train_dataset.chamber_sample_counts().items())
     ))
@@ -720,13 +841,18 @@ def main() -> None:
     print("jump class weights: " + str(binary_class_weights[BINARY_ACTION_COLUMNS.index("jump")].tolist()))
     binary_class_weights = binary_class_weights.to(device)
     mouse_scale = torch.as_tensor(mouse_scale_values, device=device)
+    if args.temporal_memory == "gru":
+        train_dataset = SequenceDataset(train_dataset, args.sequence_length, args.burn_in)
+        validation_dataset = SequenceDataset(validation_dataset, args.sequence_length, args.burn_in)
     validation_loader = DataLoader(
         validation_dataset, batch_size=args.validation_batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=pin_memory,
         **({"persistent_workers": True, "prefetch_factor": 2} if args.workers else {}),
     )
     model = (
-        BinnedImitationPolicy(*mouse_bins.class_counts()) if mouse_bins is not None
+        RecurrentBinnedPolicy(*mouse_bins.class_counts(), args.gru_hidden_size, args.feature_gate == "observation")
+        if args.temporal_memory == "gru" else
+        (GatedBinnedImitationPolicy if args.feature_gate == "observation" else BinnedImitationPolicy)(*mouse_bins.class_counts()) if mouse_bins is not None
         else ImitationPolicy()
     ).to(device)
     if device.type == "cuda":
@@ -761,12 +887,13 @@ def main() -> None:
     completed_resume_epoch = 0
     if args.resume:
         restored = load_checkpoint(args.resume, model=model, optimizer=optimizer, device=device)
-        compatibility_keys = ("architecture", "preprocessing", "action_columns", "target_processing")
+        compatibility_keys = ("architecture", "preprocessing", "action_columns", "target_processing", "memory")
         if any(restored["config"].get(key) != config.get(key) for key in compatibility_keys):
             raise ValueError("Resume checkpoint model or target processing differs from this run")
         if restored["config"].get("training", {}).get("sampling", "uniform") != args.sampling:
             raise ValueError("Resume checkpoint sampling strategy differs from this run")
         restored_training = restored["config"].get("training", {})
+        validate_resume_group_sampling(restored_training, config["training"])
         previous_split = restored_training.get("split_id")
         current_split = config["training"].get("split_id")
         if previous_split is not None and previous_split != current_split:
@@ -869,9 +996,12 @@ def main() -> None:
         torch.cuda.reset_peak_memory_stats(device)
     for epoch in range(start_epoch, args.epochs + 1):
         epoch_started_at = time.perf_counter()
-        train_loader = make_training_loader(
-            train_dataset, args, pin_memory, epoch, correction_episode_names
-        )
+        train_loader = (DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
+            generator=torch.Generator().manual_seed(args.seed + epoch), num_workers=args.workers, pin_memory=pin_memory)
+            if args.temporal_memory == "gru" else make_training_loader(
+            train_dataset, args, pin_memory, epoch, correction_episode_names,
+            correction_episode_groups,
+        ))
         skip_batches = resume_step_in_epoch if epoch == start_epoch else 0
         def save_periodic(step: int, step_in_epoch: int) -> None:
             if args.checkpoint_every and step % args.checkpoint_every == 0:

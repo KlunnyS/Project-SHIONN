@@ -251,3 +251,39 @@ class BinnedImitationPolicy(nn.Module):
         output["mouse_dx_logits"] = self.mouse_dx_head(features)
         output["mouse_dy_logits"] = self.mouse_dy_head(features)
         return output
+
+
+GATED_BINNED_ARCHITECTURE_VERSION = "shionn_imitation_v5_residual_binned_feature_gate"
+
+
+class ObservationFeatureGate(nn.Module):
+    """Observation-conditioned [B,512] modulation, initialized to identity.
+
+    Scales lie in (0,2); zero final projection preserves the ungated feature
+    vector initially. This adds no persistent state or action conditioning.
+    """
+
+    def __init__(self, features: int = 512, hidden: int = 64) -> None:
+        super().__init__()
+        self.layers = nn.Sequential(nn.Linear(features, hidden), nn.SiLU(),
+                                    nn.Linear(hidden, features))
+        nn.init.zeros_(self.layers[-1].weight)
+        nn.init.zeros_(self.layers[-1].bias)
+
+    def forward(self, features: Tensor) -> Tensor:
+        return features * (2 * torch.sigmoid(self.layers(features)))
+
+
+class GatedBinnedImitationPolicy(BinnedImitationPolicy):
+    """Optional final-feature gate; v5 inputs and action semantics unchanged."""
+
+    def __init__(self, dx_classes: int, dy_classes: int) -> None:
+        super().__init__(dx_classes, dy_classes)
+        self.feature_gate = ObservationFeatureGate(self.trunk.output_features)
+
+    def forward(self, frames: Tensor) -> dict[str, Tensor]:
+        features = self.feature_gate(self.trunk(frames))
+        output = {name: head(features) for name, head in self.binary_heads.items()}
+        output["mouse_dx_logits"] = self.mouse_dx_head(features)
+        output["mouse_dy_logits"] = self.mouse_dy_head(features)
+        return output

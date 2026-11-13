@@ -1,0 +1,32 @@
+{
+  "scope": "Synthetic model-only, batch1, random normalized inputs, float32; no gameplay benefit measured",
+  "device": "cuda",
+  "torch": "2.14.0+cu130",
+  "sequence_length": 32,
+  "results": {
+    "baseline": {
+      "parameters": 13188478,
+      "step_latency_ms": 2.555601400672458,
+      "synthetic_training_frames_per_second": 72.89708433127215,
+      "one_update_seconds": 0.4389750330010429,
+      "peak_allocated_mib": 2507.02783203125,
+      "peak_reserved_mib": 3722.0
+    },
+    "gru": {
+      "parameters": 14764414,
+      "step_latency_ms": 2.4097975001495797,
+      "synthetic_training_frames_per_second": 79.29657514812313,
+      "one_update_seconds": 0.4035483240004396,
+      "peak_allocated_mib": 2567.74658203125,
+      "peak_reserved_mib": 2754.0
+    }
+  },
+  "benchmark_script": "benchmark_recurrent.py",
+  "benchmark_script_sha256": "986add2e0889b17854d13ebdd37a0591beee750c05e0501696ab0ec64dab5cf3",
+  "command": ".venv/bin/python benchmark_recurrent.py --device cuda --sequence-length 32 --hidden-size 512 --iterations 10",
+  "limitations": [
+    "One cold synthetic squared-logit optimizer update, not real imitation training or steady-state throughput.",
+    "No episode-state carry, data-loading or capture overhead measured.",
+    "No real checkpoint or gameplay modification."
+  ]
+}

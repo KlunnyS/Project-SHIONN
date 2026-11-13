@@ -1,0 +1,902 @@
+{
+  "sequence": "model_attempts/sequences/reviewed_recovery_pair_20261112_screen/sequence_20261112_142443_155533",
+  "capture_checks_all_passed": true,
+  "summary": [
+    {
+      "model": "candidate",
+      "map": "dataset_test1",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "candidate",
+      "map": "dataset_test11",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "candidate",
+      "map": "dataset_test12",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 1,
+      "success_rate": 1.0,
+      "median_success_seconds": 6.149902041000132,
+      "outcomes": {
+        "goal_reached": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "control",
+      "map": "dataset_test1",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "control",
+      "map": "dataset_test11",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "control",
+      "map": "dataset_test12",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 1,
+      "success_rate": 1.0,
+      "median_success_seconds": 6.187845009000739,
+      "outcomes": {
+        "goal_reached": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "deployed",
+      "map": "dataset_test1",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "deployed",
+      "map": "dataset_test11",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 0,
+      "success_rate": 0.0,
+      "median_success_seconds": null,
+      "outcomes": {
+        "time_limit": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    },
+    {
+      "model": "deployed",
+      "map": "dataset_test12",
+      "scheduled_attempts": 1,
+      "valid_attempts": 1,
+      "invalid_attempts": 0,
+      "successes": 1,
+      "success_rate": 1.0,
+      "median_success_seconds": 6.149581985000623,
+      "outcomes": {
+        "goal_reached": 1
+      },
+      "focus_losses": 0,
+      "capture_checks_passed_attempts": 1,
+      "capture_review_required_attempts": 0
+    }
+  ],
+  "attempt_diagnostics": [
+    {
+      "job": 1,
+      "model": "deployed",
+      "map": "dataset_test1",
+      "all_zero_action_ticks": 937,
+      "ticks": 1430,
+      "summary": {
+        "type": "summary",
+        "time_utc": "2026-11-12T13:26:05.043176+00:00",
+        "monotonic_seconds": 4662.482234024,
+        "ticks": 1430,
+        "focus_losses": 0,
+        "telemetry": {
+          "samples": 894,
+          "focus_losses": 0,
+          "cursor_exits": 0,
+          "unknown_focus_samples": 0,
+          "unknown_cursor_samples": 0,
+          "max_collection_seconds": 0.0897598060000746,
+          "max_sample_gap_seconds": 0.11958871200022259
+        },
+        "camera_telemetry": {
+          "samples": 712,
+          "unknown_samples": 0,
+          "max_sample_gap_seconds": 0.1362576089995855
+        },
+        "mouse_preflight": "passed",
+        "focus_guard_cleanup": {
+          "status": "restored"
+        },
+        "injection_failures": 0,
+        "input_ready": true,
+        "mean_visual_delta": 2.3344705493580715,
+        "stop_reason": "time_limit",
+        "diagnostic_counts": {
+          "policy_freeze": 1,
+          "wall_stuck": 0,
+          "turn_loop": 0
+        }
+      },
+      "timing": {
+        "attempt": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/reviewed_recovery_pair_20261112_screen/sequence_20261112_142443_155533/001_deployed_dataset_test1_r1/attempt_20261112_142453_966717.jsonl",
+        "configured_control_fps": 24.0,
+        "configured_model_fps": 24.0,
+        "control_ticks": 1430,
+        "model_decisions": 1430,
+        "held_ticks": 0,
+        "observed_control_hz": 23.98296274440509,
+        "observed_decision_hz": 23.98296274440509,
+        "median_inference_ms": 16.09953199977099,
+        "held_ticks_claiming_inference": 0,
+        "unapplied_ticks": 0,
+        "meaning": "Observed timing only; no gameplay improvement or capture-validity approval."
+      }
+    },
+    {
+      "job": 2,
+      "model": "control",
+      "map": "dataset_test1",
+      "all_zero_action_ticks": 105,
+      "ticks": 1433,
+      "summary": {
+        "type": "summary",
+        "time_utc": "2026-11-12T13:27:25.740424+00:00",
+        "monotonic_seconds": 4743.179446403,
+        "ticks": 1433,
+        "focus_losses": 0,
+        "telemetry": {
+          "samples": 884,
+          "focus_losses": 0,
+          "cursor_exits": 0,
+          "unknown_focus_samples": 0,
+          "unknown_cursor_samples": 0,
+          "max_collection_seconds": 0.11763248099941848,
+          "max_sample_gap_seconds": 0.13181022800017672
+        },
+        "camera_telemetry": {
+          "samples": 714,
+          "unknown_samples": 0,
+          "max_sample_gap_seconds": 0.14491977499983477
+        },
+        "mouse_preflight": "passed",
+        "focus_guard_cleanup": {
+          "status": "restored"
+        },
+        "injection_failures": 0,
+        "input_ready": true,
+        "mean_visual_delta": 8.679177335505889,
+        "stop_reason": "time_limit",
+        "diagnostic_counts": {
+          "policy_freeze": 0,
+          "wall_stuck": 0,
+          "turn_loop": 0
+        }
+      },
+      "timing": {
+        "attempt": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/reviewed_recovery_pair_20261112_screen/sequence_20261112_142443_155533/002_control_dataset_test1_r1/attempt_20261112_142614_017696.jsonl",
+        "configured_control_fps": 24.0,
+        "configured_model_fps": 24.0,
+        "control_ticks": 1433,
+        "model_decisions": 1433,
+        "held_ticks": 0,
+        "observed_control_hz": 23.887291804399823,
+        "observed_decision_hz": 23.887291804399823,
+        "median_inference_ms": 18.23179499933758,
+        "held_ticks_claiming_inference": 0,
+        "unapplied_ticks": 0,
+        "meaning": "Observed timing only; no gameplay improvement or capture-validity approval."
+      }
+    },
+    {
+      "job": 3,
+      "model": "candidate",
+      "map": "dataset_test1",
+      "all_zero_action_ticks": 841,
+      "ticks": 1440,
+      "summary": {
+        "type": "summary",
+        "time_utc": "2026-11-12T13:28:44.554894+00:00",
+        "monotonic_seconds": 4821.993917161,
+        "ticks": 1440,
+        "focus_losses": 0,
+        "telemetry": {
+          "samples": 898,
+          "focus_losses": 0,
+          "cursor_exits": 0,
+          "unknown_focus_samples": 0,
+          "unknown_cursor_samples": 0,
+          "max_collection_seconds": 0.07046328500018717,
+          "max_sample_gap_seconds": 0.09150884800055792
+        },
+        "camera_telemetry": {
+          "samples": 719,
+          "unknown_samples": 0,
+          "max_sample_gap_seconds": 0.13327298399963183
+        },
+        "mouse_preflight": "passed",
+        "focus_guard_cleanup": {
+          "status": "restored"
+        },
+        "injection_failures": 0,
+        "input_ready": true,
+        "mean_visual_delta": 3.674213807019217,
+        "stop_reason": "time_limit",
+        "diagnostic_counts": {
+          "policy_freeze": 1,
+          "wall_stuck": 0,
+          "turn_loop": 0
+        }
+      },
+      "timing": {
+        "attempt": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/reviewed_recovery_pair_20261112_screen/sequence_20261112_142443_155533/003_candidate_dataset_test1_r1/attempt_20261112_142733_662920.jsonl",
+        "configured_control_fps": 24.0,
+        "configured_model_fps": 24.0,
+        "control_ticks": 1440,
+        "model_decisions": 1440,
+        "held_ticks": 0,
+        "observed_control_hz": 23.999510290042505,
+        "observed_decision_hz": 23.999510290042505,
+        "median_inference_ms": 13.30088499980775,
+        "held_ticks_claiming_inference": 0,
+        "unapplied_ticks": 0,
+        "meaning": "Observed timing only; no gameplay improvement or capture-validity approval."
+      }
+    },
+    {
+      "job": 4,
+      "model": "deployed",
+      "map": "dataset_test11",
+      "all_zero_action_ticks": 1015,
+      "ticks": 1440,
+      "summary": {
+        "type": "summary",
+        "time_utc": "2026-11-12T13:30:04.371737+00:00",
+        "monotonic_seconds": 4901.81076181,
+        "ticks": 1440,
+        "focus_losses": 0,
+        "telemetry": {
+          "samples": 899,
+          "focus_losses": 0,
+          "cursor_exits": 0,
+          "unknown_focus_samples": 0,
+          "unknown_cursor_samples": 0,
+          "max_collection_seconds": 0.06275463299971307,
+          "max_sample_gap_seconds": 0.08993835199999012
+        },
+        "camera_telemetry": {
+          "samples": 720,
+          "unknown_samples": 0,
+          "max_sample_gap_seconds": 0.13014680599917483
+        },
+        "mouse_preflight": "passed",
+        "focus_guard_cleanup": {
+          "status": "restored"
+        },
+        "injection_failures": 0,
+        "input_ready": true,
+        "mean_visual_delta": 2.052351425281717,
+        "stop_reason": "time_limit",
+        "diagnostic_counts": {
+          "policy_freeze": 1,
+          "wall_stuck": 0,
+          "turn_loop": 0
+        }
+      },
+      "timing": {
+        "attempt": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/reviewed_recovery_pair_20261112_screen/sequence_20261112_142443_155533/004_deployed_dataset_test11_r1/attempt_20261112_142853_521349.jsonl",
+        "configured_control_fps": 24.0,
+        "configured_model_fps": 24.0,
+        "control_ticks": 1440,
+        "model_decisions": 1440,
+        "held_ticks": 0,
+        "observed_control_hz": 24.003980951246955,
+        "observed_decision_hz": 24.003980951246955,
+        "median_inference_ms": 12.706183999853238,
+        "held_ticks_claiming_inference": 0,
+        "unapplied_ticks": 0,
+        "meaning": "Observed timing only; no gameplay improvement or capture-validity approval."
+      }
+    },
+    {
+      "job": 5,
+      "model": "control",
+      "map": "dataset_test11",
+      "all_zero_action_ticks": 186,
+      "ticks": 1440,
+      "summary": {
+        "type": "summary",
+        "time_utc": "2026-11-12T13:31:23.713942+00:00",
+        "monotonic_seconds": 4981.152964433,
+        "ticks": 1440,
+        "focus_losses": 0,
+        "telemetry": {
+          "samples": 898,
+          "focus_losses": 0,
+          "cursor_exits": 0,
+          "unknown_focus_samples": 0,
+          "unknown_cursor_samples": 0,
+          "max_collection_seconds": 0.06356342700019013,
+          "max_sample_gap_seconds": 0.09412077000069985
+        },
+        "camera_telemetry": {
+          "samples": 720,
+          "unknown_samples": 0,
+          "max_sample_gap_seconds": 0.1344096319999153
+        },
+        "mouse_preflight": "passed",
+        "focus_guard_cleanup": {
+          "status": "restored"
+        },
+        "injection_failures": 0,
+        "input_ready": true,
+        "mean_visual_delta": 6.548281616908975,
+        "stop_reason": "time_limit",
+        "diagnostic_counts": {
+          "policy_freeze": 0,
+          "wall_stuck": 0,
+          "turn_loop": 1
+        }
+      },
+      "timing": {
+        "attempt": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/reviewed_recovery_pair_20261112_screen/sequence_20261112_142443_155533/005_control_dataset_test11_r1/attempt_20261112_143012_259384.jsonl",
+        "configured_control_fps": 24.0,
+        "configured_model_fps": 24.0,
+        "control_ticks": 1440,
+        "model_decisions": 1440,
+        "held_ticks": 0,
+        "observed_control_hz": 23.99853536034794,
+        "observed_decision_hz": 23.99853536034794,
+        "median_inference_ms": 13.749723000273661,
+        "held_ticks_claiming_inference": 0,
+        "unapplied_ticks": 0,
+        "meaning": "Observed timing only; no gameplay improvement or capture-validity approval."
+      }
+    },
+    {
+      "job": 6,
+      "model": "candidate",
+      "map": "dataset_test11",
+      "all_zero_action_ticks": 147,
+      "ticks": 1440,
+      "summary": {
+        "type": "summary",
+        "time_utc": "2026-11-12T13:32:42.821774+00:00",
+        "monotonic_seconds": 5060.26080214,
+        "ticks": 1440,
+        "focus_losses": 0,
+        "telemetry": {
+          "samples": 898,
+          "focus_losses": 0,
+          "cursor_exits": 0,
+          "unknown_focus_samples": 0,
+          "unknown_cursor_samples": 0,
+          "max_collection_seconds": 0.061756793999848014,
+          "max_sample_gap_seconds": 0.09418228899994574
+        },
+        "camera_telemetry": {
+          "samples": 719,
+          "unknown_samples": 0,
+          "max_sample_gap_seconds": 0.13608565500089753
+        },
+        "mouse_preflight": "passed",
+        "focus_guard_cleanup": {
+          "status": "restored"
+        },
+        "injection_failures": 0,
+        "input_ready": true,
+        "mean_visual_delta": 9.341158643211754,
+        "stop_reason": "time_limit",
+        "diagnostic_counts": {
+          "policy_freeze": 1,
+          "wall_stuck": 0,
+          "turn_loop": 2
+        }
+      },
+      "timing": {
+        "attempt": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/reviewed_recovery_pair_20261112_screen/sequence_20261112_142443_155533/006_candidate_dataset_test11_r1/attempt_20261112_143131_555547.jsonl",
+        "configured_control_fps": 24.0,
+        "configured_model_fps": 24.0,
+        "control_ticks": 1440,
+        "model_decisions": 1440,
+        "held_ticks": 0,
+        "observed_control_hz": 24.000971974450536,
+        "observed_decision_hz": 24.000971974450536,
+        "median_inference_ms": 14.507581499856315,
+        "held_ticks_claiming_inference": 0,
+        "unapplied_ticks": 0,
+        "meaning": "Observed timing only; no gameplay improvement or capture-validity approval."
+      }
+    },
+    {
+      "job": 7,
+      "model": "deployed",
+      "map": "dataset_test12",
+      "all_zero_action_ticks": 0,
+      "ticks": 148,
+      "summary": {
+        "type": "summary",
+        "time_utc": "2026-11-12T13:33:08.244381+00:00",
+        "monotonic_seconds": 5085.683409693,
+        "ticks": 148,
+        "focus_losses": 0,
+        "telemetry": {
+          "samples": 93,
+          "focus_losses": 0,
+          "cursor_exits": 0,
+          "unknown_focus_samples": 0,
+          "unknown_cursor_samples": 0,
+          "max_collection_seconds": 0.05176494900024409,
+          "max_sample_gap_seconds": 0.08534545899965451
+        },
+        "camera_telemetry": {
+          "samples": 74,
+          "unknown_samples": 0,
+          "max_sample_gap_seconds": 0.08894883600078174
+        },
+        "mouse_preflight": "passed",
+        "focus_guard_cleanup": {
+          "status": "restored"
+        },
+        "injection_failures": 0,
+        "input_ready": true,
+        "mean_visual_delta": 11.027891990129385,
+        "stop_reason": "goal_reached",
+        "diagnostic_counts": {
+          "policy_freeze": 0,
+          "wall_stuck": 0,
+          "turn_loop": 0
+        }
+      },
+      "timing": {
+        "attempt": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/reviewed_recovery_pair_20261112_screen/sequence_20261112_142443_155533/007_deployed_dataset_test12_r1/attempt_20261112_143250_741442.jsonl",
+        "configured_control_fps": 24.0,
+        "configured_model_fps": 24.0,
+        "control_ticks": 148,
+        "model_decisions": 148,
+        "held_ticks": 0,
+        "observed_control_hz": 23.96639647485848,
+        "observed_decision_hz": 23.96639647485848,
+        "median_inference_ms": 13.159437000012986,
+        "held_ticks_claiming_inference": 0,
+        "unapplied_ticks": 0,
+        "meaning": "Observed timing only; no gameplay improvement or capture-validity approval."
+      }
+    },
+    {
+      "job": 8,
+      "model": "control",
+      "map": "dataset_test12",
+      "all_zero_action_ticks": 0,
+      "ticks": 149,
+      "summary": {
+        "type": "summary",
+        "time_utc": "2026-11-12T13:33:33.653918+00:00",
+        "monotonic_seconds": 5111.092949755,
+        "ticks": 149,
+        "focus_losses": 0,
+        "telemetry": {
+          "samples": 94,
+          "focus_losses": 0,
+          "cursor_exits": 0,
+          "unknown_focus_samples": 0,
+          "unknown_cursor_samples": 0,
+          "max_collection_seconds": 0.06974531700052466,
+          "max_sample_gap_seconds": 0.09804455900030007
+        },
+        "camera_telemetry": {
+          "samples": 74,
+          "unknown_samples": 0,
+          "max_sample_gap_seconds": 0.09954313900016132
+        },
+        "mouse_preflight": "passed",
+        "focus_guard_cleanup": {
+          "status": "restored"
+        },
+        "injection_failures": 0,
+        "input_ready": true,
+        "mean_visual_delta": 12.118752208090442,
+        "stop_reason": "goal_reached",
+        "diagnostic_counts": {
+          "policy_freeze": 0,
+          "wall_stuck": 0,
+          "turn_loop": 0
+        }
+      },
+      "timing": {
+        "attempt": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/reviewed_recovery_pair_20261112_screen/sequence_20261112_142443_155533/008_control_dataset_test12_r1/attempt_20261112_143316_071754.jsonl",
+        "configured_control_fps": 24.0,
+        "configured_model_fps": 24.0,
+        "control_ticks": 149,
+        "model_decisions": 149,
+        "held_ticks": 0,
+        "observed_control_hz": 24.013120870488006,
+        "observed_decision_hz": 24.013120870488006,
+        "median_inference_ms": 14.610092000111763,
+        "held_ticks_claiming_inference": 0,
+        "unapplied_ticks": 0,
+        "meaning": "Observed timing only; no gameplay improvement or capture-validity approval."
+      }
+    },
+    {
+      "job": 9,
+      "model": "candidate",
+      "map": "dataset_test12",
+      "all_zero_action_ticks": 0,
+      "ticks": 148,
+      "summary": {
+        "type": "summary",
+        "time_utc": "2026-11-12T13:33:59.879408+00:00",
+        "monotonic_seconds": 5137.318429692,
+        "ticks": 148,
+        "focus_losses": 0,
+        "telemetry": {
+          "samples": 93,
+          "focus_losses": 0,
+          "cursor_exits": 0,
+          "unknown_focus_samples": 0,
+          "unknown_cursor_samples": 0,
+          "max_collection_seconds": 0.05709859300077369,
+          "max_sample_gap_seconds": 0.08445245600069029
+        },
+        "camera_telemetry": {
+          "samples": 74,
+          "unknown_samples": 0,
+          "max_sample_gap_seconds": 0.09618025999952806
+        },
+        "mouse_preflight": "passed",
+        "focus_guard_cleanup": {
+          "status": "restored"
+        },
+        "injection_failures": 0,
+        "input_ready": true,
+        "mean_visual_delta": 10.298895391489927,
+        "stop_reason": "goal_reached",
+        "diagnostic_counts": {
+          "policy_freeze": 0,
+          "wall_stuck": 0,
+          "turn_loop": 0
+        }
+      },
+      "timing": {
+        "attempt": "/home/user/Documents/GitHub/Project-SHIONN/model_attempts/sequences/reviewed_recovery_pair_20261112_screen/sequence_20261112_142443_155533/009_candidate_dataset_test12_r1/attempt_20261112_143342_444994.jsonl",
+        "configured_control_fps": 24.0,
+        "configured_model_fps": 24.0,
+        "control_ticks": 148,
+        "model_decisions": 148,
+        "held_ticks": 0,
+        "observed_control_hz": 24.004812414248047,
+        "observed_decision_hz": 24.004812414248047,
+        "median_inference_ms": 13.139536999915435,
+        "held_ticks_claiming_inference": 0,
+        "unapplied_ticks": 0,
+        "meaning": "Observed timing only; no gameplay improvement or capture-validity approval."
+      }
+    }
+  ],
+  "counterfactual_replay": [
+    {
+      "checkpoint": "deployed",
+      "source_job": 3,
+      "video_frame": 800,
+      "action": {
+        "move_w": 0,
+        "move_a": 0,
+        "move_s": 0,
+        "move_d": 0,
+        "jump": 0,
+        "use": 0,
+        "fire_left": 0,
+        "fire_right": 0,
+        "mouse_dx": 0,
+        "mouse_dy": 0
+      },
+      "binary_probabilities": {
+        "move_w": 0.24298761785030365,
+        "move_a": 0.05113782361149788,
+        "move_s": 0.052176639437675476,
+        "move_d": 0.020798983052372932,
+        "jump": 0.020170846953988075,
+        "use": 0.005113408900797367,
+        "fire_left": 0.005110227037221193,
+        "fire_right": 0.00511187082156539
+      },
+      "limits": "Decoded video observation; comparison across models on same four frames, no expert target or live intervention"
+    },
+    {
+      "checkpoint": "deployed",
+      "source_job": 3,
+      "video_frame": 1100,
+      "action": {
+        "move_w": 0,
+        "move_a": 0,
+        "move_s": 0,
+        "move_d": 0,
+        "jump": 0,
+        "use": 0,
+        "fire_left": 0,
+        "fire_right": 0,
+        "mouse_dx": 0,
+        "mouse_dy": 0
+      },
+      "binary_probabilities": {
+        "move_w": 0.3192462623119354,
+        "move_a": 0.0707363560795784,
+        "move_s": 0.051598723977804184,
+        "move_d": 0.024369459599256516,
+        "jump": 0.022307543084025383,
+        "use": 0.005103385541588068,
+        "fire_left": 0.00510029261931777,
+        "fire_right": 0.005102291237562895
+      },
+      "limits": "Decoded video observation; comparison across models on same four frames, no expert target or live intervention"
+    },
+    {
+      "checkpoint": "deployed",
+      "source_job": 3,
+      "video_frame": 1400,
+      "action": {
+        "move_w": 0,
+        "move_a": 0,
+        "move_s": 0,
+        "move_d": 0,
+        "jump": 0,
+        "use": 0,
+        "fire_left": 0,
+        "fire_right": 0,
+        "mouse_dx": 0,
+        "mouse_dy": 0
+      },
+      "binary_probabilities": {
+        "move_w": 0.2631203234195709,
+        "move_a": 0.06517590582370758,
+        "move_s": 0.047117192298173904,
+        "move_d": 0.024241385981440544,
+        "jump": 0.021074136719107628,
+        "use": 0.005113227292895317,
+        "fire_left": 0.005110682919621468,
+        "fire_right": 0.005112562328577042
+      },
+      "limits": "Decoded video observation; comparison across models on same four frames, no expert target or live intervention"
+    },
+    {
+      "checkpoint": "control",
+      "source_job": 3,
+      "video_frame": 800,
+      "action": {
+        "move_w": 0,
+        "move_a": 0,
+        "move_s": 0,
+        "move_d": 0,
+        "jump": 0,
+        "use": 0,
+        "fire_left": 0,
+        "fire_right": 0,
+        "mouse_dx": 0,
+        "mouse_dy": 0
+      },
+      "binary_probabilities": {
+        "move_w": 0.21544606983661652,
+        "move_a": 0.04704684391617775,
+        "move_s": 0.0886702910065651,
+        "move_d": 0.024893945083022118,
+        "jump": 0.02376752719283104,
+        "use": 0.005089734680950642,
+        "fire_left": 0.005092755891382694,
+        "fire_right": 0.005093458574265242
+      },
+      "limits": "Decoded video observation; comparison across models on same four frames, no expert target or live intervention"
+    },
+    {
+      "checkpoint": "control",
+      "source_job": 3,
+      "video_frame": 1100,
+      "action": {
+        "move_w": 0,
+        "move_a": 0,
+        "move_s": 0,
+        "move_d": 0,
+        "jump": 0,
+        "use": 0,
+        "fire_left": 0,
+        "fire_right": 0,
+        "mouse_dx": 0,
+        "mouse_dy": 0
+      },
+      "binary_probabilities": {
+        "move_w": 0.2970603108406067,
+        "move_a": 0.06305467337369919,
+        "move_s": 0.089964859187603,
+        "move_d": 0.02980129048228264,
+        "jump": 0.02650594152510166,
+        "use": 0.005091569852083921,
+        "fire_left": 0.0050942562520504,
+        "fire_right": 0.005095102358609438
+      },
+      "limits": "Decoded video observation; comparison across models on same four frames, no expert target or live intervention"
+    },
+    {
+      "checkpoint": "control",
+      "source_job": 3,
+      "video_frame": 1400,
+      "action": {
+        "move_w": 0,
+        "move_a": 0,
+        "move_s": 0,
+        "move_d": 0,
+        "jump": 0,
+        "use": 0,
+        "fire_left": 0,
+        "fire_right": 0,
+        "mouse_dx": 0,
+        "mouse_dy": 0
+      },
+      "binary_probabilities": {
+        "move_w": 0.2428242713212967,
+        "move_a": 0.05986062437295914,
+        "move_s": 0.08153411000967026,
+        "move_d": 0.03021295554935932,
+        "jump": 0.025500858202576637,
+        "use": 0.0050926911644637585,
+        "fire_left": 0.00509586650878191,
+        "fire_right": 0.005096604116261005
+      },
+      "limits": "Decoded video observation; comparison across models on same four frames, no expert target or live intervention"
+    },
+    {
+      "checkpoint": "candidate",
+      "source_job": 3,
+      "video_frame": 800,
+      "action": {
+        "move_w": 0,
+        "move_a": 0,
+        "move_s": 0,
+        "move_d": 0,
+        "jump": 0,
+        "use": 0,
+        "fire_left": 0,
+        "fire_right": 0,
+        "mouse_dx": 0,
+        "mouse_dy": 0
+      },
+      "binary_probabilities": {
+        "move_w": 0.27278992533683777,
+        "move_a": 0.03908165916800499,
+        "move_s": 0.07796668261289597,
+        "move_d": 0.031048275530338287,
+        "jump": 0.024820679798722267,
+        "use": 0.0050903623923659325,
+        "fire_left": 0.005092565435916185,
+        "fire_right": 0.005093073006719351
+      },
+      "limits": "Decoded video observation; comparison across models on same four frames, no expert target or live intervention"
+    },
+    {
+      "checkpoint": "candidate",
+      "source_job": 3,
+      "video_frame": 1100,
+      "action": {
+        "move_w": 0,
+        "move_a": 0,
+        "move_s": 0,
+        "move_d": 0,
+        "jump": 0,
+        "use": 0,
+        "fire_left": 0,
+        "fire_right": 0,
+        "mouse_dx": 0,
+        "mouse_dy": 0
+      },
+      "binary_probabilities": {
+        "move_w": 0.3622911274433136,
+        "move_a": 0.05090736225247383,
+        "move_s": 0.07890021055936813,
+        "move_d": 0.03713930770754814,
+        "jump": 0.027486836537718773,
+        "use": 0.005086972378194332,
+        "fire_left": 0.005088677629828453,
+        "fire_right": 0.005089281126856804
+      },
+      "limits": "Decoded video observation; comparison across models on same four frames, no expert target or live intervention"
+    },
+    {
+      "checkpoint": "candidate",
+      "source_job": 3,
+      "video_frame": 1400,
+      "action": {
+        "move_w": 0,
+        "move_a": 0,
+        "move_s": 0,
+        "move_d": 0,
+        "jump": 0,
+        "use": 0,
+        "fire_left": 0,
+        "fire_right": 0,
+        "mouse_dx": 0,
+        "mouse_dy": 0
+      },
+      "binary_probabilities": {
+        "move_w": 0.3015348017215729,
+        "move_a": 0.04979380592703819,
+        "move_s": 0.07151352614164352,
+        "move_d": 0.03761565685272217,
+        "jump": 0.026781223714351654,
+        "use": 0.005091482773423195,
+        "fire_left": 0.005093855783343315,
+        "fire_right": 0.005094391759485006
+      },
+      "limits": "Decoded video observation; comparison across models on same four frames, no expert target or live intervention"
+    }
+  ],
+  "decision": "No completion gain; no promotion or repeat confirmation. Diagnose off-route action failure before more training."
+}

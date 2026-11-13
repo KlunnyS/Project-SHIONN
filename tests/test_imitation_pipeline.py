@@ -788,10 +788,11 @@ class ImitationPipelineTest(unittest.TestCase):
             writer.release()
             (episode / "metadata.json").write_text('{"map": "dataset_test5"}\n')
             with (episode / "actions.csv").open("w", newline="", encoding="utf-8") as handle:
-                output = csv.DictWriter(handle, fieldnames=["frame_idx", *ACTION_COLUMNS])
+                output = csv.DictWriter(handle, fieldnames=["frame_idx", *ACTION_COLUMNS, "frame_id", "frame_received_monotonic"])
                 output.writeheader()
                 for index in range(5):
-                    output.writerow({"frame_idx": index, **{name: index if name.startswith("mouse") else index % 2 for name in ACTION_COLUMNS}})
+                    output.writerow({"frame_idx": index, "frame_id": index + 1, "frame_received_monotonic": index / 24,
+                                     **{name: index if name.startswith("mouse") else index % 2 for name in ACTION_COLUMNS}})
             cache_episode(episode, root / "cache")
             cache_metadata_path = root / "cache" / "one.json"
             cache_metadata = json.loads(cache_metadata_path.read_text())

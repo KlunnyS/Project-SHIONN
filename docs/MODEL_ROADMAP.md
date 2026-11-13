@@ -1,26 +1,91 @@
 # Model benchmarking and improvement roadmap
 
-Updated 2026-10-25. This document records the evidence for the current
+Updated 2026-10-31. This document records the evidence for the current
 candidate, the limits of that evidence, and the order in which the next model
 changes should be made. Recheck local artifacts before treating paths or
 checkpoint names as current.
+
+The delivery schedule is now [the March 2027 plan](MARCH_2027_PLAN.md).
+It targets button and cube puzzles, with a basic portal puzzle as the preferred
+extension, a working demo by March 1, and March reserved for evaluation and
+submission. Its dated milestones supersede the relative phase estimates below.
 
 ## Executive recommendation
 
 Keep `v5_recovery_proactive_v3` as the current candidate. Its frozen-validation
 action metrics are slightly better than `v5_balanced_recovery_v1`, especially
 for horizontal mouse error and left/right movement recall. That improvement is
-small and does not establish better live navigation: both models solve only
-the easy `dataset_test12` live chamber reliably, and the latest live runs are
-confounded by possible cursor escape and Gamescope pointer-capture failures.
+small and does not establish better live navigation: earlier comparisons were
+capture-confounded. The later local capture confirmation passed, but was
+human-assisted and does not replace a clean autonomous model comparison.
 
 Do not start a larger architecture or collect a large unstructured batch yet.
-First make the input/capture measurement trustworthy, then make controlled
-data and sampler changes on the same V5 architecture. Move to a small temporal
+The documented local input/capture confirmation is complete. Make controlled
+data and sampler changes on the same V5 architecture while beginning the
+interaction curriculum; do not wait for perfect navigation to teach use/cube
+actions. Move to a small temporal
 V6 only if that clean experiment still shows failures caused by missing temporal
 context rather than bad input capture or missing demonstrations.
 
 ## Benchmarks and evidence
+
+### 2026-11-02 bounded recovery probe: initiation remains unresolved
+
+Both 1,000-update warm-start arms completed in 11m27s with full evaluation and
+unchanged source checkpoint. The 8x opening boost produced no clear gain over
+control: all six first assessment decisions remain idle, with identical early
+aggregate recovery metrics. Broad action metrics improved modestly in both.
+Do not promote, extend the probe, or collect another batch by default.
+
+A read-only same-current-image history ablation increased idle predictions
+from 19/144 to 84/144. This motivates investigating motion/history dependence
+and a possible small repeated-frame recovery augmentation test; it does not
+prove the cause or establish augmentation efficacy. See
+[the full review](GROUP_SAMPLING_COMPARISON_2026_10_31.md) for protocol,
+limitations, loss-definition differences, and preserved artifacts.
+
+### 2026-11-01 bounded experiment preparation (subsequently completed)
+
+Six new assessment recoveries are saved separately from training. Existing
+models often predict no action at the first human recovery frame; the grouped
+recipe improves some backward predictions but has no reliable navigation gain.
+An offline zero-bin override worsens broader validation, so it is not deployed.
+
+`run_recovery_probe.py` now prepares a small paired warm start: at most 1,000
+updates per arm, unchanged target processing, control versus extra weighting
+of the first second of existing recovery clips, with a shared 18-minute soft
+budget and documented 20-minute outer service limit. No new training run
+was started during preparation; the user subsequently completed it as reviewed
+above. See [the runbook](TRAINING_RUNBOOK.md) for the exact protocol,
+runtime uncertainty, incomplete-result handling and user-operated command.
+
+### 2026-10-31 group-sampling experiment: no supported improvement
+
+Matched four-epoch control and 90/5/5 base/proactive/recovery runs completed.
+Both selected epoch 3. Grouping worsened best validation loss (2.58747 to
+2.74413), held-out exact binary-action match (84.43% to 83.52%) and horizontal
+mouse MAE (6.503 to 6.744). Provisional first-turn predictions also had less
+horizontal activity. Do not promote or increase correction shares by default;
+retain the previous candidate and review turn-onset image/action coverage and
+alignment. These new checkpoints have not been evaluated in autonomous play.
+See [the paired comparison](GROUP_SAMPLING_COMPARISON_2026_10_31.md) for the
+matched settings, limited positive metrics, artifact locations and uncertainty.
+
+### 2026-10-31 autonomous navigation: still below puzzle readiness
+
+The 30-attempt user-run comparison passed all automatic capture checks.
+Candidate completed test1/test11/test12 at 0/5, 2/5 and 5/5; balanced at 0/5,
+0/5 and 5/5. Balanced delayed initial actions by 6.94–24.23 seconds in four
+test11 attempts; candidate started promptly there but later idled for 31–53
+seconds on failed test1 attempts. Sampled saved frames confirm wall-facing idle
+and continued movement near obstacles. Automatic wall-stall counts missed
+these cases, so they cannot establish collision/recovery rates.
+
+Keep button/cube policy training deferred while #25/#26 address start/turn
+coverage and controlled sampling. No new capture-only stress testing is needed.
+The candidate is the next experiment baseline, not a reliably navigating
+policy. Full protocol, counts and limitations are in
+[the readiness report](NAVIGATION_READINESS_2026_10_31.md).
 
 ### 2026-10-25 persistent mouse: local capture confirmation passed
 
@@ -291,7 +356,40 @@ action labels, or game-input layer.
 4. Consider reinforcement learning only after resets, terminal signals, and
    reward are dependable and imitation reaches a stable baseline.
 
+## Completed history experiment — 2026-11-02
+
+Both the recovery opening-boost and repeated-current-frame history probes
+failed to establish useful initiation improvement. The user completed the
+single history arm in 3m47s: 1,000 updates and full evaluation, reusing the
+verified completed control. Five of six first actions remained idle; the sixth
+became forward movement where the expert turned. The six assessment recordings
+remain excluded from gradients. See the
+[runbook](TRAINING_RUNBOOK.md#recovery-history-probe--2026-11-02) for results and
+reuse limitations. The offline audit found no stacking/cache discrepancy, and
+manual timing calibration did not establish a label-shift fix. The user then
+completed the 400-update recovery-fit diagnostic in 35 seconds: full action-class
+accuracy improved 3/31 to 31/31 on known stationary TRAIN starts, with no assessment
+loading or checkpoint saved. This confirms fitting capability under the tested
+recipe, not transfer. Next propose a controlled candidate fine-tune combining
+explicit stationary-start replay and base-navigation rehearsal, then held-out
+scoring. That recipe is now prepared as `run_stationary_replay.py`: 2,000 fixed
+updates, two static starts plus six regular examples per batch, full fresh
+before/after evaluation, and no automatic promotion. It has not started. See the
+[candidate runbook](TRAINING_RUNBOOK.md#prepared-stationary-replay-candidate--2026-11-02)
+for the 6–10 minute estimate and 14-minute outer limit, and the
+[runbook](TRAINING_RUNBOOK.md#recovery-fit-sanity-check--2026-11-02).
+No automatic extension, promotion
+or live test follows; navigation still needs its gate before button/cube training.
+
 ## Rules for future dataset growth
+
+Current next experiment is the prepared matched turn-onset comparison, following
+the test1 active wall-loop review. The explicit 22/9 recovery and 12/8 proactive
+development split, pinned older source and fixed budgets prevent calling
+memorization a clean transfer result. See the
+[runbook](TRAINING_RUNBOOK.md#prepared-turn-onset-comparison--2026-11-03).
+No new training has started; any result still needs offline review before a
+user-run game test or promotion. The March navigation-to-interaction gate remains.
 
 - Freeze a new manifest before training and preserve every earlier split.
 - Split by full recording episode, and reserve independent maps/layouts when

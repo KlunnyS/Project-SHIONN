@@ -1,0 +1,81 @@
+{
+  "report": "models/imitation/checkpoints/runs/ordered_gru_route_v1/report.json",
+  "report_sha256": "25462f57114756b1ce2d6ca2b54baace98d0e59c8196be795b4df86b3fcf40d8",
+  "counts": {
+    "base": {
+      "frames": 12886,
+      "positive_actions": {
+        "move_w": 11740,
+        "move_a": 2046,
+        "move_s": 94,
+        "move_d": 1482,
+        "jump": 45,
+        "use": 0,
+        "fire_left": 0,
+        "fire_right": 0
+      },
+      "backward_fraction": 0.00729473847586528,
+      "mouse_dx_nonzero": 6296,
+      "mouse_dx_abs_ge_3": 5840
+    },
+    "human": {
+      "frames": 3204,
+      "positive_actions": {
+        "move_w": 2768,
+        "move_a": 364,
+        "move_s": 44,
+        "move_d": 356,
+        "jump": 0,
+        "use": 0,
+        "fire_left": 0,
+        "fire_right": 0
+      },
+      "backward_fraction": 0.01373283395755306,
+      "mouse_dx_nonzero": 2176,
+      "mouse_dx_abs_ge_3": 2020
+    },
+    "heldout": {
+      "frames": 272,
+      "backward_frames": 40,
+      "backward_fraction": 0.14705882352941177
+    }
+  },
+  "optimizer_batches": 545,
+  "batches_with_backward_target": 21,
+  "total_backward_targets": 138,
+  "binary_class_weights": [
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      3.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ]
+  ],
+  "scope": "Post-run TRAIN label exposure audit; does not prove causal failure or authorize fitting validation actions. No training or data changes."
+}

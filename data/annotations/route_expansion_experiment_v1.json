@@ -1,0 +1,55 @@
+{
+  "status": "prepared_not_executed",
+  "source": "models/imitation/checkpoints/runs/v5_recovery_proactive_v3/best.pt",
+  "source_sha256": "2ac674293279370b3fd37aadae7914abc2ede84f2941298ded24c054701c2483",
+  "architecture": "shionn_imitation_v5_residual_binned",
+  "temporal_memory": "none",
+  "feature_gate": "none",
+  "seed": 0,
+  "optimizer": "fresh AdamW",
+  "learning_rate": 1e-05,
+  "batch_size": 10,
+  "base_frames_per_batch": 8,
+  "human_correction_frames_per_batch": 2,
+  "successful_optimizer_updates": 1000,
+  "correction_review_manifest": "data/annotations/route_expansion_split_20261109.json",
+  "train_corrections": [
+    "episode_20261105_161823_785804",
+    "episode_20261105_161859_257631",
+    "episode_20261105_161954_188319",
+    "episode_20261105_162638_835978",
+    "episode_20261109_184909_352395",
+    "episode_20261109_184938_774491",
+    "episode_20261109_185019_970242"
+  ],
+  "held_out_corrections": [
+    "episode_20261105_162522_556646",
+    "episode_20261105_162601_434118"
+  ],
+  "constraints": [
+    "Original mouse bins and preprocessing",
+    "No autonomous actions as targets",
+    "No test11/test12 gradients",
+    "No automatic promotion/retry",
+    "Float32 successful updates, no AMP skipped steps"
+  ],
+  "review_manifest_sha256": "1eac5fbc81d913bb5144e5d596e84c418a819fbc8568b96797689bf1dfab616f",
+  "usable_correction_frames": {
+    "control": 550,
+    "expanded": 801,
+    "held_out": 272
+  },
+  "comparison": {
+    "control": "80% original base +20% original four human corrections",
+    "correction": "same80% base +20% expanded seven human corrections",
+    "steps_per_arm": 1000
+  },
+  "time_budget_seconds": 1080,
+  "external_hard_cap_minutes": 20,
+  "control_corrections": [
+    "episode_20261105_161823_785804",
+    "episode_20261105_161859_257631",
+    "episode_20261105_161954_188319",
+    "episode_20261105_162638_835978"
+  ]
+}

@@ -6,6 +6,32 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Added
 
+- Add a plan-only-by-default matched turn-onset sampling comparison with clean
+  correction holdouts, shared 5/2/1 schedules, reviewed-window validation,
+  fixed-step full evaluation and paired checkpoint publication safeguards.
+- Add recovery-development split enforcement and an offline sustained-window
+  scorer with exposure labels, episode/map aggregates, separate normal/static
+  histories, numerical checks and checkpoint/config/data provenance.
+- Add a plan-by-default stationary-replay candidate fine-tune with fixed 2/6
+  batch composition, regular-only augmentation, fresh before/after evaluation,
+  explicit regression screen, protected source and staged checkpoint publication.
+- Add a plan-by-default report-only recovery-fit diagnostic on 31 frozen training
+  starts, with balanced exposures, exact action-class scoring, fixed update/time
+  budgets, assessment exclusion and no saved policy checkpoint.
+- Add coherent camera frame IDs and local receive timestamps, recording input-
+  snapshot/discard diagnostics and policy frame reuse/age/inference timing.
+  Existing actions, preprocessing and capture scheduling remain unchanged.
+- Add a plan-by-default single-arm recovery history probe that verifies and
+  reuses the completed control, repeats current RGB frames only on selected
+  recovery draws, and retains fixed update/deadline and incomplete-result guards.
+- Add a plan-by-default bounded recovery-initiation probe: two fresh-optimizer
+  warm starts from the same V5 checkpoint, recovery-only opening emphasis,
+  fixed step limits, shared deadline, independent assessment exclusion and
+  incomplete-result reporting. Probe endpoints remain usable for inference
+  while generic optimizer resume is rejected.
+- Add independent expected training draw fractions for correction cache groups,
+  with implicit base remainder, per-group exposure reporting, frozen group
+  identification, and checkpoint resume checks for group recipes/membership.
 - Add opt-in sequence `--persistent-mouse`: run attempts through the imitation
   runner in one Python process, preserving one virtual mouse across map/model
   resets while retaining preflight checks and per-attempt guard cleanup.
