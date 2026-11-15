@@ -1,5 +1,7 @@
 # Development plan through March 2027
 
+> Current navigation work: [status](NAVIGATION.md), [paired collection](PAIRED_VISUAL_GOAL_COLLECTION_2026_11_15.md), [data plan](DATA_REQUIREMENTS_AND_COLLECTION_PLAN.md). Dated results/schedules below remain historical records, not authorization to launch a new experiment.
+
 Planning baseline: 2026-10-31. Target a working demonstration by **2027-03-01**;
 reserve March for evaluation, fixes, and the final report. These are delivery
 targets, not claims that the current model already solves puzzles. Until the

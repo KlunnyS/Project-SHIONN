@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="970" viewBox="0 0 1060 970">
+<title>goal_choice_v1: cube landmark left (B), floor button right (A); schematic</title>
+<desc>Flat open room with user-verified landmark order. Spawn faces north. Dashed waypoint triggers are invisible evaluator instrumentation. One normal final exit. Dimensions remain the original design proposal, not surveyed measurements.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#315878" /></marker></defs>
+<rect width="1060" height="970" fill="#fff" />
+<g font-family="sans-serif" fill="#172c3e"><text x="40" y="42" font-size="25" font-weight="bold">goal_choice_v1 — current landmark order (schematic)</text>
+<text x="40" y="72" font-size="16">Puzzle Maker geometry • flat floor • ordinary landmarks • no interaction required</text>
+<rect x="100" y="130" width="600" height="700" fill="#edf1f3" stroke="#263e50" stroke-width="12" />
+<path d="M365 130H435" stroke="#fff" stroke-width="15" /><rect x="365" y="112" width="70" height="30" fill="#d9e7dc" stroke="#263e50" stroke-width="2" />
+<text x="340" y="100" font-size="17">Normal final exit</text>
+<rect x="190" y="300" width="100" height="100" fill="#c6e5f0" fill-opacity=".45" stroke="#227999" stroke-width="3" stroke-dasharray="8 5" />
+<rect x="510" y="300" width="100" height="100" fill="#f3d9b9" fill-opacity=".45" stroke="#99672e" stroke-width="3" stroke-dasharray="8 5" />
+<text x="147" y="228" font-size="17">B: cube approach area</text><text x="486" y="228" font-size="17">A: floor-button area</text>
+<text x="210" y="359" font-size="18">Goal B</text><text x="530" y="359" font-size="18">Goal A</text>
+<text x="166" y="430" font-size="14">Approach cube</text><text x="495" y="430" font-size="14">Approach button</text>
+<path d="M400 730Q330 530 240 375" fill="none" stroke="#315878" stroke-width="4" marker-end="url(#arrow)" />
+<path d="M400 730Q470 530 560 375" fill="none" stroke="#315878" stroke-width="4" marker-end="url(#arrow)" />
+<circle cx="400" cy="730" r="17" fill="#315878" /><path d="M400 706V653" stroke="#315878" stroke-width="4" marker-end="url(#arrow)" />
+<text x="351" y="773" font-size="18">Fixed spawn</text><text x="320" y="798" font-size="14">Camera faces north (+Y)</text>
+<path d="M100 865H700M100 855V875M700 855V875" stroke="#263e50" stroke-width="2" /><text x="282" y="895" font-size="17">Proposed width: 1536 / 12 tiles</text>
+<text x="735" y="153" font-size="18" font-weight="bold">Build notes</text>
+<text x="735" y="189" font-size="16">Proposed length: 1792 / 14 tiles</text><text x="735" y="218" font-size="16">Proposed height: 512 / 4 tiles</text>
+<text x="735" y="264" font-size="16">128-unit tile assumption:</text><text x="735" y="289" font-size="16">verify exported scale.</text>
+<text x="735" y="337" font-size="16">Goal regions ≈256 × 256</text><text x="735" y="366" font-size="16">Clear paths ≥256 wide</text>
+<text x="735" y="414" font-size="16">Both landmarks visible</text><text x="735" y="439" font-size="16">from the same spawn.</text>
+<text x="735" y="487" font-size="16">Button need not be activated.</text><text x="735" y="512" font-size="16">Cube starts on the floor.</text><text x="735" y="537" font-size="16">No use / pickup required.</text>
+<text x="735" y="585" font-size="16">No obstacles in v1.</text><text x="735" y="614" font-size="16">Exit always accessible.</text>
+<text x="735" y="670" font-size="18" font-weight="bold">Legend</text>
+<path d="M735 697H785" stroke="#263e50" stroke-width="4" /><text x="795" y="703" font-size="15">Visible geometry</text>
+<path d="M735 733H785" stroke="#227999" stroke-width="3" stroke-dasharray="8 5" /><text x="795" y="739" font-size="15">Invisible trigger</text>
+<path d="M735 769H780" stroke="#315878" stroke-width="3" marker-end="url(#arrow)" /><text x="795" y="775" font-size="15">Example route</text>
+<text x="40" y="944" font-size="16">Schematic only: built dimensions and trigger bounds are unmeasured. Labels/colors are diagram annotations.</text>
+<rect x="224" y="254" width="32" height="32" fill="#e7e9eb" stroke="#263e50" stroke-width="2" /><path d="M224 254L240 246L272 246L256 254M256 254L272 246V278L256 286" fill="#c8cdd1" stroke="#263e50" /><circle cx="560" cy="273" r="26" fill="#354351" stroke="#263e50" stroke-width="2" /><circle cx="560" cy="273" r="20" fill="#b83e37" /></g></svg>

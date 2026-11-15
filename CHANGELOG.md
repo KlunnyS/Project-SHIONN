@@ -6,6 +6,17 @@ All notable changes to Project SHIONN are documented in this file.
 
 ### Added
 
+- Optional persistent visual-crop goal policy over the existing CNN/GRU, with
+  separate checkpoints, inference/reset handling and bounded imitation helpers.
+- Source-linked visual-goal sequence loading, wait-loss masks, split/approval
+  checks, CPU counterfactual evaluation and pilot preparation commands.
+- Waypoint-aware human recording, named start restoration/verification and
+  collection-plan/map/session provenance with first-pair release gates.
+- Fail-closed input/camera/writer recording diagnostics and invalid partial retention.
+- Current navigation/documentation indexes, a measured-data roadmap and a fresh
+  three-pair collection procedure. Superseded designs are archived, not discarded.
+
+
 - Add a plan-only-by-default matched turn-onset sampling comparison with clean
   correction holdouts, shared 5/2/1 schedules, reviewed-window validation,
   fixed-step full evaluation and paired checkpoint publication safeguards.

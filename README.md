@@ -10,54 +10,28 @@ provided to the model.
 
 ## Current status
 
-Status last updated on **2026-10-31**:
+Status updated **2026-11-15**:
 
-- The recording, preprocessing, training, checkpoint, and live-inference
-  pipeline works end to end.
-- The frozen base cache contains 1,300 successful demonstrations across 12
-  navigation chambers: 1,100 training episodes and 200 complete-chamber
-  validation episodes. The separate recovery cache contains one older episode
-  and 30 corrections recorded on 2026-10-18; the 2026-10-13 pilot remains
-  uncached. `frozen_v2.json` registers the 30 new corrections while preserving
-  the frozen validation set. The approved 20-clip proactive-turn pilot is in a
-  separate cache; `frozen_v3.json` adds those clips without changing validation
-  membership. Generated frames and recordings are ignored by Git.
-- The current candidate is `v5_recovery_proactive_v3`, a 13.2M-parameter
-  residual CNN with binned mouse actions. Its full frozen-validation action
-  score is modestly better than `v5_balanced_recovery_v1` (0.8460 vs 0.8440
-  exact binary-action match; dx MAE 6.29 vs 7.09).
-- The latest 27-attempt live comparison is capture-confounded: all models
-  struggled on `dataset_test1` and `dataset_test11`, while the easy `test12`
-  was consistently completed. Cursor escape and Gamescope capture may have
-  affected results, so they do not provide a clean ranking of checkpoints.
-- The verified local capture profile passed five consecutive confirmation
-  attempts; keyboard assistance was allowed, so these are capture diagnostics
-  rather than autonomous model scores. A clean model comparison remains open.
-- The model still predicts less mouse activity than the expert demonstrations.
-  Test correction-data sampling before deciding
-  whether to build a temporal V6 architecture.
-- Reinforcement learning, reward shaping, recurrence, and portal-mechanics
-  curricula remain future work.
-- The supervised recovery workflow is live-verified on the current Hyprland
-  and Gamescope setup. The 30-episode collection and preprocessing are complete;
-  the clips have been reviewed and approved. The current candidate includes
-  the approved proactive-turn pilot in frozen v3. The next data experiment is
-  a controlled sampling comparison for recovery and proactive-turn examples.
+- The existing imitation/capture pipeline remains available. The deployed
+  `v5_recovery_proactive_v3` checkpoint has not been replaced.
+- Optional GRU memory, observation gating and persistent visual-goal conditioning
+  are implemented with separate checkpoint contracts and CPU tests. No gameplay
+  improvement is established for these additions.
+- The user built and instrumented `goal_choice_v1`. Two A/B pairs are reviewed
+  development material; no visual-goal dataset is approved for training yet.
+- Current work is a fresh three-start collection pilot: six individual
+  trajectories, grouped into two training-candidate A/B pairs and one reserved
+  evaluation pair. Validate the first pair before collecting the rest.
+- PPO, a world model and hierarchical puzzle planning remain future work.
 
-The dated operational record, including exact checkpoint paths and safe
-commands, lives in the [training runbook](docs/TRAINING_RUNBOOK.md). The full
-benchmark evidence and phased model plan are in the
-[model roadmap](docs/MODEL_ROADMAP.md).
-The [March 2027 delivery plan](docs/MARCH_2027_PLAN.md) sets dated milestones
-for button, cube, and basic portal puzzles, with a working demo targeted for
-March 1 and evaluation/submission buffer through March.
-The episode-level training/validation/evaluation assignment is documented in
-the [frozen data split](docs/DATA_SPLIT.md).
-The current private work-session handoff is in the local, git-ignored
-`handoff.md`; shared technical and model-planning details are in the docs linked
-above.
-An Arch/Niri model-run path is documented in [NIRI_ARCH_SETUP](docs/NIRI_ARCH_SETUP.md);
-recovery handoff on Niri remains unvalidated.
+Start with the [current navigation guide](docs/NAVIGATION.md),
+[first-pair procedure](docs/PAIRED_VISUAL_GOAL_COLLECTION_2026_11_15.md), and
+[data plan](docs/DATA_REQUIREMENTS_AND_COLLECTION_PLAN.md).
+The [documentation index](docs/README.md) separates maintained guides from
+historical evidence. Existing training records remain in the
+[runbook](docs/TRAINING_RUNBOOK.md); do not execute historical commands as new
+training prescriptions. See the [March plan](docs/MARCH_2027_PLAN.md) for delivery
+scope and the [frozen split](docs/DATA_SPLIT.md) for existing membership rules.
 
 ## Pipeline
 
@@ -161,6 +135,8 @@ the large recording, cache, and checkpoint paths are symlinks into
 
 | Document | Purpose |
 |---|---|
+| [Documentation index](docs/README.md) | Current guides, evidence and archives. |
+| [Navigation status](docs/NAVIGATION.md) | Current goal-directed milestone and next action. |
 | [Program guide](docs/PROGRAM_GUIDE.md) | Implemented components, data contracts, and end-to-end data flow. |
 | [CLI reference](docs/CLI_REFERENCE.md) | Common workflows plus every supported command and option. |
 | [Training runbook](docs/TRAINING_RUNBOOK.md) | Current run status, resource limits, monitoring, resume, and checkpoint policy. |
@@ -169,11 +145,10 @@ the large recording, cache, and checkpoint paths are symlinks into
 | [March 2027 plan](docs/MARCH_2027_PLAN.md) | Dated puzzle milestones, success criteria, scope decisions, and weekly work. |
 | [Navigation layouts](docs/NAVIGATION_CHAMBER_LAYOUTS.md) | Geometry and intent of the navigation curriculum chambers. |
 | [Changelog](CHANGELOG.md) | Notable repository behavior and compatibility changes. |
-| [Handoff](handoff.md) | Current recovery status, verified pilot, board state, and next collection command. |
 | [Dashboard](dashboard/README.md) | Local Dash control room for recording, training, and benchmarks. |
 
-Each subject has one maintained home: current training state is in the runbook,
-current recovery-session state is in the handoff, and implementation details
+Each subject has one maintained home: current navigation status is in the
+navigation guide, training records are in the runbook, and implementation details
 belong in the relevant guide. Other documents should link rather than duplicate
 those records.
 

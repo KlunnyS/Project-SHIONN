@@ -144,3 +144,25 @@ goal-conditioned training until a trustworthy navigation baseline establishes
 which goal interface and destination labels can be evaluated. Preserve the
 deployed checkpoint and all existing split membership. No training, live game
 control, recording, or checkpoint promotion was authorized or performed.
+
+Follow-up inventory, user-run decoder commands, goal representation, and
+counterfactual pilot design: [Goal-Conditioned Navigation Pilot Plan](GOAL_CONDITIONED_NAVIGATION_PILOT_PLAN_2026_11_13.md).
+
+## Follow-up implementation status — 2026-11-14
+
+- Recorder keyboard/mouse read-loop faults, camera EOF/truncated frames,
+  missing or stale samples, frame-ID gaps, and writer/sync failures now fail
+  closed. Debug artifacts are retained under `invalid/`, marked with
+  `capture_valid: false` and a reason, and excluded by future preprocessing.
+  Historical recordings without validity fields are unchanged.
+- Added the optional `shionn_imitation_v5_gru_goal_binned` model path and
+  `GoalCondition` inference interface. It preserves the source recurrent
+  checkpoints and starts with a zero-residual adapter. This is infrastructure
+  only; the trainer does not yet consume goal annotation ledgers.
+- Added `models/imitation/goals.py` for goal contract validation and split,
+  frame, transition, coordinate, provenance, and action-owner checks. Existing
+  reviewed and quarantined data contain no waypoint labels; their membership
+  was not changed.
+- Focused CPU fault/goal tests passed; the final full repository suite passed
+  427 tests in 21.620 seconds. No GPU,
+  game, or recording operation was run.

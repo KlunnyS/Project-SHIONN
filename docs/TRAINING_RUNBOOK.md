@@ -1,11 +1,13 @@
 # Training runbook
 
+> Current navigation work: [status](NAVIGATION.md), [paired collection](PAIRED_VISUAL_GOAL_COLLECTION_2026_11_15.md), [data plan](DATA_REQUIREMENTS_AND_COLLECTION_PLAN.md). Dated results/schedules below remain historical records, not authorization to launch a new experiment.
+
 This is the operational source of truth for training SHIONN's current behavior
 cloning policy on the local Arch Linux workstation. For model design and data
 contracts, see the [program guide](PROGRAM_GUIDE.md). For every trainer flag,
 see the [CLI reference](CLI_REFERENCE.md).
 
-## Current training status
+## Historical balanced-data training status (2026-10-04)
 
 Status recorded on 2026-10-04 at 21:16 CEST: the from-scratch balanced-data
 candidate completed successfully after epoch 4, when early stopping followed

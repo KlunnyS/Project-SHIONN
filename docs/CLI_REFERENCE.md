@@ -5,6 +5,30 @@ on this Linux installation. `-h` or `--help` prints the current parser for each
 Python entry point; the defaults below reflect the current code. See the
 [program guide](PROGRAM_GUIDE.md) for component behavior and data contracts.
 
+## Current goal-directed navigation tools
+
+The [paired-goal protocol](PAIRED_VISUAL_GOAL_COLLECTION_2026_11_15.md) owns the
+exact current commands; the generic training rows below are not authorization
+to run another experiment. Current additions:
+
+| Tool | Purpose |
+|---|---|
+| `record_recovery.py --load-map` | Optional reload before human recording |
+| `record_recovery.py --registered-start ID --start-config PATH` | Reload, restore and verify a named pose |
+| `record_recovery.py --requested-waypoint A` | Stop on correct/wrong waypoint or premature exit; store requested goal |
+| `record_recovery.py --collection-plan PATH --collection-group ID --collection-session ID --map-file PATH` | Enforce first-pair/session gates and pin map/capture provenance |
+| `paired_goal_collection.py register` | Offline append-only getpos registration |
+| `paired_goal_collection.py commands` | Print commands; never execute them |
+| `review_paired_goal_capture.py` | Offline capture/crop/annotation review gate; no training approval |
+| `python -m models.imitation.goals` | Validate goal annotation structure |
+| `python -m models.imitation.visual_targets` | Extract reviewed persistent visual targets into a new directory |
+| `prepare_visual_goal_pilot.py` | Validate approved data and prepare a CPU manifest; no updates |
+| `evaluate_visual_goal_counterfactual.py` | Bounded CPU goal-sensitivity report for a compatible checkpoint |
+
+Use `.venv/bin/python TOOL --help` for the full parser. Later collection groups
+require `--collection-stage full --first-pair-review PATH`. Run commands from the
+repo root; referenced example approved ledgers/checkpoints do not exist yet.
+
 ## Common workflows
 
 | Task | Command |

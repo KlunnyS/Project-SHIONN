@@ -6,9 +6,17 @@ state, resource limits, monitoring, and safe resume command, see the
 and defaults, see the [CLI reference](CLI_REFERENCE.md). Run commands from the
 repository root unless stated otherwise.
 
+## Current navigation work
+
+Start with [navigation status](NAVIGATION.md) and the [fresh paired-goal procedure](PAIRED_VISUAL_GOAL_COLLECTION_2026_11_15.md).
+Optional recurrent/coordinate/crop-conditioned policies have separate checkpoint
+identities. Visual-goal data is still development-only; implementation tests are
+not evidence of improved gameplay. [Registered starts](REGISTERED_STARTS.md) use
+engine telemetry only for setup/verification, never as policy features.
+
 ## What runs today
 
-SHIONN records human Portal 2 demonstrations, caches aligned video and actions, trains a behavior-cloning policy, and runs that policy against the live game. The policy receives screen pixels only. Netconsole events are used by the surrounding program to start and stop attempts; they are not model inputs. A Gym-style API, reward calculation, and reinforcement-learning trainer remain future work.
+SHIONN records human Portal 2 demonstrations, caches aligned video and actions, trains a behavior-cloning policy, and runs that policy against the live game. The policy receives screenshots/history and, for the optional visual-goal architecture, a visually selected target crop. Netconsole events are used by the surrounding program to start and stop attempts; they are not model inputs. A Gym-style API, reward calculation, and reinforcement-learning trainer remain future work.
 
 ```text
 Portal 2 + chamber VScript
@@ -65,7 +73,7 @@ Episodes start in `episodes/.in_progress/` and move to `episodes/<outcome>/episo
 |---|---|
 | `video.mp4` | Audio-free H.264 screen frames, one per recorded tick. |
 | `actions.csv` | `timestamp`, `frame_idx`, four movement columns, `jump`, `crouch`, `use`, two portal-fire columns, `mouse_dx`, and `mouse_dy`. |
-| `metadata.json` | `{"map": "dataset_test3"}` or another map name supplied by `--map`. |
+| `metadata.json` | Map, capture validity and timing; optional human-goal, registered-start and collection-plan provenance. Older map-only metadata remains supported. |
 
 The folder name records the outcome, while `metadata.json` records the chamber. The video and CSV remain the source data for training. Recording artifacts are ignored by Git.
 
@@ -84,7 +92,9 @@ cache (`episodes/corrections/proactive_turns/goal_reached` and
 `episodes/recovery` so later dataset reports and split manifests retain their
 meaning.
 
-[`models/imitation/preprocess.py`](../models/imitation/preprocess.py) discovers episodes with both `video.mp4` and `actions.csv`. Point `--recordings-dir` at `episodes/goal_reached` when preparing expert demonstrations; the default `episodes` includes all outcomes. Before publishing a cache, it checks that `frame_idx` starts at zero and is contiguous and that the declared video frame count equals the CSV row count. It decodes BGR video, converts frames to RGB, and resizes them to 320×180 with area interpolation.
+[`models/imitation/preprocess.py`](../models/imitation/preprocess.py) discovers episodes with both `video.mp4` and `actions.csv`. Point `--recordings-dir` at `episodes/goal_reached` when preparing expert demonstrations; the default `episodes` includes valid captures across outcome directories. Before publishing a cache, it checks that `frame_idx` starts at zero and is contiguous and that the declared video frame count equals the CSV row count. It decodes BGR video, converts frames to RGB, and resizes them to 320×180 with area interpolation.
+
+The recorder now retains captures with detected input, camera, synchronization, or writer failures under `invalid/`, sets `capture_valid: false` and records the diagnostic reason in `metadata.json`. Preprocessing excludes these marked captures. Older recordings without these fields remain eligible under the existing discovery rules; this change does not reclassify historical data.
 
 For each episode, the cache contains the map label when present in the source recording. Older caches without that field can resolve it from their source `metadata.json`. The cache also contains:
 

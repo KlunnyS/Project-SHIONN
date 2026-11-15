@@ -1,5 +1,7 @@
 # Model benchmarking and improvement roadmap
 
+> Current navigation work: [status](NAVIGATION.md), [paired collection](PAIRED_VISUAL_GOAL_COLLECTION_2026_11_15.md), [data plan](DATA_REQUIREMENTS_AND_COLLECTION_PLAN.md). Dated results/schedules below remain historical records, not authorization to launch a new experiment.
+
 Updated 2026-10-31. This document records the evidence for the current
 candidate, the limits of that evidence, and the order in which the next model
 changes should be made. Recheck local artifacts before treating paths or
@@ -10,7 +12,7 @@ It targets button and cube puzzles, with a basic portal puzzle as the preferred
 extension, a working demo by March 1, and March reserved for evaluation and
 submission. Its dated milestones supersede the relative phase estimates below.
 
-## Executive recommendation
+## Historical recommendation (2026-10-31)
 
 Keep `v5_recovery_proactive_v3` as the current candidate. Its frozen-validation
 action metrics are slightly better than `v5_balanced_recovery_v1`, especially

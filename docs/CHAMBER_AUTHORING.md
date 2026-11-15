@@ -53,6 +53,10 @@ Hammer++ installation with:
 
 The VMF is editable source; Portal 2 runs the compiled BSP.
 
+For the current goal-choice room, follow the [working specification](GOAL_CHOICE_CHAMBER_SPEC.md)
+and [layout](diagrams/goal_choice_v1_layout.svg): A is the right floor button,
+B is the left cube. The general instructions below also cover older chambers.
+
 ## 3. Install and wire the event script
 
 Copy the repository version whenever the VScript changes:
@@ -70,6 +74,12 @@ Create exactly one `logic_script` in Hammer++:
 Name / targetname: shionn_event_script
 Entity Scripts:    shionn_events.nut
 ```
+
+For goal_choice_v1 also copy `shionn_waypoints.nut` and set Entity Scripts to
+`shionn_events.nut shionn_waypoints.nut`. Use `SignalWaypointA()` and
+`SignalWaypointB()` on the two separate destination triggers. Do not call generic
+chamber completion for a waypoint. The [specification](GOAL_CHOICE_CHAMBER_SPEC.md)
+contains the working output table and expected printouts.
 
 Use player-only `trigger_once` brushes and wire these outputs:
 
