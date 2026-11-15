@@ -1,0 +1,1477 @@
+{
+  "schema": "shionn_goal_annotations_v1",
+  "coordinate_system": "normalized_frame_xy_origin_top_left_y_down",
+  "purpose": "annotation_only feasibility; retroactive objective inferred from route, not recorded intent",
+  "visibility_definition": "identifiable marker center; partial unidentified fragments do not supply a projection",
+  "coordinate_precision": "approximate manual centers on 320x180 review frames; approximately 5 review pixels uncertainty",
+  "episodes": [
+    {
+      "episode_id": "episode_20261105_161823_785804",
+      "split_role": "annotation_only",
+      "training_approved": false,
+      "map_name": "dataset_test1",
+      "source_session_id": "session_20261105_161705_075500",
+      "start_group_id": "reviewed_white_wall_test1_not_independent_holdout",
+      "requested_goal_id": "test1_corridor_end_running_person_marker",
+      "frame_count": 145,
+      "source_path": "model_attempts/targeted_navigation_20261105/episodes_pending/goal_reached/episode_20261105_161823_785804",
+      "provenance": {
+        "video_sha256": "4fd30e766b565e2b73b2d56ea369aae0b38df4d6ae6fcb123a7597ed00d03c3f",
+        "actions_sha256": "e52d2728317e62626309eb7e7bfe1487b18afae791d44d0f1384f8041fc99a61",
+        "metadata_sha256": "b978a4d30e96254ce406eb3e0ca0973c90772bb60913982648b8c78c7a296c92"
+      },
+      "annotations": [
+        {
+          "frame_idx": 0,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 1,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 2,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 3,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 4,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 5,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 6,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 7,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 8,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 9,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 10,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 11,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 12,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 13,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 14,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 15,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 16,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 17,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 18,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 19,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 20,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 21,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 22,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 23,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 24,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 25,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 26,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 27,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 28,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 29,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 30,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 31,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 32,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 33,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 34,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 35,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 36,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 37,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 38,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 39,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 40,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 41,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 42,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 43,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 44,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 45,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 46,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 47,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 48,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 49,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 50,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 51,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 52,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 53,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 54,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 55,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 56,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 57,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 58,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 59,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 60,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 61,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 62,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 63,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 64,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 65,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 66,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 67,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 68,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 69,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 70,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 71,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 72,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 73,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 74,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 75,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 76,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 77,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 78,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 79,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 80,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 81,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 82,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 83,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 84,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 85,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 86,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 87,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 88,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 89,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 90,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 91,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 92,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 93,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 94,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 95,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 96,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 97,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 98,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 99,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 100,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 101,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 102,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 103,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 104,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 105,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 106,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 107,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 108,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 109,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 110,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 111,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 112,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 113,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 114,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 115,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 116,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 117,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 118,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 119,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 120,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 121,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 122,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 123,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 124,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 125,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 126,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 127,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 128,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 129,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 130,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 131,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 132,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": false,
+          "x_norm": null,
+          "y_norm": null,
+          "action_owner": "human",
+          "evidence": "marker center not verifiably visible"
+        },
+        {
+          "frame_idx": 133,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.6125,
+          "y_norm": 0.0,
+          "action_owner": "human",
+          "evidence": "manual visible marker center"
+        },
+        {
+          "frame_idx": 134,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.5875,
+          "y_norm": 0.0,
+          "action_owner": "human",
+          "evidence": "manual visible marker center"
+        },
+        {
+          "frame_idx": 135,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.55,
+          "y_norm": 0.0222,
+          "action_owner": "human",
+          "evidence": "manual visible marker center"
+        },
+        {
+          "frame_idx": 136,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.4313,
+          "y_norm": 0.0111,
+          "action_owner": "human",
+          "evidence": "manual visible marker center"
+        },
+        {
+          "frame_idx": 137,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.3812,
+          "y_norm": 0.0222,
+          "action_owner": "human",
+          "evidence": "manual visible marker center"
+        },
+        {
+          "frame_idx": 138,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.3313,
+          "y_norm": 0.0222,
+          "action_owner": "human",
+          "evidence": "manual visible marker center"
+        },
+        {
+          "frame_idx": 139,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.275,
+          "y_norm": 0.0222,
+          "action_owner": "human",
+          "evidence": "manual visible marker center"
+        },
+        {
+          "frame_idx": 140,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.225,
+          "y_norm": 0.0222,
+          "action_owner": "human",
+          "evidence": "manual visible marker center"
+        },
+        {
+          "frame_idx": 141,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.2188,
+          "y_norm": 0.0222,
+          "action_owner": "human",
+          "evidence": "manual visible marker center"
+        },
+        {
+          "frame_idx": 142,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.1687,
+          "y_norm": 0.0222,
+          "action_owner": "human",
+          "evidence": "manual visible marker center"
+        },
+        {
+          "frame_idx": 143,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.125,
+          "y_norm": 0.0222,
+          "action_owner": "human",
+          "evidence": "manual visible marker center"
+        },
+        {
+          "frame_idx": 144,
+          "goal_id": "test1_corridor_end_running_person_marker",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.0938,
+          "y_norm": 0.0222,
+          "action_owner": "human",
+          "evidence": "manual visible marker center"
+        }
+      ]
+    }
+  ]
+}

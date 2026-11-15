@@ -152,6 +152,10 @@ class InputTracker:
         
         # Latches for keys pressed and released entirely within a single tick
         self.keys_pressed_this_tick = {k: False for k in self.keys_held}
+        # Track physical sources separately because several keycodes/devices
+        # can map to one action (for example Ctrl and C both mean crouch).
+        self._physical_keys_down = {k: set() for k in self.keys_held}
+        self.key_lock = threading.Lock()
         
         self.mouse_dx = 0
         self.mouse_dy = 0
@@ -164,6 +168,8 @@ class InputTracker:
         self.mouse_lock = threading.Lock()
         self.mouse_event_counts = {device.path: 0 for device in self.mice}
         self.mouse_errors = []
+        self._health_lock = threading.Lock()
+        self._device_errors = []
         # Control keys never become training labels; the main recorder loop consumes them.
         self.control_lock = threading.Lock()
         self.control_events = deque()
@@ -201,13 +207,38 @@ class InputTracker:
                     ) or (self.start_enabled and event.code == evdev.ecodes.KEY_P):
                         self._track_control_key(kbd, event)
                     if event.code in key_map:
-                        if event.value in (1, 2):
-                            self.keys_held[key_map[event.code]] = True
-                            self.keys_pressed_this_tick[key_map[event.code]] = True
-                        elif event.value == 0:
-                            self.keys_held[key_map[event.code]] = False
+                        self._update_physical_key(
+                            key_map[event.code], kbd, event.code, event.value
+                        )
+            if self.running:
+                self._record_device_error("keyboard", kbd, "read loop ended unexpectedly")
         except Exception as e:
-            print(f"Keyboard loop error ({kbd.name}): {e}")
+            self._record_device_error("keyboard", kbd, e)
+
+    def _record_device_error(self, kind, device, error):
+        reason = f"{kind} device disconnected or failed: {device.path} ({device.name}): {error}"
+        with self._health_lock:
+            self._device_errors.append(reason)
+            if kind == "mouse":
+                self.mouse_errors.append(reason)
+        print(f"Input {kind} loop error ({device.name}): {error}")
+
+    def capture_errors(self):
+        """Return a stable snapshot of required-device read failures."""
+        with self._health_lock:
+            return tuple(self._device_errors)
+
+    def _update_physical_key(self, action, device, code, value):
+        """Update one logical action from a specific physical key source."""
+        source = (getattr(device, "path", id(device)), code)
+        with self.key_lock:
+            down = self._physical_keys_down[action]
+            if value in (1, 2):
+                down.add(source)
+                self.keys_pressed_this_tick[action] = True
+            elif value == 0:
+                down.discard(source)
+            self.keys_held[action] = bool(down)
 
     def _track_control_key(self, kbd, event):
         """Queue one action per physical press, ignoring repeats and duplicate interfaces."""
@@ -292,16 +323,17 @@ class InputTracker:
                         last_abs_x = None
                         last_abs_y = None
                     if event.code in (evdev.ecodes.BTN_LEFT, evdev.ecodes.BTN_TOUCH):
-                        is_down = event.value in (1, 2)
-                        self.keys_held['BTN_LEFT'] = is_down
-                        if is_down: self.keys_pressed_this_tick['BTN_LEFT'] = True
+                        self._update_physical_key(
+                            'BTN_LEFT', mouse, event.code, event.value
+                        )
                     elif event.code == evdev.ecodes.BTN_RIGHT:
-                        is_down = event.value in (1, 2)
-                        self.keys_held['BTN_RIGHT'] = is_down
-                        if is_down: self.keys_pressed_this_tick['BTN_RIGHT'] = True
+                        self._update_physical_key(
+                            'BTN_RIGHT', mouse, event.code, event.value
+                        )
+            if self.running:
+                self._record_device_error("mouse", mouse, "read loop ended unexpectedly")
         except Exception as e:
-            self.mouse_errors.append(f"{mouse.path} ({mouse.name}): {e}")
-            print(f"Mouse/touchpad loop error ({mouse.name}): {e}")
+            self._record_device_error("mouse", mouse, e)
 
     def get_mouse_delta_and_reset(self):
         with self.mouse_lock:
@@ -326,21 +358,24 @@ class InputTracker:
             
         # A key is considered active this tick if it's CURRENTLY held down,
         # OR if it was pressed and released entirely within the tick duration.
-        def is_active(k):
-            active = self.keys_held[k] or self.keys_pressed_this_tick[k]
-            self.keys_pressed_this_tick[k] = False # clear the latch
-            return active
+        with self.key_lock:
+            def is_active(k):
+                active = self.keys_held[k] or self.keys_pressed_this_tick[k]
+                self.keys_pressed_this_tick[k] = False # clear the latch
+                return active
+
+            keys = {key: is_active(key) for key in self.keys_held}
             
         return {
-            'move_w': int(is_active('W')),
-            'move_a': int(is_active('A')),
-            'move_s': int(is_active('S')),
-            'move_d': int(is_active('D')),
-            'jump': int(is_active('SPACE')),
-            'crouch': int(is_active('CROUCH')),
-            'use': int(is_active('E')),
-            'fire_left': int(is_active('BTN_LEFT')),
-            'fire_right': int(is_active('BTN_RIGHT')),
+            'move_w': int(keys['W']),
+            'move_a': int(keys['A']),
+            'move_s': int(keys['S']),
+            'move_d': int(keys['D']),
+            'jump': int(keys['SPACE']),
+            'crouch': int(keys['CROUCH']),
+            'use': int(keys['E']),
+            'fire_left': int(keys['BTN_LEFT']),
+            'fire_right': int(keys['BTN_RIGHT']),
             'mouse_dx': dx,
             'mouse_dy': dy
         }
@@ -383,6 +418,9 @@ class WaylandCamera:
         self.thread = None
         self.stderr_thread = None
         self.stderr_lines = []
+        self._state_lock = threading.Lock()
+        self._stop_requested = False
+        self._capture_error = None
 
     def start(self):
         cmd = [
@@ -407,6 +445,8 @@ class WaylandCamera:
             bufsize=self.frame_size * 2
         )
         self.running = True
+        self._stop_requested = False
+        self._capture_error = None
         self.stderr_thread = threading.Thread(target=self._read_stderr, daemon=True)
         self.stderr_thread.start()
         self.thread = threading.Thread(target=self._update, daemon=True)
@@ -421,23 +461,59 @@ class WaylandCamera:
                 del self.stderr_lines[:-20]
 
     def error_summary(self):
-        if self.proc and self.proc.poll() is not None and self.stderr_thread:
+        poll = getattr(self.proc, "poll", None)
+        if callable(poll) and poll() is not None and self.stderr_thread:
             self.stderr_thread.join(timeout=0.5)
         return "\n".join(self.stderr_lines)
 
+    @property
+    def capture_error(self):
+        with self._state_lock:
+            return self._capture_error
+
+    def _fail_capture(self, reason):
+        with self._state_lock:
+            if self._capture_error is None:
+                self._capture_error = reason
+
+    def _read_exact_frame(self):
+        """Read one raw frame despite pipe chunking; return bytes and EOF state."""
+        chunks = bytearray()
+        while len(chunks) < self.frame_size:
+            raw = self.proc.stdout.read(self.frame_size - len(chunks))
+            if not raw:
+                return bytes(chunks), True
+            chunks.extend(raw)
+        return bytes(chunks), False
+
     def _update(self):
-        while self.running:
-            raw = self.proc.stdout.read(self.frame_size)
-            if len(raw) == self.frame_size:
-                received = time.monotonic()
-                frame = np.frombuffer(raw, dtype=np.uint8).reshape((self.height, self.width, 3))
-                frame = frame.copy()
-                with self._frame_lock:
-                    self._next_frame_id += 1
-                    self._latest_sample = FrameSample(frame, self._next_frame_id, received)
-                    self.latest_frame = frame
-            elif len(raw) == 0:
-                break 
+        try:
+            while self.running:
+                raw, eof = self._read_exact_frame()
+                if len(raw) == self.frame_size:
+                    received = time.monotonic()
+                    frame = np.frombuffer(raw, dtype=np.uint8).reshape((self.height, self.width, 3))
+                    frame = frame.copy()
+                    with self._frame_lock:
+                        self._next_frame_id += 1
+                        self._latest_sample = FrameSample(frame, self._next_frame_id, received)
+                        self.latest_frame = frame
+                else:
+                    with self._state_lock:
+                        requested_stop = self._stop_requested
+                    if not requested_stop:
+                        detail = self.error_summary()
+                        reason = "camera stream ended unexpectedly" if not raw else (
+                            f"camera stream ended with a partial frame ({len(raw)}/{self.frame_size} bytes)"
+                        )
+                        if detail:
+                            reason += f": {detail}"
+                        self._fail_capture(reason)
+                    self.running = False
+                    break
+        except Exception as error:
+            self._fail_capture(f"camera reader failed: {type(error).__name__}: {error}")
+            self.running = False
 
     def get_latest_frame(self):
         return self.get_latest_frame_sample().frame
@@ -448,6 +524,12 @@ class WaylandCamera:
             return self._latest_sample
 
     def stop(self):
+        state_lock = getattr(self, "_state_lock", None)
+        if state_lock is not None:
+            with state_lock:
+                self._stop_requested = True
+        else:
+            self._stop_requested = True
         self.running = False
         if self.proc:
             if self.proc.poll() is None:
@@ -561,6 +643,8 @@ class EpisodeRecorder:
         self.video_writer = None
         
         self.frame_idx = 0
+        self._capture_failure_reason = None
+        self._capture_metadata = None
         
         self.episodes_root = os.fspath(episodes_root)
         self.in_progress_root = os.path.join(self.episodes_root, ".in_progress")
@@ -575,13 +659,13 @@ class EpisodeRecorder:
         self.episode_name = f"episode_{timestamp}"
         self.ep_dir = os.path.join(self.in_progress_root, self.episode_name)
         os.makedirs(self.ep_dir, exist_ok=True)
-        with open(os.path.join(self.ep_dir, "metadata.json"), "w", encoding="utf-8") as metadata_file:
-            json.dump({"map": map_name, **(metadata_extra or {}), "frame_timing": {
+        self._capture_metadata = {"map": map_name, **(metadata_extra or {}), "frame_timing": {
                 "version": 1, "clock": "time.monotonic",
                 "frame_timestamp": "complete_raw_frame_received_in_python",
                 "input_timestamp": "snapshot_call_brackets_not_individual_event_times",
-            }}, metadata_file, indent=2)
-            metadata_file.write("\n")
+            }, "capture_status": "in_progress", "capture_valid": None,
+            "capture_failure_reason": None}
+        self._write_capture_metadata()
         
         # Open CSV
         self.csv_path = os.path.join(self.ep_dir, "actions.csv")
@@ -650,7 +734,7 @@ class EpisodeRecorder:
         self.input_discard_count = getattr(self, "input_discard_count", 0) + 1
         
     def stop_recording(self, outcome="unknown"):
-        if not self.recording:
+        if self.ep_dir is None:
             return
             
         print(f"\n--- STOPPING RECORDING (Outcome: {outcome}) ---")
@@ -658,22 +742,83 @@ class EpisodeRecorder:
         self.paused = False
         self.resume_deadline = None
         self.sync_thread.join(timeout=2.0)
-        
-        if self.video_writer:
-            self.video_writer.release()
-        if self.csv_file:
-            self.csv_file.close()
+        if getattr(self.sync_thread, "is_alive", lambda: False)() is True:
+            self._mark_capture_failure("capture synchronization thread did not stop")
+
+        try:
+            if self.video_writer:
+                self.video_writer.release()
+        except Exception as error:
+            self._mark_capture_failure(f"video writer failed to finalize: {error}")
+        finally:
+            if self.csv_file:
+                self.csv_file.close()
+
+        tracker = getattr(self, "tracker", None)
+        tracker_errors = tracker.capture_errors() if tracker is not None and hasattr(tracker, "capture_errors") else ()
+        if not isinstance(tracker_errors, (tuple, list)):
+            tracker_errors = ()
+        if tracker_errors:
+            self._mark_capture_failure("; ".join(tracker_errors))
+        camera_error = getattr(getattr(self, "camera", None), "capture_error", None)
+        if isinstance(camera_error, str) and camera_error:
+            self._mark_capture_failure(camera_error)
+
+        invalid_outcomes = (
+            "interrupted", "focus_lost", "oracle_paused", "map_reloaded",
+            "restart_requested", "discarded", "capture_error", "unknown", "invalid_waypoint_event"
+        )
+        if outcome in invalid_outcomes:
+            self._mark_capture_failure(
+                f"recording ended without a valid terminal result: {outcome}"
+            )
+        valid = getattr(self, "_capture_failure_reason", None) is None
+        if not getattr(self, "_capture_metadata", None):
+            metadata_path = os.path.join(self.ep_dir, "metadata.json")
+            try:
+                with open(metadata_path, encoding="utf-8") as metadata_file:
+                    self._capture_metadata = json.load(metadata_file)
+            except (OSError, ValueError):
+                self._capture_metadata = {}
+        self._capture_metadata.update({
+            "capture_status": "complete" if valid else "invalid",
+            "capture_valid": valid,
+            "capture_outcome": outcome,
+            "capture_failure_reason": getattr(self, "_capture_failure_reason", None),
+        })
+        self._write_capture_metadata()
             
         # Publish the completed recording under its outcome. Keeping active
         # captures in .in_progress prevents preprocessors from seeing partial
         # MP4/CSV pairs if recording is interrupted unexpectedly.
         safe_outcome = re.sub(r"[^a-zA-Z0-9_-]+", "_", outcome).strip("_") or "unknown"
-        outcome_dir = os.path.join(self.episodes_root, safe_outcome)
+        outcome_dir = os.path.join(self.episodes_root, safe_outcome if valid else "invalid")
         os.makedirs(outcome_dir, exist_ok=True)
         completed_dir = os.path.join(outcome_dir, self.episode_name)
         os.rename(self.ep_dir, completed_dir)
         self.ep_dir = completed_dir
         print(f"Episode saved to: {completed_dir}")
+        if not valid:
+            print(f"Recording is invalid for training: {getattr(self, '_capture_failure_reason', None) or 'session ended before a scored terminal state'}")
+        return outcome if valid else "invalid"
+
+    def _write_capture_metadata(self):
+        if not self.ep_dir or not self._capture_metadata:
+            return
+        path = os.path.join(self.ep_dir, "metadata.json")
+        temporary = path + ".tmp"
+        with open(temporary, "w", encoding="utf-8") as metadata_file:
+            json.dump(self._capture_metadata, metadata_file, indent=2)
+            metadata_file.write("\n")
+        os.replace(temporary, path)
+
+    def _mark_capture_failure(self, reason):
+        if getattr(self, "_capture_failure_reason", None) is None:
+            self._capture_failure_reason = str(reason)
+
+    @property
+    def capture_failure_reason(self):
+        return getattr(self, "_capture_failure_reason", None)
 
     def handle_console_events(self, event_stream, output):
         """Apply complete episode events while retaining fragmented TCP lines."""
@@ -696,49 +841,77 @@ class EpisodeRecorder:
         tick_duration = 1.0 / self.fps
         next_tick = time.monotonic()
         previous_frame_id = None
-        
-        while self.recording:
-            with self.sync_lock:
-                if not self.recording:
-                    break
-                self._finish_resume_delay(time.monotonic())
-                paused = self.paused or self.tracker.pause_is_pending()
-                if paused:
-                    # Drop menu input and reset the tick clock; no catch-up frames.
-                    self._discard_pending_input()
-                    next_tick = time.monotonic()
-                else:
-                    input_started = time.monotonic()
-                    actions = self.tracker.get_snapshot_and_reset()
-                    input_finished = time.monotonic()
-                    sample = self.camera.get_latest_frame_sample()
-                    sampled = time.monotonic()
-                    frame = sample.frame
-                    if frame is not None:
-                        self.video_writer.write(frame)
+        try:
+            while self.recording:
+                with self.sync_lock:
+                    if not self.recording:
+                        break
+                    input_errors = self.tracker.capture_errors() if hasattr(self.tracker, "capture_errors") else ()
+                    if isinstance(input_errors, (tuple, list)) and input_errors:
+                        self._mark_capture_failure("; ".join(input_errors))
+                        break
+                    camera_error = getattr(getattr(self, "camera", None), "capture_error", None)
+                    if isinstance(camera_error, str) and camera_error:
+                        self._mark_capture_failure(camera_error)
+                        break
+                    self._finish_resume_delay(time.monotonic())
+                    paused = self.paused or self.tracker.pause_is_pending()
+                    if paused:
+                        # Drop menu input and reset the tick clock; no catch-up frames.
+                        self._discard_pending_input()
+                        next_tick = time.monotonic()
                     else:
-                        self.video_writer.write(np.zeros((self.height, self.width, 3), dtype=np.uint8))
-                    self.csv_writer.writerow([
-                        time.time(), self.frame_idx,
-                        actions['move_w'], actions['move_a'], actions['move_s'], actions['move_d'],
-                        actions['jump'], actions['crouch'], actions['use'],
-                        actions['fire_left'], actions['fire_right'],
-                        actions['mouse_dx'], actions['mouse_dy'],
-                        input_started, input_finished,
-                        sample.frame_id, sample.received_monotonic, sampled,
-                        sampled - sample.received_monotonic if sample.received_monotonic is not None else None,
-                        sample.frame_id == previous_frame_id if sample.frame_id is not None and previous_frame_id is not None else None,
-                        getattr(self, 'input_discard_count', 0)
-                    ])
-                    self.csv_file.flush()
-                    self.frame_idx += 1
-                    previous_frame_id = sample.frame_id
-                    next_tick += tick_duration
+                        input_started = time.monotonic()
+                        actions = self.tracker.get_snapshot_and_reset()
+                        input_finished = time.monotonic()
+                        sample = self.camera.get_latest_frame_sample()
+                        sampled = time.monotonic()
+                        frame = sample.frame
+                        if frame is None or sample.frame_id is None or sample.received_monotonic is None:
+                            self._mark_capture_failure("camera has not provided a complete frame")
+                            break
+                        max_age = max(0.1, 2.5 / self.fps)
+                        frame_age = sampled - sample.received_monotonic
+                        if frame_age < 0 or frame_age > max_age:
+                            self._mark_capture_failure(
+                                f"camera frame is stale or has an invalid timestamp (age {frame_age:.3f}s; limit {max_age:.3f}s)"
+                            )
+                            break
+                        if previous_frame_id is not None and sample.frame_id > previous_frame_id + 1:
+                            self._mark_capture_failure(
+                                f"camera frame gap detected ({previous_frame_id} to {sample.frame_id})"
+                            )
+                            break
+                        if previous_frame_id is not None and sample.frame_id < previous_frame_id:
+                            self._mark_capture_failure("camera frame ID moved backwards")
+                            break
+                        self.video_writer.write(frame)
+                        self.csv_writer.writerow([
+                            time.time(), self.frame_idx,
+                            actions['move_w'], actions['move_a'], actions['move_s'], actions['move_d'],
+                            actions['jump'], actions['crouch'], actions['use'],
+                            actions['fire_left'], actions['fire_right'],
+                            actions['mouse_dx'], actions['mouse_dy'],
+                            input_started, input_finished,
+                            sample.frame_id, sample.received_monotonic, sampled,
+                            frame_age,
+                            sample.frame_id == previous_frame_id if previous_frame_id is not None else None,
+                            getattr(self, 'input_discard_count', 0)
+                        ])
+                        self.csv_file.flush()
+                        self.frame_idx += 1
+                        previous_frame_id = sample.frame_id
+                        next_tick += tick_duration
 
-            sleep_time = (min(0.05, tick_duration) if paused
-                          else next_tick - time.monotonic())
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+                    if getattr(self, "_capture_failure_reason", None):
+                        break
+
+                sleep_time = (min(0.05, tick_duration) if paused
+                              else next_tick - time.monotonic())
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+        except Exception as error:
+            self._mark_capture_failure(f"capture synchronization failed: {type(error).__name__}: {error}")
 
     def run(self):
         print("Starting Tracker and Camera...")
@@ -754,6 +927,9 @@ class EpisodeRecorder:
         
         try:
             while True:
+                if self.capture_failure_reason and self.recording:
+                    self.stop_recording("capture_error")
+                    return
                 for control in self.tracker.pop_control_events():
                     if control == "stop":
                         print("K pressed; ending recording session.")

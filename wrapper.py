@@ -79,6 +79,10 @@ class Portal2Controller:
         except Exception as e:
             print(f"Error reading console: {e}")
             
+        observer = getattr(self, 'console_observer', None)
+        if output and callable(observer):
+            observer(output)
+
         if output:
             self.event_buffer.extend(output.splitlines())
             # Keep buffer from growing infinitely

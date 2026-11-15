@@ -1,0 +1,1644 @@
+{
+  "schema": "shionn_goal_annotations_v1",
+  "coordinate_system": "normalized_frame_xy_origin_top_left_y_down",
+  "membership": "annotation_only; development_pending originals preserved",
+  "review": "every decoded frame on dense 320x180 contact sheets with action overlays; approximate landmark centers from reviewed interpolated manual anchors, uncertainty +-8 review pixels",
+  "episodes": [
+    {
+      "episode_id": "episode_20261115_140242_169324",
+      "split_role": "annotation_only",
+      "training_approved": false,
+      "map_name": "goal_choice_v1",
+      "source_session_id": "interior_01_pair_20261115_exposed_development",
+      "start_group_id": "goal_choice_interior_01",
+      "requested_goal_id": "goal_choice_v1_A",
+      "frame_count": 84,
+      "source_path": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/goal_navigation_pending/interior_01/waypoint_A/waypoint_reached/episode_20261115_140242_169324",
+      "provenance": {
+        "video_sha256": "e3877b1166c29fe922138fc66578251763ad6007277c3ad79e999f52fd957a2d",
+        "actions_sha256": "1cad5517f5365987522b62deb7ac522523d182d92629a8ba784030cc9312ff00",
+        "metadata_sha256": "8b4518148939cc81c104f157618575de11737f2c27e9c14d1ebb8ef566b6f7cc"
+      },
+      "annotations": [
+        {
+          "frame_idx": 0,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 1,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 2,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 3,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 4,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 5,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 6,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 7,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 8,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 9,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 10,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 11,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 12,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 13,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 14,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 15,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 16,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 17,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 18,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 19,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 20,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 21,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 22,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 23,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 24,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 25,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 26,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 27,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 28,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 29,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 30,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 31,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 32,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 33,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 34,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.2125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 35,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.21562,
+          "y_norm": 0.17222,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 36,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.21875,
+          "y_norm": 0.17778,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 37,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.20781,
+          "y_norm": 0.19722,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 38,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.19687,
+          "y_norm": 0.21667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 39,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.18594,
+          "y_norm": 0.23611,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 40,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.175,
+          "y_norm": 0.25556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 41,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.15938,
+          "y_norm": 0.26944,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 42,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.14375,
+          "y_norm": 0.28333,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 43,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.12813,
+          "y_norm": 0.29722,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 44,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.1125,
+          "y_norm": 0.31111,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 45,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.08906,
+          "y_norm": 0.325,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 46,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.06563,
+          "y_norm": 0.33889,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 47,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.04219,
+          "y_norm": 0.35278,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 48,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.01875,
+          "y_norm": 0.36667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 49,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.01406,
+          "y_norm": 0.38056,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 50,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.00937,
+          "y_norm": 0.39444,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 51,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.00469,
+          "y_norm": 0.40833,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 52,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.0,
+          "y_norm": 0.42222,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 53,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.00313,
+          "y_norm": 0.425,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 54,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.00625,
+          "y_norm": 0.42778,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 55,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.00938,
+          "y_norm": 0.43056,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 56,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.0125,
+          "y_norm": 0.43333,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 57,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.01406,
+          "y_norm": 0.43889,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 58,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.01562,
+          "y_norm": 0.44444,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 59,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.01719,
+          "y_norm": 0.45,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 60,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.01875,
+          "y_norm": 0.45556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 61,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.01875,
+          "y_norm": 0.45556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 62,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.01875,
+          "y_norm": 0.45556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 63,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.01875,
+          "y_norm": 0.45556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 64,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.01875,
+          "y_norm": 0.45556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 65,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.025,
+          "y_norm": 0.475,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 66,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.03125,
+          "y_norm": 0.49444,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 67,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.0375,
+          "y_norm": 0.51389,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 68,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.04375,
+          "y_norm": 0.53333,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 69,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.04063,
+          "y_norm": 0.55,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 70,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.0375,
+          "y_norm": 0.56667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 71,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.03438,
+          "y_norm": 0.58333,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 72,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.03125,
+          "y_norm": 0.6,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 73,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.02656,
+          "y_norm": 0.62778,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 74,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.02187,
+          "y_norm": 0.65556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 75,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.01719,
+          "y_norm": 0.68333,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 76,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.0125,
+          "y_norm": 0.71111,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 77,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.00469,
+          "y_norm": 0.73611,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 78,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.02188,
+          "y_norm": 0.76111,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 79,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.03906,
+          "y_norm": 0.78611,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 80,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.05625,
+          "y_norm": 0.81111,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 81,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.0875,
+          "y_norm": 0.80741,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 82,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.11875,
+          "y_norm": 0.8037,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 83,
+          "goal_id": "goal_choice_v1_A",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.15,
+          "y_norm": 0.8,
+          "action_owner": "human"
+        }
+      ],
+      "manual_coordinate_anchors": {
+        "0": [
+          194,
+          105
+        ],
+        "34": [
+          194,
+          105
+        ],
+        "36": [
+          195,
+          106
+        ],
+        "40": [
+          188,
+          113
+        ],
+        "44": [
+          178,
+          118
+        ],
+        "48": [
+          163,
+          123
+        ],
+        "52": [
+          160,
+          128
+        ],
+        "56": [
+          158,
+          129
+        ],
+        "60": [
+          157,
+          131
+        ],
+        "64": [
+          157,
+          131
+        ],
+        "68": [
+          153,
+          138
+        ],
+        "72": [
+          155,
+          144
+        ],
+        "76": [
+          158,
+          154
+        ],
+        "80": [
+          169,
+          163
+        ],
+        "83": [
+          184,
+          162
+        ]
+      },
+      "phases_half_open": [
+        {
+          "name": "initial_wait",
+          "start": 0,
+          "end": 34
+        },
+        {
+          "name": "forward_onset",
+          "start": 34,
+          "end": 36
+        },
+        {
+          "name": "goal_steering_and_approach",
+          "start": 36,
+          "end": 84
+        }
+      ],
+      "registered_start_config_sha256": "f3b95bda035efc498a9d4e59920d61d321951be2c0aef564c864347a1c25415f"
+    },
+    {
+      "episode_id": "episode_20261115_140342_281564",
+      "split_role": "annotation_only",
+      "training_approved": false,
+      "map_name": "goal_choice_v1",
+      "source_session_id": "interior_01_pair_20261115_exposed_development",
+      "start_group_id": "goal_choice_interior_01",
+      "requested_goal_id": "goal_choice_v1_B",
+      "frame_count": 76,
+      "source_path": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/goal_navigation_pending/interior_01/waypoint_B/waypoint_reached/episode_20261115_140342_281564",
+      "provenance": {
+        "video_sha256": "10b23c2314edf9cd8933082862b6bbd73ad2c549eb159f799d95751e5cb55934",
+        "actions_sha256": "131e4b58c0a817f87331b78e492ae0c1c9ea141183d62fa740da24ff22fda243",
+        "metadata_sha256": "71a7eea23a52263656512ea88f6e33287482465ff1c43e10ecfce08d45a98e57"
+      },
+      "annotations": [
+        {
+          "frame_idx": 0,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 1,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 2,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 3,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 4,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 5,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 6,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 7,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 8,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 9,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 10,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 11,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 12,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 13,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 14,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 15,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 16,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 17,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 18,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 19,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 20,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 21,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 22,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 23,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 24,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 25,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 26,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.15926,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 27,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.16296,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 28,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.23125,
+          "y_norm": 0.16667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 29,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.21875,
+          "y_norm": 0.18333,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 30,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.20625,
+          "y_norm": 0.2,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 31,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.19375,
+          "y_norm": 0.21667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 32,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.18125,
+          "y_norm": 0.23333,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 33,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.15781,
+          "y_norm": 0.25278,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 34,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.13438,
+          "y_norm": 0.27222,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 35,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.11094,
+          "y_norm": 0.29167,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 36,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.0875,
+          "y_norm": 0.31111,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 37,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.06094,
+          "y_norm": 0.33056,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 38,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.03438,
+          "y_norm": 0.35,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 39,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.00781,
+          "y_norm": 0.36944,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 40,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.01875,
+          "y_norm": 0.38889,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 41,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.03125,
+          "y_norm": 0.41667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 42,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.04375,
+          "y_norm": 0.44444,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 43,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.05625,
+          "y_norm": 0.47222,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 44,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.06875,
+          "y_norm": 0.5,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 45,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.07031,
+          "y_norm": 0.51389,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 46,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.07187,
+          "y_norm": 0.52778,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 47,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.07344,
+          "y_norm": 0.54167,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 48,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.075,
+          "y_norm": 0.55556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 49,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.07344,
+          "y_norm": 0.58056,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 50,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.07187,
+          "y_norm": 0.60556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 51,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.07031,
+          "y_norm": 0.63056,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 52,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.06875,
+          "y_norm": 0.65556,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 53,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.05937,
+          "y_norm": 0.675,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 54,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.05,
+          "y_norm": 0.69444,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 55,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.04062,
+          "y_norm": 0.71389,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 56,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.03125,
+          "y_norm": 0.73333,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 57,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.03125,
+          "y_norm": 0.75,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 58,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.03125,
+          "y_norm": 0.76667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 59,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.03125,
+          "y_norm": 0.78333,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 60,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.03125,
+          "y_norm": 0.8,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 61,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.03125,
+          "y_norm": 0.74444,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 62,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.03125,
+          "y_norm": 0.68889,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 63,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.03125,
+          "y_norm": 0.63333,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 64,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.03125,
+          "y_norm": 0.57778,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 65,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.02344,
+          "y_norm": 0.6,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 66,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.01562,
+          "y_norm": 0.62222,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 67,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.00781,
+          "y_norm": 0.64444,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 68,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": 0.0,
+          "y_norm": 0.66667,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 69,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.00625,
+          "y_norm": 0.68056,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 70,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.0125,
+          "y_norm": 0.69444,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 71,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.01875,
+          "y_norm": 0.70833,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 72,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.025,
+          "y_norm": 0.72222,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 73,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.03125,
+          "y_norm": 0.72593,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 74,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.0375,
+          "y_norm": 0.72963,
+          "action_owner": "human"
+        },
+        {
+          "frame_idx": 75,
+          "goal_id": "goal_choice_v1_B",
+          "target_kind": "waypoint",
+          "visible": true,
+          "x_norm": -0.04375,
+          "y_norm": 0.73333,
+          "action_owner": "human"
+        }
+      ],
+      "manual_coordinate_anchors": {
+        "0": [
+          123,
+          104
+        ],
+        "25": [
+          123,
+          104
+        ],
+        "28": [
+          123,
+          105
+        ],
+        "32": [
+          131,
+          111
+        ],
+        "36": [
+          146,
+          118
+        ],
+        "40": [
+          163,
+          125
+        ],
+        "44": [
+          171,
+          135
+        ],
+        "48": [
+          172,
+          140
+        ],
+        "52": [
+          171,
+          149
+        ],
+        "56": [
+          165,
+          156
+        ],
+        "60": [
+          165,
+          162
+        ],
+        "64": [
+          165,
+          142
+        ],
+        "68": [
+          160,
+          150
+        ],
+        "72": [
+          156,
+          155
+        ],
+        "75": [
+          153,
+          156
+        ]
+      },
+      "phases_half_open": [
+        {
+          "name": "initial_wait",
+          "start": 0,
+          "end": 25
+        },
+        {
+          "name": "forward_onset",
+          "start": 25,
+          "end": 28
+        },
+        {
+          "name": "goal_steering_and_approach",
+          "start": 28,
+          "end": 76
+        }
+      ],
+      "registered_start_config_sha256": "f3b95bda035efc498a9d4e59920d61d321951be2c0aef564c864347a1c25415f"
+    }
+  ]
+}

@@ -23,7 +23,7 @@ class RecurrentBinnedPolicy(nn.Module):
         self.mouse_dx_head = nn.Linear(hidden_size, dx_classes)
         self.mouse_dy_head = nn.Linear(hidden_size, dy_classes)
 
-    def forward(self, frames, hidden=None, valid=None):
+    def forward(self, frames, hidden=None, valid=None, return_features=False):
         if frames.ndim != 5 or frames.shape[1] < 1:
             raise ValueError('Expected nonempty [B,T,C,H,W] sequence')
         b, t = frames.shape[:2]
@@ -45,11 +45,103 @@ class RecurrentBinnedPolicy(nn.Module):
         result = {k: head(features) for k, head in self.binary_heads.items()}
         result['mouse_dx_logits'] = self.mouse_dx_head(features)
         result['mouse_dy_logits'] = self.mouse_dy_head(features)
+        if return_features:
+            return result, hidden, features
         return result, hidden
 
     def step(self, frame, hidden=None):
         output, hidden = self(frame[:, None], hidden)
         return {k: v[:, 0] for k, v in output.items()}, hidden
+
+
+GOAL_CONDITIONED_ARCHITECTURE_VERSION = 'shionn_imitation_v5_gru_goal_binned'
+GOAL_FEATURE_DIM = 11
+GOAL_KIND_COUNT = 2
+GOAL_KIND_EMBEDDING_DIM = 8
+
+
+class GoalConditionedRecurrentPolicy(nn.Module):
+    """Optional visible-waypoint conditioning over the existing recurrent policy.
+
+    ``goals`` is [B,T,4]: normalized x/y, visibility, target-kind ID. The stable
+    goal identity is managed by the caller and deliberately is not inferred
+    from the camera view. Outputs add zero-initialized residual logits, so a
+    warm-started candidate exactly matches its source recurrent policy.
+    """
+    def __init__(self, dx_classes, dy_classes, hidden_size=256, feature_gate=False,
+                 adapter_size=128):
+        super().__init__()
+        if adapter_size < 1:
+            raise ValueError('Goal adapter size must be positive')
+        self.hidden_size = hidden_size
+        self.base = RecurrentBinnedPolicy(
+            dx_classes, dy_classes, hidden_size=hidden_size,
+            feature_gate=feature_gate,
+        )
+        self.target_kind_embedding = nn.Embedding(
+            GOAL_KIND_COUNT, GOAL_KIND_EMBEDDING_DIM
+        )
+        self.goal_adapter = nn.Sequential(
+            nn.Linear(hidden_size + GOAL_FEATURE_DIM, adapter_size),
+            nn.Tanh(),
+        )
+        from .dataset import BINARY_ACTION_COLUMNS
+        self.binary_goal_heads = nn.ModuleDict({
+            key: nn.Linear(adapter_size, 2) for key in BINARY_ACTION_COLUMNS
+        })
+        self.mouse_dx_goal_head = nn.Linear(adapter_size, dx_classes)
+        self.mouse_dy_goal_head = nn.Linear(adapter_size, dy_classes)
+        for head in (*self.binary_goal_heads.values(), self.mouse_dx_goal_head,
+                     self.mouse_dy_goal_head):
+            nn.init.zeros_(head.weight)
+            nn.init.zeros_(head.bias)
+
+    def encode_goal(self, goals):
+        if goals.ndim != 3 or goals.shape[-1] != 4:
+            raise ValueError('Expected goals shaped [B,T,4]')
+        xy = goals[..., :2]
+        visible = goals[..., 2:3]
+        kind = goals[..., 3].long()
+        if torch.any(~torch.isfinite(goals)):
+            raise ValueError('Goal values must be finite')
+        if torch.any(goals[..., 3] != kind):
+            raise ValueError('Target kind IDs must be integers')
+        if torch.any((xy < -1) | (xy > 1)):
+            raise ValueError('Visible goal coordinates must be normalized to [-1,1]')
+        if torch.any((visible != 0) & (visible != 1)):
+            raise ValueError('Goal visibility must be binary')
+        if torch.any((visible == 0) & torch.any(xy != 0, dim=-1, keepdim=True)):
+            raise ValueError('Invisible goal coordinates must be canonical zeros')
+        if torch.any((kind < 0) | (kind >= GOAL_KIND_COUNT)):
+            raise ValueError('Unknown target kind ID')
+        return torch.cat((xy, visible, self.target_kind_embedding(kind)), dim=-1)
+
+    def forward(self, frames, goals, hidden=None, valid=None):
+        if goals.shape[:2] != frames.shape[:2]:
+            raise ValueError('Goal sequence batch/time dimensions must match frames')
+        base_output, hidden, state_features = self.base(
+            frames, hidden=hidden, valid=valid, return_features=True,
+        )
+        goal_features = self.encode_goal(goals)
+        residual = self.goal_adapter(torch.cat((state_features, goal_features), dim=-1))
+        result = dict(base_output)
+        for key, head in self.binary_goal_heads.items():
+            result[key] = result[key] + head(residual)
+        result['mouse_dx_logits'] = result['mouse_dx_logits'] + self.mouse_dx_goal_head(residual)
+        result['mouse_dy_logits'] = result['mouse_dy_logits'] + self.mouse_dy_goal_head(residual)
+        return result, hidden
+
+    def step(self, frame, goal, hidden=None):
+        if goal.ndim == 2:
+            goal = goal[:, None]
+        output, hidden = self(frame[:, None], goal, hidden=hidden)
+        return {key: value[:, 0] for key, value in output.items()}, hidden
+
+
+def initialize_goal_policy_from_recurrent(goal_policy, source_state_dict):
+    """Warm-start and freeze the nested baseline; leave goal weights untouched."""
+    goal_policy.base.load_state_dict(source_state_dict, strict=True)
+    goal_policy.base.requires_grad_(False)
 
 
 class SequenceDataset:

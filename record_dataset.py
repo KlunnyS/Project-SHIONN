@@ -142,6 +142,11 @@ def connect_controller(controller: Portal2Controller, timeout: float = 60.0) -> 
 def wait_for_camera(recorder: EpisodeRecorder, timeout: float = 10.0) -> None:
     deadline = time.monotonic() + timeout
     while recorder.camera.get_latest_frame() is None:
+        camera_error = getattr(recorder.camera, "capture_error", None)
+        if isinstance(camera_error, str) and camera_error:
+            raise RuntimeError(
+                f"Camera capture failed before the first frame: {camera_error}"
+            )
         if recorder.camera.proc and recorder.camera.proc.poll() is not None:
             detail = recorder.camera.error_summary()
             message = "wf-recorder exited before producing a frame"
@@ -185,7 +190,7 @@ def load_map_and_wait_for_ready(
     while time.monotonic() < deadline:
         for event in read_events(controller, event_stream):
             if event.name == "chamber_ready":
-                print("Chamber ready; recording starts now.")
+                print("Chamber ready.")
                 return
         time.sleep(0.05)
     raise RuntimeError(
@@ -209,10 +214,21 @@ def wait_for_terminal_event(
     recorder: EpisodeRecorder | None = None,
     reject_new_chamber: bool = False,
     require_focus: bool = False,
+    requested_waypoint: str | None = None,
+    waypoint_events: list | None = None,
 ) -> str:
+    if requested_waypoint is not None and requested_waypoint not in ("A", "B"):
+        raise ValueError("requested_waypoint must be A or B")
     remaining_duration = duration if duration > 0 else None
     previous_tick = time.monotonic()
     while True:
+        tracker = getattr(recorder, "tracker", None) if recorder is not None else None
+        tracker_errors = tracker.capture_errors() if tracker is not None and hasattr(tracker, "capture_errors") else ()
+        if isinstance(tracker_errors, (tuple, list)) and tracker_errors:
+            return "capture_error"
+        capture_failure = getattr(recorder, "capture_failure_reason", None) if recorder is not None else None
+        if isinstance(capture_failure, str) and capture_failure:
+            return "capture_error"
         if require_focus:
             from run_imitation import query_hyprland_active_window
             if not (query_hyprland_active_window('auto') or {}).get('portal_focused'):
@@ -238,6 +254,16 @@ def wait_for_terminal_event(
             if reject_new_chamber and event.name == "chamber_ready":
                 print("A new chamber-ready event arrived during recovery; rejecting this clip.")
                 return "map_reloaded"
+            if requested_waypoint is not None:
+                if waypoint_events is not None:
+                    waypoint_events.append({"name": event.name, "value": event.value,
+                                            "received_monotonic": time.monotonic()})
+                if event.name == "waypoint_reached":
+                    if event.value not in ("A", "B"):
+                        return "invalid_waypoint_event"
+                    return "waypoint_reached" if event.value == requested_waypoint else "wrong_waypoint"
+                if event.name == "goal_reached":
+                    return "wrong_destination"
             outcome = event_outcome(event)
             if outcome:
                 print(f"Terminal event received: {event.name}|{event.value}")
@@ -263,6 +289,10 @@ def wait_for_proactive_start(
         "No data is being recorded yet; press P to start the proactive-turn clip."
     )
     while True:
+        capture_errors = recorder.tracker.capture_errors()
+        if isinstance(capture_errors, (tuple, list)) and capture_errors:
+            print("Input capture failed before recording: " + "; ".join(capture_errors))
+            return "capture_error"
         for control in recorder.tracker.pop_control_events():
             if control == "start":
                 return "start"
@@ -314,7 +344,7 @@ def record_episodes(
             start_result = wait_for_proactive_start(
                 recorder, controller, event_stream
             )
-            if start_result == "interrupted":
+            if start_result in ("interrupted", "capture_error"):
                 return
             if start_result != "start":
                 time.sleep(args.restart_delay)
@@ -347,8 +377,15 @@ def record_episodes(
             recorder=recorder,
             **oracle_options,
         )
-        recorder.stop_recording(outcome)
+        terminal_outcome = outcome
+        finalized_outcome = recorder.stop_recording(outcome)
+        if finalized_outcome == "invalid":
+            outcome = finalized_outcome
         if getattr(args,'oracle_source',False):
+            if finalized_outcome == "invalid":
+                progress.attempts += 1
+                print("Oracle recording invalidated; it was not finalized as a source episode.")
+                return
             from expert_action_replay import finalize_source
             finalize_source(recorder.ep_dir,outcome)
             progress.attempts+=1
@@ -356,7 +393,7 @@ def record_episodes(
             print(f'Oracle source saved for review: {recorder.ep_dir}',flush=True)
             return
         progress.attempts += 1
-        if outcome == "interrupted":
+        if terminal_outcome == "interrupted" or finalized_outcome == "invalid":
             return
         if outcome == "goal_reached":
             progress.successes += 1

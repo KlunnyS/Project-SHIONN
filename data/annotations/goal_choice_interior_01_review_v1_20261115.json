@@ -1,0 +1,54 @@
+[
+  {
+    "goal": "A",
+    "rows": 84,
+    "loss_enabled_frames": 50,
+    "first_movement": 34,
+    "first_mouse_turn": 36,
+    "skipped_camera_ids": 0,
+    "reused_camera_ids": 0,
+    "maximum_frame_age": 0.03741839800022717,
+    "maximum_sample_interval": 0.052325405998999486,
+    "event_after_last_sample_seconds": 0.006125212999904761,
+    "interaction_rows": 0,
+    "pre_recording_pose": {
+      "position": [
+        320.0,
+        26.44379,
+        64.03125
+      ],
+      "angles": [
+        0.001061,
+        90.0,
+        0.0
+      ],
+      "measured_monotonic": 12653.197383937
+    }
+  },
+  {
+    "goal": "B",
+    "rows": 76,
+    "loss_enabled_frames": 51,
+    "first_movement": 25,
+    "first_mouse_turn": 28,
+    "skipped_camera_ids": 0,
+    "reused_camera_ids": 0,
+    "maximum_frame_age": 0.02327047100152413,
+    "maximum_sample_interval": 0.05378239400124585,
+    "event_after_last_sample_seconds": 0.006587552999917534,
+    "interaction_rows": 0,
+    "pre_recording_pose": {
+      "position": [
+        320.0,
+        26.44379,
+        64.03125
+      ],
+      "angles": [
+        0.001023,
+        90.0,
+        0.0
+      ],
+      "measured_monotonic": 12713.309601335
+    }
+  }
+]

@@ -39,6 +39,15 @@ class DecisionRatePolicy:
 
     def reset(self):
         self.policy.reset()
+        self._reset_decision_cache()
+
+    def reset_memory(self):
+        """Drop held actions and recurrent state but preserve a selected goal."""
+        reset = getattr(self.policy, "reset_memory", self.policy.reset)
+        reset()
+        self._reset_decision_cache()
+
+    def _reset_decision_cache(self):
         self.tick = 0
         self.action = self.diagnostics = None
 

@@ -1,0 +1,28 @@
+{
+  "status": "development_feasibility_only",
+  "visual_review": "four sampled frames per episode; similar initial doorway views, distinct button/cube approaches; not per-frame annotation or verified pose equality",
+  "episodes": [
+    {
+      "goal": "A",
+      "episode": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/goal_navigation_pending/two_waypoint/waypoint_A/waypoint_reached/episode_20261115_131841_738444",
+      "rows": 177,
+      "first_nonzero_action_row": 111,
+      "hashes": {
+        "metadata.json": "dc6adf0ca188c38520e8161219ae4b274c722fc8ce399dafe7ae3595a35e6d32",
+        "actions.csv": "9d53ef5f7bef998e6786f74cd5e69eb60c80172f2867091b0726c72f5696ad77",
+        "video.mp4": "c259d21e6b66f8d199ec56941b6e5269fa2ec5ba8c42df27aba79bce47c3d260"
+      }
+    },
+    {
+      "goal": "B",
+      "episode": "/mnt/extra/Project-SHIONN/local_storage/model_attempts/goal_navigation_pending/two_waypoint/waypoint_B/waypoint_reached/episode_20261115_132007_546665",
+      "rows": 104,
+      "first_nonzero_action_row": 29,
+      "hashes": {
+        "metadata.json": "dfd76ef57d414f2f6fe36088fa8d603fa2f1e46a8ba5dceb4afee770d9557156",
+        "actions.csv": "b17b9e3a587e26f1f0a172310f04f27c4a32964256906283dd5376a5f28b0c10",
+        "video.mp4": "d41e96d911e92e7a65283f50e734a80016f3e3fb42aed74af303642801817f1f"
+      }
+    }
+  ]
+}

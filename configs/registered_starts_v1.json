@@ -1,0 +1,13 @@
+{
+  "schema": "shionn_registered_starts_v1",
+  "starts": [
+    {
+      "id": "goal_choice_interior_01",
+      "map": "goal_choice_v1",
+      "position": [320.0, 26.443790, 64.031250],
+      "angles": [0.001461, 90.0, 0.0],
+      "provenance": "User screenshot and getpos, 2026-11-15; live restore not yet verified",
+      "eligibility": "development_pending"
+    }
+  ]
+}

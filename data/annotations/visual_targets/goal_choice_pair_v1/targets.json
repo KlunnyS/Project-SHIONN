@@ -1,0 +1,70 @@
+[
+  {
+    "schema": "shionn_persistent_visual_target_v1",
+    "goal_id": "goal_choice_v1_A",
+    "episode_id": "episode_20261115_131841_738444",
+    "source_video_sha256": "c259d21e6b66f8d199ec56941b6e5269fa2ec5ba8c42df27aba79bce47c3d260",
+    "source_frame_idx": 0,
+    "source_frame_rgb_sha256": "82e488b0d1d4ec3e3c792ee7c0bbf0aca2dfc0eaed2c21a176e21263e1b77c51",
+    "source_frame_shape": [
+      1080,
+      1920,
+      3
+    ],
+    "review_bounds_xyxy": [
+      176,
+      91,
+      205,
+      110
+    ],
+    "native_bounds_xyxy": [
+      1056,
+      546,
+      1230,
+      660
+    ],
+    "crop_path": "data/annotations/visual_targets/goal_choice_pair_v1/goal_choice_v1_A.png",
+    "crop_sha256": "d0af341c82b618e427951b356ce97713607f86719acc730777eb902190edb3c4",
+    "crop_color_order": "RGB when decoded",
+    "selection": "human-reviewed visual landmark; approach region entry is success",
+    "membership": "development_only",
+    "training_approved": false,
+    "persistent": true,
+    "goal_embedding": "not implemented",
+    "loss_enabled_frames": 66
+  },
+  {
+    "schema": "shionn_persistent_visual_target_v1",
+    "goal_id": "goal_choice_v1_B",
+    "episode_id": "episode_20261115_132007_546665",
+    "source_video_sha256": "d41e96d911e92e7a65283f50e734a80016f3e3fb42aed74af303642801817f1f",
+    "source_frame_idx": 0,
+    "source_frame_rgb_sha256": "8ebb66971d5e0de956f6886274e1f30da2d694b71e4e5cd3d705ac9d5e352ef0",
+    "source_frame_shape": [
+      1080,
+      1920,
+      3
+    ],
+    "review_bounds_xyxy": [
+      121,
+      90,
+      142,
+      112
+    ],
+    "native_bounds_xyxy": [
+      726,
+      540,
+      852,
+      672
+    ],
+    "crop_path": "data/annotations/visual_targets/goal_choice_pair_v1/goal_choice_v1_B.png",
+    "crop_sha256": "78a8d9a533a192160633da8ca0baf4276755c98ae104d2c350e2f139a515cba2",
+    "crop_color_order": "RGB when decoded",
+    "selection": "human-reviewed visual landmark; approach region entry is success",
+    "membership": "development_only",
+    "training_approved": false,
+    "persistent": true,
+    "goal_embedding": "not implemented",
+    "loss_enabled_frames": 75
+  }
+]

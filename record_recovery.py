@@ -9,35 +9,104 @@ import time
 from pathlib import Path
 
 # Project modules at the repository root: reuse recorder events and game control.
-from record_dataset import EpisodeEventStream, connect_controller, wait_for_camera, wait_for_terminal_event
+from record_dataset import (
+    EpisodeEventStream,
+    connect_controller,
+    load_map_and_wait_for_ready,
+    wait_for_camera,
+    wait_for_terminal_event,
+)
 from recorder import EpisodeRecorder
+from registered_starts import (
+    SetupEventGuard,
+    load_start,
+    reject_setup_events,
+    restore_start,
+    verify_start,
+)
 from run_imitation import (
-    STARTUP_PITCH_TOLERANCE, activate_portal_input, disable_chamber_timeout,
-    query_hyprland_active_window, query_hyprland_cursor, read_player_angles,
-    read_portal_binding, restore_portal_binding,
+    STARTUP_PITCH_TOLERANCE,
+    activate_portal_input,
+    disable_chamber_timeout,
+    query_hyprland_active_window,
+    query_hyprland_cursor,
+    read_player_angles,
+    read_portal_binding,
+    restore_portal_binding,
 )
 from wrapper import Portal2Controller, is_game_running
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--map", required=True, help="Chamber currently loaded in Portal 2")
-    parser.add_argument("--source-attempt", type=Path,
-                        help="Model attempt JSONL that produced the stuck state")
-    parser.add_argument("--result-file", type=Path,
-                        help="Write the completed outcome and episode path for a session runner")
+    parser.add_argument("--first-pair-review", type=Path)
+    parser.add_argument("--collection-plan", type=Path)
+    parser.add_argument("--collection-group")
+    parser.add_argument("--collection-session")
+    parser.add_argument(
+        "--collection-stage", choices=("first_pair", "full"), default="first_pair"
+    )
+    parser.add_argument(
+        "--map-file",
+        type=Path,
+        help="Actual installed BSP, hashed for collection provenance",
+    )
+    parser.add_argument(
+        "--registered-start", help="Named setup-only pose; implies --load-map"
+    )
+    parser.add_argument(
+        "--start-config", type=Path, default=Path("configs/registered_starts_v1.json")
+    )
+    parser.add_argument(
+        "--load-map",
+        action="store_true",
+        help="Load --map and wait for chamber-ready before capture preparation",
+    )
+    parser.add_argument(
+        "--requested-waypoint",
+        choices=("A", "B"),
+        help="Record a development-only visual waypoint demonstration",
+    )
+    parser.add_argument(
+        "--map", required=True, help="Chamber currently loaded in Portal 2"
+    )
+    parser.add_argument(
+        "--source-attempt",
+        type=Path,
+        help="Model attempt JSONL that produced the stuck state",
+    )
+    parser.add_argument(
+        "--result-file",
+        type=Path,
+        help="Write the completed outcome and episode path for a session runner",
+    )
     parser.add_argument("--episodes-root", type=Path, default=Path("episodes/recovery"))
     parser.add_argument("--max-seconds", type=float, default=30.0)
-    parser.add_argument("--keep-focused", action="store_true",
-                        help="Reacquire Portal 2 focus and mouse capture before recording")
-    parser.add_argument("--disable-chamber-timeout", action="store_true",
-                        help="Require timeout suppression in the current chamber")
-    parser.add_argument("--session-controls", action="store_true",
-                        help="Enable R to discard this correction and restart its model attempt")
-    parser.add_argument("--manual-focus", action="store_true",
-                        help="Skip automatic mouse checks and wait for P before recording")
-    parser.add_argument("--test-mode", action="store_true",
-                        help="Exercise takeover and completion without saving a recovery episode")
+    parser.add_argument(
+        "--keep-focused",
+        action="store_true",
+        help="Reacquire Portal 2 focus and mouse capture before recording",
+    )
+    parser.add_argument(
+        "--disable-chamber-timeout",
+        action="store_true",
+        help="Require timeout suppression in the current chamber",
+    )
+    parser.add_argument(
+        "--session-controls",
+        action="store_true",
+        help="Enable R to discard this correction and restart its model attempt",
+    )
+    parser.add_argument(
+        "--manual-focus",
+        action="store_true",
+        help="Skip automatic mouse checks and wait for P before recording",
+    )
+    parser.add_argument(
+        "--test-mode",
+        action="store_true",
+        help="Exercise takeover and completion without saving a recovery episode",
+    )
     parser.add_argument("--hyprland-instance", default="auto")
     parser.add_argument("--focus-delay", type=float, default=5.0)
     parser.add_argument("--port", type=int, default=8020)
@@ -49,13 +118,43 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--mouse-device")
     args = parser.parse_args(argv)
     if args.max_seconds < 0 or args.focus_delay < 0 or args.fps <= 0:
-        parser.error("max-seconds cannot be negative (0 disables it); fps must be positive; focus-delay cannot be negative")
+        parser.error(
+            "max-seconds cannot be negative (0 disables it); fps must be positive; focus-delay cannot be negative"
+        )
     if args.keep_focused and args.focus_delay < 2:
-        parser.error("--keep-focused requires at least 2 seconds of focus delay to verify the physical mouse")
+        parser.error(
+            "--keep-focused requires at least 2 seconds of focus delay to verify the physical mouse"
+        )
     if args.source_attempt and not args.source_attempt.is_file():
         parser.error(f"source attempt does not exist: {args.source_attempt}")
     if args.manual_focus and not args.session_controls:
         parser.error("--manual-focus requires --session-controls")
+    if args.registered_start:
+        args.load_map = True
+        load_start(args.start_config, args.registered_start, args.map)
+    if args.collection_plan:
+        from paired_goal_collection import group_context
+
+        context = group_context(
+            args.collection_plan,
+            args.start_config,
+            args.collection_group,
+            args.collection_session,
+            args.requested_waypoint,
+            stage=args.collection_stage,
+            first_pair_review=args.first_pair_review,
+        )
+        if not args.registered_start or args.registered_start != context["start_id"]:
+            parser.error("Collection plan requires its exact registered start")
+        if (
+            args.map_file is None
+            or not args.map_file.is_file()
+            or args.map_file.stem != args.map
+            or args.map_file.suffix.lower() != ".bsp"
+        ):
+            parser.error("Collection plan requires the actual installed --map-file BSP")
+    elif args.collection_group or args.collection_session:
+        parser.error("Collection group/session require --collection-plan")
     return args
 
 
@@ -86,8 +185,11 @@ class HandoffDiagnostics:
         current_mouse = self.tracker.mouse_counters_snapshot()
         left = max(0, current_mouse["left"] - self.previous_mouse["left"])
         right = max(0, current_mouse["right"] - self.previous_mouse["right"])
-        yaw = (abs(angle_delta(angles[1], self.previous_angles[1]))
-               if self.previous_angles is not None else 0.0)
+        yaw = (
+            abs(angle_delta(angles[1], self.previous_angles[1]))
+            if self.previous_angles is not None
+            else 0.0
+        )
         horizontal = left + right
         if horizontal:
             self.raw_by_direction["left"] += left
@@ -98,19 +200,30 @@ class HandoffDiagnostics:
         self.previous_angles = angles
         status = query_hyprland_active_window(self.instance)
         resolved_instance = (status or {}).get("hyprland_instance", self.instance)
-        cursor = query_hyprland_cursor(resolved_instance) if resolved_instance != "auto" else None
-        self.write({
-            "type": "sample", "time": time.monotonic(),
-            "physical_mouse": current_mouse, "angles": angles,
-            "cursor": cursor, "portal_focused": (status or {}).get("portal_focused"),
-        })
+        cursor = (
+            query_hyprland_cursor(resolved_instance)
+            if resolved_instance != "auto"
+            else None
+        )
+        self.write(
+            {
+                "type": "sample",
+                "time": time.monotonic(),
+                "physical_mouse": current_mouse,
+                "angles": angles,
+                "cursor": cursor,
+                "portal_focused": (status or {}).get("portal_focused"),
+            }
+        )
 
     def weak_directions(self) -> list[str]:
         """Flag clear failures, allowing small exploratory mouse movements."""
         return [
-            direction for direction in ("left", "right")
+            direction
+            for direction in ("left", "right")
             if self.raw_by_direction[direction] >= 500
-            and self.yaw_by_direction[direction] / self.raw_by_direction[direction] < 0.01
+            and self.yaw_by_direction[direction] / self.raw_by_direction[direction]
+            < 0.01
         ]
 
     def reset_response(self) -> None:
@@ -120,12 +233,15 @@ class HandoffDiagnostics:
         self.previous_mouse = self.tracker.mouse_counters_snapshot()
 
     def finish(self, outcome: str) -> None:
-        self.write({
-            "type": "result", "outcome": outcome,
-            "physical_counts": self.raw_by_direction,
-            "camera_yaw_degrees": self.yaw_by_direction,
-            "weak_directions": self.weak_directions(),
-        })
+        self.write(
+            {
+                "type": "result",
+                "outcome": outcome,
+                "physical_counts": self.raw_by_direction,
+                "camera_yaw_degrees": self.yaw_by_direction,
+                "weak_directions": self.weak_directions(),
+            }
+        )
 
 
 def pointer_inside_portal(window: dict) -> bool:
@@ -133,13 +249,22 @@ def pointer_inside_portal(window: dict) -> bool:
     instance = window.get("hyprland_instance")
     position = window.get("at")
     size = window.get("size")
-    if not (instance and isinstance(position, list) and len(position) == 2
-            and isinstance(size, list) and len(size) == 2):
-        raise RuntimeError("Portal 2 window geometry is unavailable; cannot verify mouse confinement")
+    if not (
+        instance
+        and isinstance(position, list)
+        and len(position) == 2
+        and isinstance(size, list)
+        and len(size) == 2
+    ):
+        raise RuntimeError(
+            "Portal 2 window geometry is unavailable; cannot verify mouse confinement"
+        )
     active = query_hyprland_active_window(instance)
     cursor = query_hyprland_cursor(instance)
     if active is None or cursor is None:
-        raise RuntimeError("Hyprland focus or cursor position is unavailable; cannot verify mouse confinement")
+        raise RuntimeError(
+            "Hyprland focus or cursor position is unavailable; cannot verify mouse confinement"
+        )
     return bool(active.get("portal_focused")) and (
         position[0] <= cursor[0] < position[0] + size[0]
         and position[1] <= cursor[1] < position[1] + size[1]
@@ -147,8 +272,11 @@ def pointer_inside_portal(window: dict) -> bool:
 
 
 def wait_for_physical_mouse(
-    controller: Portal2Controller, tracker, focus_delay: float,
-    instance: str, starting_angles: tuple[float, float, float],
+    controller: Portal2Controller,
+    tracker,
+    focus_delay: float,
+    instance: str,
+    starting_angles: tuple[float, float, float],
     focus_status: dict | None = None,
     diagnostics: HandoffDiagnostics | None = None,
 ) -> str | None:
@@ -158,8 +286,16 @@ def wait_for_physical_mouse(
         camera_rotation = 0.0
         deadline = time.monotonic() + focus_delay
         while time.monotonic() < deadline:
+            errors = tracker.capture_errors()
+            if isinstance(errors, (tuple, list)) and errors:
+                if diagnostics is not None:
+                    diagnostics.finish("input_capture_error")
+                print("Input capture failed before recovery: " + "; ".join(errors))
+                return "capture_error"
             if focus_status is not None and not pointer_inside_portal(focus_status):
-                print("Mouse left Portal 2 or the window lost focus; restarting this chamber without a correction.")
+                print(
+                    "Mouse left Portal 2 or the window lost focus; restarting this chamber without a correction."
+                )
                 if diagnostics is not None:
                     diagnostics.finish("pointer_or_focus_lost")
                 return "restart_requested"
@@ -194,7 +330,11 @@ def wait_for_physical_mouse(
                 diagnostics.finish("retry_capture")
             print(
                 f"Mouse check: camera turned {camera_rotation:.1f} degrees"
-                + (f" but {', '.join(weak)} physical turns barely registered;" if weak else ";")
+                + (
+                    f" but {', '.join(weak)} physical turns barely registered;"
+                    if weak
+                    else ";"
+                )
                 + " "
                 "recentering the pointer and retrying Portal 2 capture once."
             )
@@ -204,11 +344,16 @@ def wait_for_physical_mouse(
                 raise RuntimeError("Could not reacquire Portal 2 input for recovery")
             focus_status = status if focus_status is not None else None
             starting_angles = read_player_angles(controller)
-            if max(
-                abs(angle_delta(starting_angles[0], before_retry[0])),
-                abs(angle_delta(starting_angles[1], before_retry[1])),
-            ) > STARTUP_PITCH_TOLERANCE:
-                print("Mouse capture moved the camera during retry; restarting this chamber without a correction.")
+            if (
+                max(
+                    abs(angle_delta(starting_angles[0], before_retry[0])),
+                    abs(angle_delta(starting_angles[1], before_retry[1])),
+                )
+                > STARTUP_PITCH_TOLERANCE
+            ):
+                print(
+                    "Mouse capture moved the camera during retry; restarting this chamber without a correction."
+                )
                 if diagnostics is not None:
                     diagnostics.finish("capture_moved_camera")
                 return "restart_requested"
@@ -216,7 +361,9 @@ def wait_for_physical_mouse(
                 diagnostics.reset_response()
     if diagnostics is not None:
         diagnostics.finish("weak_mouse_response")
-    print("Physical mouse did not reliably turn the camera; restarting this chamber without recording.")
+    print(
+        "Physical mouse did not reliably turn the camera; restarting this chamber without recording."
+    )
     return "restart_requested"
 
 
@@ -225,7 +372,9 @@ def write_result(path: Path | None, outcome: str, episode: str | None) -> None:
     if path is None:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"outcome": outcome, "episode": episode}) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps({"outcome": outcome, "episode": episode}) + "\n", encoding="utf-8"
+    )
 
 
 def chamber_still_active(controller: Portal2Controller) -> bool:
@@ -240,14 +389,26 @@ def chamber_still_active(controller: Portal2Controller) -> bool:
 
 
 def wait_for_manual_start(
-    tracker, focus_delay: float, controller: Portal2Controller | None = None,
+    tracker,
+    focus_delay: float,
+    controller: Portal2Controller | None = None,
     diagnostics: HandoffDiagnostics | None = None,
 ) -> str:
     """Let the operator verify confinement and reframe before beginning a clip."""
     earliest_start = time.monotonic() + focus_delay
     next_sample = time.monotonic()
     while True:
-        if diagnostics is not None and controller is not None and time.monotonic() >= next_sample:
+        errors = tracker.capture_errors()
+        if isinstance(errors, (tuple, list)) and errors:
+            if diagnostics is not None:
+                diagnostics.finish("input_capture_error")
+            print("Input capture failed before recovery: " + "; ".join(errors))
+            return "capture_error"
+        if (
+            diagnostics is not None
+            and controller is not None
+            and time.monotonic() >= next_sample
+        ):
             try:
                 diagnostics.sample(read_player_angles(controller, timeout=0.5))
             except RuntimeError:
@@ -265,7 +426,9 @@ def wait_for_manual_start(
             if control == "start" and time.monotonic() >= earliest_start:
                 if diagnostics is not None and diagnostics.weak_directions():
                     diagnostics.finish("weak_mouse_response")
-                    print("Physical mouse barely turned the camera; restarting without a correction.")
+                    print(
+                        "Physical mouse barely turned the camera; restarting without a correction."
+                    )
                     return "restart_requested"
                 if diagnostics is not None:
                     diagnostics.finish("ready")
@@ -286,15 +449,69 @@ class TestRecoveryMonitor:
         return self.paused
 
 
+def check_setup_events(controller, result_file):
+    try:
+        reject_setup_events(controller)
+    except RuntimeError:
+        write_result(result_file, "invalid_start_event", None)
+        raise
+
+
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
+    registered_start = (
+        load_start(args.start_config, args.registered_start, args.map)
+        if args.registered_start
+        else None
+    )
+    start_verification = None
+    collection_context = None
+    capture_config = {
+        "fps": args.fps,
+        "width": args.width,
+        "height": args.height,
+        "output": args.output,
+        "crf": args.crf,
+        "focus_mode": "manual" if args.manual_focus else "automatic",
+        "camera_fov": "not_measured",
+    }
+    if args.collection_plan:
+        from models.imitation.visual_targets import sha256
+        from paired_goal_collection import group_context
+
+        collection_context = group_context(
+            args.collection_plan,
+            args.start_config,
+            args.collection_group,
+            args.collection_session,
+            args.requested_waypoint,
+            stage=args.collection_stage,
+            first_pair_review=args.first_pair_review,
+        )
+        collection_context["map_sha256"] = sha256(args.map_file)
+        collection_context["map_file"] = str(args.map_file.resolve())
+        if collection_context.get("expected_map_sha256") not in (
+            None,
+            collection_context["map_sha256"],
+        ):
+            raise ValueError("Map BSP differs from the reviewed first pair")
+        if collection_context.get("expected_capture_config") not in (
+            None,
+            capture_config,
+        ):
+            raise ValueError("Capture settings differ from the reviewed first pair")
     if not is_game_running():
         raise RuntimeError("Portal 2 must remain open at the model's stuck position")
     recorder = EpisodeRecorder(
-        fps=args.fps, width=args.width, height=args.height, video_crf=args.crf,
+        fps=args.fps,
+        width=args.width,
+        height=args.height,
+        video_crf=args.crf,
         controller=Portal2Controller(args.port, log_file=None),
-        output_name=args.output, mouse_device=args.mouse_device,
-        episodes_root=args.episodes_root, restart_enabled=args.session_controls,
+        output_name=args.output,
+        mouse_device=args.mouse_device,
+        episodes_root=args.episodes_root,
+        restart_enabled=args.session_controls,
         start_enabled=args.manual_focus,
         prepare_output=not args.test_mode,
         resume_delay_seconds=3.0,
@@ -305,11 +522,34 @@ def main(argv: list[str] | None = None) -> None:
     diagnostics = None
     try:
         connect_controller(controller)
+        if args.requested_waypoint:
+            controller._setup_event_guard = SetupEventGuard(
+                wait_for_ready=args.load_map
+            )
+            controller.console_observer = controller._setup_event_guard.feed
+        if args.load_map:
+            load_map_and_wait_for_ready(
+                controller, EpisodeEventStream(), args.map, 60.0
+            )
+        if args.requested_waypoint:
+            controller._reject_setup_terminals = True
+        if registered_start is not None:
+            controller.release_policy_actions()
+            try:
+                start_verification = restore_start(controller, registered_start)
+            except RuntimeError:
+                write_result(args.result_file, "start_verification_failed", None)
+                raise
+            print(
+                f"Registered start {args.registered_start} restored; leave movement controls untouched."
+            )
         if args.session_controls:
             saved_restart_binding = read_portal_binding(controller, "r")
             controller.send_command("unbind r")
         if args.disable_chamber_timeout and not chamber_still_active(controller):
-            print("Chamber finished before recovery began; no correction will be recorded.")
+            print(
+                "Chamber finished before recovery began; no correction will be recorded."
+            )
             write_result(args.result_file, "model_chamber_finished", None)
             return
         recorder.tracker.start()
@@ -324,25 +564,35 @@ def main(argv: list[str] | None = None) -> None:
             # away from the center even while Portal remains focused. Reset it
             # before handing control to the physical mouse.
             focus_status = activate_portal_input(
-                controller, args.hyprland_instance, force_recenter=True,
+                controller,
+                args.hyprland_instance,
+                force_recenter=True,
             )
             if not (focus_status or {}).get("portal_focused"):
-                raise RuntimeError("Could not reacquire Portal 2 input for human recovery")
+                raise RuntimeError(
+                    "Could not reacquire Portal 2 input for human recovery"
+                )
             captured_angles = read_player_angles(controller)
             diagnostic_path = (
                 args.result_file.with_name("handoff_diagnostics.jsonl")
-                if args.result_file else
-                args.source_attempt.with_name("handoff_diagnostics.jsonl")
-                if args.source_attempt else None
+                if args.result_file
+                else args.source_attempt.with_name("handoff_diagnostics.jsonl")
+                if args.source_attempt
+                else None
             )
             diagnostics = HandoffDiagnostics(
-                recorder.tracker, args.hyprland_instance, diagnostic_path,
+                recorder.tracker,
+                args.hyprland_instance,
+                diagnostic_path,
             )
             if diagnostic_path is not None:
                 print(f"Handoff diagnostics: {diagnostic_path}")
             pitch_jump = angle_delta(captured_angles[0], initial_angles[0])
             yaw_jump = angle_delta(captured_angles[1], initial_angles[1])
-            if not args.manual_focus and max(abs(pitch_jump), abs(yaw_jump)) > STARTUP_PITCH_TOLERANCE:
+            if (
+                not args.manual_focus
+                and max(abs(pitch_jump), abs(yaw_jump)) > STARTUP_PITCH_TOLERANCE
+            ):
                 print(
                     f"Camera moved before the focus prompt (pitch {pitch_jump:+.1f}, "
                     f"yaw {yaw_jump:+.1f} degrees); "
@@ -360,20 +610,30 @@ def main(argv: list[str] | None = None) -> None:
             print(
                 f"Portal 2 will stay on {args.map}; recording starts in {args.focus_delay:g}s. "
                 "Move the physical mouse toward the other monitor and back, then return the view near its starting angle. "
-                + ("Esc pauses/resumes; K stops the session; R restarts this chamber."
-                   if args.session_controls else "Esc pauses/resumes; K ends this recording.")
+                + (
+                    "Esc pauses/resumes; K stops the session; R restarts this chamber."
+                    if args.session_controls
+                    else "Esc pauses/resumes; K ends this recording."
+                )
             )
         early_outcome = None
         if args.manual_focus:
             early_outcome = wait_for_manual_start(
-                recorder.tracker, args.focus_delay, controller, diagnostics,
+                recorder.tracker,
+                args.focus_delay,
+                controller,
+                diagnostics,
             )
             if early_outcome == "start":
                 early_outcome = None
         elif args.keep_focused:
             early_outcome = wait_for_physical_mouse(
-                controller, recorder.tracker, args.focus_delay,
-                args.hyprland_instance, captured_angles, focus_status,
+                controller,
+                recorder.tracker,
+                args.focus_delay,
+                args.hyprland_instance,
+                captured_angles,
+                focus_status,
                 diagnostics,
             )
         else:
@@ -381,8 +641,22 @@ def main(argv: list[str] | None = None) -> None:
         if early_outcome is not None:
             write_result(args.result_file, early_outcome, None)
             return
-        if args.keep_focused and not args.manual_focus and not pointer_inside_portal(focus_status):
-            print("Mouse left Portal 2 before recording; restarting this chamber without a correction.")
+        input_errors = recorder.tracker.capture_errors()
+        if isinstance(input_errors, (tuple, list)) and input_errors:
+            print(
+                "Input capture failed before recovery recording: "
+                + "; ".join(input_errors)
+            )
+            write_result(args.result_file, "capture_error", None)
+            return
+        if (
+            args.keep_focused
+            and not args.manual_focus
+            and not pointer_inside_portal(focus_status)
+        ):
+            print(
+                "Mouse left Portal 2 before recording; restarting this chamber without a correction."
+            )
             write_result(args.result_file, "restart_requested", None)
             return
         if args.keep_focused and not args.manual_focus:
@@ -401,28 +675,90 @@ def main(argv: list[str] | None = None) -> None:
             write_result(args.result_file, "model_chamber_finished", None)
             return
         controller.read_console(print_to_terminal=False)
+        if args.requested_waypoint:
+            check_setup_events(controller, args.result_file)
         controller.event_buffer.clear()
         recorder.tracker.get_snapshot_and_reset()
+        if registered_start is not None:
+            try:
+                final_verification = verify_start(controller, registered_start)
+            except RuntimeError:
+                write_result(args.result_file, "start_verification_failed", None)
+                raise
+            start_verification["pre_recording_verification"] = final_verification
+            recorder.tracker.get_snapshot_and_reset()
+        if args.requested_waypoint:
+            check_setup_events(controller, args.result_file)
+            controller._reject_setup_terminals = False
+            controller.console_observer = None
+        waypoint_events = []
+        waypoint_options = (
+            {
+                "requested_waypoint": args.requested_waypoint,
+                "waypoint_events": waypoint_events,
+            }
+            if args.requested_waypoint
+            else {}
+        )
         if args.test_mode:
-            print("TEST MODE: takeover ready; observing controls and chamber events without recording a clip.")
+            print(
+                "TEST MODE: takeover ready; observing controls and chamber events without recording a clip."
+            )
             outcome = wait_for_terminal_event(
-                controller, EpisodeEventStream(), args.max_seconds,
-                recorder=TestRecoveryMonitor(recorder.tracker), reject_new_chamber=True,
+                controller,
+                EpisodeEventStream(),
+                args.max_seconds,
+                recorder=TestRecoveryMonitor(recorder.tracker),
+                reject_new_chamber=True,
+                **waypoint_options,
             )
             write_result(args.result_file, outcome, None)
             return
         recorder.start_recording(
             map_name=args.map,
             metadata_extra={
-                "source": "model_recovery",
-                "source_attempt": str(args.source_attempt.resolve()) if args.source_attempt else None,
+                "source": "human_waypoint"
+                if args.requested_waypoint
+                else "model_recovery",
+                **(
+                    {
+                        "requested_waypoint": args.requested_waypoint,
+                        "action_owner": "human",
+                        "dataset_role": "development_pending",
+                        "training_approved": False,
+                        "waypoint_events": waypoint_events,
+                    }
+                    if args.requested_waypoint
+                    else {}
+                ),
+                "source_attempt": str(args.source_attempt.resolve())
+                if args.source_attempt
+                else None,
+                **({"setup_events_checked": True} if args.requested_waypoint else {}),
+                **({"collection": collection_context} if collection_context else {}),
+                **(
+                    {"capture_config": capture_config}
+                    if args.requested_waypoint
+                    else {}
+                ),
+                **(
+                    {"registered_start": start_verification} if registered_start else {}
+                ),
             },
         )
         outcome = wait_for_terminal_event(
-            controller, EpisodeEventStream(), args.max_seconds,
-            recorder=recorder, reject_new_chamber=True,
+            controller,
+            EpisodeEventStream(),
+            args.max_seconds,
+            recorder=recorder,
+            reject_new_chamber=True,
+            **waypoint_options,
         )
-        recorder.stop_recording("discarded" if outcome == "restart_requested" else outcome)
+        finalized_outcome = recorder.stop_recording(
+            "discarded" if outcome == "restart_requested" else outcome
+        )
+        if finalized_outcome == "invalid":
+            outcome = finalized_outcome
         write_result(args.result_file, outcome, str(Path(recorder.ep_dir).resolve()))
     except KeyboardInterrupt:
         print("\nStopping recovery recording.")

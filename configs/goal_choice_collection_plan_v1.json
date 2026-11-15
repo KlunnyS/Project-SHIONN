@@ -1,0 +1,79 @@
+{
+  "schema": "shionn_paired_goal_collection_v1",
+  "map": "goal_choice_v1",
+  "success": "entry_into_requested_region",
+  "goals": {
+    "A": "right floor-button approach area",
+    "B": "left cube approach area"
+  },
+  "minimum_position_separation_units": 128,
+  "minimum_group_angle_difference_degrees": 5,
+  "separation_note": "Provisional within-room diversity gate, not proof of generalization or collision safety",
+  "excluded_annotation_ledgers": [
+    "data/annotations/goal_choice_visual_annotations_v1_20261115.json",
+    "data/annotations/goal_choice_interior_01_annotations_v1_20261115.json"
+  ],
+  "excluded_poses": [
+    {
+      "id": "goal_choice_v1_default_spawn",
+      "position": [
+        320,
+        -96,
+        64.03125
+      ]
+    },
+    {
+      "id": "goal_choice_interior_01",
+      "position": [
+        320,
+        26.44379,
+        64.03125
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "id": "train_01",
+      "start_id": "goal_choice_train_01",
+      "intent": "train_candidate",
+      "goals": [
+        "A",
+        "B"
+      ],
+      "session": "goal_choice_train01_session_01",
+      "placement": "new left-side open-floor start; both goals visible"
+    },
+    {
+      "id": "train_02",
+      "start_id": "goal_choice_train_02",
+      "intent": "train_candidate",
+      "goals": [
+        "B",
+        "A"
+      ],
+      "session": "goal_choice_train02_session_01",
+      "placement": "new right-side open-floor start with different heading; both goals visible"
+    },
+    {
+      "id": "eval_01",
+      "start_id": "goal_choice_eval_01",
+      "intent": "heldout_reserved",
+      "goals": [
+        "A",
+        "B"
+      ],
+      "session": "goal_choice_eval01_session_01",
+      "placement": "separate depth/lateral position and heading; both goals visible; reserve as a whole group"
+    }
+  ],
+  "capture_config": {
+    "fps": 24,
+    "width": 1920,
+    "height": 1080,
+    "output": "DP-1",
+    "crf": 20,
+    "focus_mode": "manual",
+    "camera_fov": "not_measured"
+  },
+  "fov_requirement": "Keep in-game FOV unchanged; visually compare initial views; no measured FOV claim"
+}

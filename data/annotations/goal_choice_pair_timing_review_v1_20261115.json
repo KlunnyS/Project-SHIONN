@@ -1,0 +1,30 @@
+{
+  "episodes": [
+    {
+      "goal": "A",
+      "rows": 177,
+      "onset": 111,
+      "max_frame_age": 0.03639909500088834,
+      "reused_frame_count": 0,
+      "skipped_camera_ids": 0,
+      "max_sample_interval": 0.04915085399989039,
+      "event_minus_last_sample_seconds": 0.011927669000215246,
+      "event_minus_last_frame_receive_seconds": 0.04068597500008764,
+      "forbidden_interaction_rows": 0
+    },
+    {
+      "goal": "B",
+      "rows": 104,
+      "onset": 29,
+      "max_frame_age": 0.036498675999609986,
+      "reused_frame_count": 0,
+      "skipped_camera_ids": 0,
+      "max_sample_interval": 0.05469251399881614,
+      "event_minus_last_sample_seconds": 0.0008868500008247793,
+      "event_minus_last_frame_receive_seconds": 0.027064027000960778,
+      "forbidden_interaction_rows": 0
+    }
+  ],
+  "initial_frame_mean_absolute_pixel_difference": 1.3488310185185186,
+  "not_pose_verification": true
+}

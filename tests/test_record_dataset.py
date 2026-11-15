@@ -149,6 +149,85 @@ class EpisodeEventStreamTest(unittest.TestCase):
         self.assertEqual(event_outcome(goal), "goal_reached")
         self.assertEqual(event_outcome(failure), "out_of_bounds")
 
+
+class InputTrackerPhysicalKeyTest(unittest.TestCase):
+    def test_keyboard_event_loop_preserves_overlapping_crouch_aliases(self):
+        import evdev
+
+        keyboard = SimpleNamespace(path="/dev/input/event-kbd", name="Keyboard")
+        events = [
+            SimpleNamespace(type=evdev.ecodes.EV_KEY, code=evdev.ecodes.KEY_LEFTCTRL, value=1),
+            SimpleNamespace(type=evdev.ecodes.EV_KEY, code=evdev.ecodes.KEY_C, value=1),
+            SimpleNamespace(type=evdev.ecodes.EV_KEY, code=evdev.ecodes.KEY_LEFTCTRL, value=0),
+        ]
+        keyboard.read_loop = lambda: iter(events)
+        tracker = InputTracker([keyboard], [])
+
+        tracker._kbd_loop(keyboard)
+
+        self.assertEqual(tracker.get_snapshot_and_reset()["crouch"], 1)
+
+    def test_crouch_remains_held_until_all_alias_keys_are_released(self):
+        import evdev
+
+        tracker = InputTracker([], [])
+        keyboard = SimpleNamespace(path="/dev/input/event-kbd")
+        ctrl, crouch_c = evdev.ecodes.KEY_LEFTCTRL, evdev.ecodes.KEY_C
+
+        tracker._update_physical_key("CROUCH", keyboard, ctrl, 1)
+        tracker._update_physical_key("CROUCH", keyboard, crouch_c, 1)
+        tracker._update_physical_key("CROUCH", keyboard, ctrl, 0)
+        self.assertEqual(tracker.get_snapshot_and_reset()["crouch"], 1)
+
+        tracker._update_physical_key("CROUCH", keyboard, crouch_c, 0)
+        self.assertEqual(tracker.get_snapshot_and_reset()["crouch"], 0)
+
+    def test_same_action_from_multiple_keyboards_is_independently_tracked(self):
+        import evdev
+
+        tracker = InputTracker([], [])
+        first = SimpleNamespace(path="/dev/input/event-kbd0")
+        second = SimpleNamespace(path="/dev/input/event-kbd1")
+        key = evdev.ecodes.KEY_C
+
+        tracker._update_physical_key("CROUCH", first, key, 1)
+        tracker._update_physical_key("CROUCH", second, key, 1)
+        tracker._update_physical_key("CROUCH", first, key, 0)
+        self.assertEqual(tracker.get_snapshot_and_reset()["crouch"], 1)
+
+        tracker._update_physical_key("CROUCH", second, key, 0)
+        self.assertEqual(tracker.get_snapshot_and_reset()["crouch"], 0)
+
+    def test_pointer_button_alias_release_does_not_clear_other_active_source(self):
+        import evdev
+
+        mouse = SimpleNamespace(
+            path="/dev/input/event-pointer", name="Touchpad",
+            read_loop=lambda: iter([
+                SimpleNamespace(type=evdev.ecodes.EV_KEY, code=evdev.ecodes.BTN_LEFT, value=1),
+                SimpleNamespace(type=evdev.ecodes.EV_KEY, code=evdev.ecodes.BTN_TOUCH, value=1),
+                SimpleNamespace(type=evdev.ecodes.EV_KEY, code=evdev.ecodes.BTN_LEFT, value=0),
+            ]),
+        )
+        tracker = InputTracker([], [mouse])
+
+        tracker._mouse_loop(mouse)
+
+        self.assertEqual(tracker.get_snapshot_and_reset()["fire_left"], 1)
+
+    def test_press_and_release_inside_one_tick_keeps_tap_latch(self):
+        import evdev
+
+        tracker = InputTracker([], [])
+        keyboard = SimpleNamespace(path="/dev/input/event-kbd")
+        key = evdev.ecodes.KEY_C
+        tracker._update_physical_key("CROUCH", keyboard, key, 1)
+        tracker._update_physical_key("CROUCH", keyboard, key, 0)
+        self.assertEqual(tracker.get_snapshot_and_reset()["crouch"], 1)
+        self.assertEqual(tracker.get_snapshot_and_reset()["crouch"], 0)
+
+
+class EpisodeEventStreamBoundsTest(unittest.TestCase):
     def test_discards_overlong_partial_line_and_resynchronizes(self):
         stream = EpisodeEventStream()
         stream.feed("x" * (MAX_EVENT_LINE_CHARS + 1))
@@ -273,7 +352,8 @@ class EpisodeRecorderOutcomeTest(unittest.TestCase):
             else:
                 recorder.recording = False
 
-        with patch("recorder.time.sleep", side_effect=change_state):
+        with patch("recorder.time.monotonic", return_value=0.0), \
+             patch("recorder.time.sleep", side_effect=change_state):
             recorder._sync_loop()
 
         self.assertEqual(recorder.frame_idx, 2)

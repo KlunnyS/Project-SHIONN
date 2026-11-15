@@ -37,12 +37,20 @@ def discover_episodes(recordings_dir: Path) -> list[Path]:
     """Return recording directories, including outcome-grouped episodes."""
     if not recordings_dir.exists():
         return []
-    return sorted(
-        actions_path.parent
-        for actions_path in recordings_dir.rglob("actions.csv")
-        if ".in_progress" not in actions_path.relative_to(recordings_dir).parts
-        and (actions_path.parent / "video.mp4").is_file()
-    )
+    episodes = []
+    for actions_path in recordings_dir.rglob("actions.csv"):
+        episode_dir = actions_path.parent
+        if ".in_progress" in actions_path.relative_to(recordings_dir).parts:
+            continue
+        if not (episode_dir / "video.mp4").is_file():
+            continue
+        metadata_path = episode_dir / "metadata.json"
+        if metadata_path.is_file():
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            if metadata.get("capture_valid") is False:
+                continue
+        episodes.append(episode_dir)
+    return sorted(episodes)
 
 
 def read_actions(actions_path: Path) -> list[dict[str, str]]:

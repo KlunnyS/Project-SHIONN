@@ -1502,7 +1502,7 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                                   desktop_telemetry.cursor_exits if desktop_telemetry else 0)
             if args.keep_focused and focused is not True:
                 controller.release_policy_actions()
-                policy.reset()
+                policy.reset_memory()
                 diagnostic_tracker.reset()
                 input_ready = False
                 # Unknown/stale IPC is not counted as measured focus loss and
@@ -1583,7 +1583,7 @@ def main(argv: list[str] | None = None, *, virtual_mouse=None) -> None:
                                       desktop_telemetry.cursor_exits if desktop_telemetry else 0)
                 if args.keep_focused and focused is not True:
                     controller.release_policy_actions()
-                    policy.reset()
+                    policy.reset_memory()
                     diagnostic_tracker.reset()
                     input_ready = False
                 action_started = time.monotonic()

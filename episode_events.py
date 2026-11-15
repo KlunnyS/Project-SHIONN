@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 
 EVENT_PATTERN = re.compile(
-    r"EVT\|(chamber_ready|goal_reached|episode_failed)\|([^\r\n]*)"
+    r"EVT\|(chamber_ready|goal_reached|episode_failed|waypoint_reached)\|([^\r\n]*)"
 )
 MAX_EVENT_LINE_CHARS = 64 * 1024
 
